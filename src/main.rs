@@ -1,5 +1,3 @@
-use ckb_suite_rpc::ckb_types::packed::CellbaseWitness;
-use ckb_suite_rpc::ckb_types::prelude::Entity;
 use ckb_suite_rpc::{ckb_types::core::BlockView, Jsonrpc};
 use crossbeam::channel::{bounded, Sender};
 use influxdb::{Client, InfluxDbWriteable, Timestamp};
