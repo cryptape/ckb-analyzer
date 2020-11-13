@@ -1,0 +1,17 @@
+[package]
+name = "ckb-analyzer"
+version = "0.1.0"
+authors = ["keroro <keroroxx520@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+influxdb = { version = "0.2.0", features = ["derive"] }
+tokio = { version = "0.2.22", features = ["full"] }
+crossbeam = { version = "0.8.0" }
+ckb-suite-rpc = { path = "ckb-suite-rpc" }
+lazy_static = { version = "1.4.0" }
+
+[workspace]
+members = [
+    "ckb-suite-rpc"
+]
