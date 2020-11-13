@@ -10,6 +10,12 @@ tokio = { version = "0.2.22", features = ["full"] }
 crossbeam = { version = "0.8.0" }
 ckb-suite-rpc = { path = "ckb-suite-rpc" }
 lazy_static = { version = "1.4.0" }
+ckb-network = { git = "https://github.com/nervosnetwork/ckb", rev = "6a80301935" }
+ckb-util = { git = "https://github.com/nervosnetwork/ckb", rev = "6a80301935" }
+ckb-sync = { git = "https://github.com/nervosnetwork/ckb", rev = "6a80301935" }
+ckb-logger = { git = "https://github.com/nervosnetwork/ckb", rev = "6a80301935" }
+ckb-build-info = { git = "https://github.com/nervosnetwork/ckb", rev = "6a80301935" }
+ckb-types = { git = "https://github.com/nervosnetwork/ckb", rev = "6a80301935" }
 
 [workspace]
 members = [
