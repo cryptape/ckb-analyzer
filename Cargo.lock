@@ -151,6 +151,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "ckb-analyzer"
+version = "0.1.0"
+dependencies = [
+ "ckb-suite-rpc",
+ "crossbeam",
+ "influxdb",
+ "lazy_static",
+ "tokio 0.2.22",
+]
+
+[[package]]
 name = "ckb-error"
 version = "0.35.0-pre"
 source = "git+https://github.com/nervosnetwork/ckb.git?rev=69097a0a#69097a0ac994547cecfd864a6ba8db5e9b741972"
@@ -528,17 +539,6 @@ name = "fnv"
 version = "1.0.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3f9eec918d3f24069decb9af1554cad7c880e2da24a9afd88aca000531ab82c1"
-
-[[package]]
-name = "foo"
-version = "0.1.0"
-dependencies = [
- "ckb-suite-rpc",
- "crossbeam",
- "influxdb",
- "lazy_static",
- "tokio 0.2.22",
-]
 
 [[package]]
 name = "foreign-types"

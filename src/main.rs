@@ -1,19 +1,12 @@
-use influxdb::{
-    Client,
-    Timestamp,
-    InfluxDbWriteable,
-};
-use ckb_suite_rpc::{
-    Jsonrpc,
-    ckb_types::core::BlockView,
-};
-use std::time::Instant;
-use crossbeam::channel::{Sender, bounded};
-use std::thread::spawn;
-use lazy_static::lazy_static;
-use std::env::var;
 use ckb_suite_rpc::ckb_types::packed::CellbaseWitness;
 use ckb_suite_rpc::ckb_types::prelude::Entity;
+use ckb_suite_rpc::{ckb_types::core::BlockView, Jsonrpc};
+use crossbeam::channel::{bounded, Sender};
+use influxdb::{Client, InfluxDbWriteable, Timestamp};
+use lazy_static::lazy_static;
+use std::env::var;
+use std::thread::spawn;
+use std::time::Instant;
 
 #[derive(InfluxDbWriteable)]
 pub struct BlockSerie {
@@ -34,8 +27,11 @@ pub struct EpochSerie {
 
 lazy_static! {
     static ref CKB_URL: String = var("CKB_URL").unwrap_or("http://0.0.0.0:8114".to_string());
-    static ref INFLUXDB_URL: String = var("INFLUXDB_URL").unwrap_or("http://0.0.0.0:8086".to_string());
-    static ref INFLUXDB_DATABASE: String = var("INFLUXDB_DATABASE").unwrap_or_else(|_| panic!("please specify influxdb database name via environment variable INFLUXDB_DATABASE"));
+    static ref INFLUXDB_URL: String =
+        var("INFLUXDB_URL").unwrap_or("http://0.0.0.0:8086".to_string());
+    static ref INFLUXDB_DATABASE: String = var("INFLUXDB_DATABASE").unwrap_or_else(|_| panic!(
+        "please specify influxdb database name via environment variable INFLUXDB_DATABASE"
+    ));
 }
 
 #[tokio::main]
@@ -47,10 +43,11 @@ async fn main() {
     }
 
     let (serie_sender, serie_receiver) = bounded(5000);
-    spawn(move || { stream_series(serie_sender); });
+    spawn(move || {
+        stream_series(serie_sender);
+    });
     while let Ok(block_serie) = serie_receiver.recv() {
-        let write_result = client.query(&block_serie.into_query("blocks"))
-            .await;
+        let write_result = client.query(&block_serie.into_query("blocks")).await;
         assert!(write_result.is_ok(), "{:?}", write_result);
     }
 
@@ -61,7 +58,7 @@ async fn main() {
             let epoch = rpc.get_epoch_by_number(number).unwrap();
             let length = epoch.length.value();
             let start_number: u64 = epoch.start_number.value();
-            let end_number = start_number + length  - 1;
+            let end_number = start_number + length - 1;
             let start_header = rpc.get_header_by_number(start_number).unwrap();
             let end_header = rpc.get_header_by_number(end_number).unwrap();
             let start_timestamp = start_header.inner.timestamp.value() / 1000;
@@ -85,12 +82,19 @@ fn stream_series(block_serie_sender: Sender<BlockSerie>) {
         let tip = rpc.get_tip_block_number();
         (tip.saturating_sub(100000), tip)
     };
-    let mut previous: BlockView = rpc.get_block_by_number(from.saturating_sub(1)).unwrap().into();
+    let mut previous: BlockView = rpc
+        .get_block_by_number(from.saturating_sub(1))
+        .unwrap()
+        .into();
     for number in from..=to {
         if number % 10000 == 0 && number != from {
             let percent = (to - number + 1) as f64 / (number - from + 1) as f64;
             let left = start.elapsed().mul_f64(percent);
-            println!("Getting block #{number}, left {seconds}s ...", number = number, seconds = left.as_secs());
+            println!(
+                "Getting block #{number}, left {seconds}s ...",
+                number = number,
+                seconds = left.as_secs()
+            );
         }
 
         if let Some(json_block) = rpc.get_block_by_number(number) {

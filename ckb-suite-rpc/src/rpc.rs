@@ -1,6 +1,12 @@
-use ckb_jsonrpc_types::{Block, EpochNumber, BlockNumber, BlockTemplate, BlockView, CellOutputWithOutPoint, CellWithStatus, ChainInfo, DryRunResult, HeaderView, LocalNode, OutPoint, PeerState, RemoteNode, Transaction, TransactionWithStatus, TxPoolInfo, Uint64, Version, EpochView};
+use ckb_jsonrpc_types::{
+    Block, BlockNumber, BlockTemplate, BlockView, CellOutputWithOutPoint, CellWithStatus,
+    ChainInfo, DryRunResult, EpochNumber, EpochView, HeaderView, LocalNode, OutPoint, PeerState,
+    RemoteNode, Transaction, TransactionWithStatus, TxPoolInfo, Uint64, Version,
+};
 use ckb_types::{
-    core::{BlockNumber as CoreBlockNumber, Version as CoreVersion, EpochNumber as CoreEpochNumber},
+    core::{
+        BlockNumber as CoreBlockNumber, EpochNumber as CoreEpochNumber, Version as CoreVersion,
+    },
     packed::Byte32,
     prelude::*,
     H256,
