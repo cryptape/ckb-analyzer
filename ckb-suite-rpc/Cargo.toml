@@ -1,0 +1,13 @@
+[package]
+name = "ckb-suite-rpc"
+version = "0.1.0"
+authors = ["Nervos Core Dev <dev@nervos.org>"]
+edition = "2018"
+
+[dependencies]
+ckb-jsonrpc-types = { git = "https://github.com/nervosnetwork/ckb.git", rev = "69097a0a" }
+ckb-types = { git = "https://github.com/nervosnetwork/ckb.git", rev = "69097a0a" }
+ckb-util = { git = "https://github.com/nervosnetwork/ckb.git", rev = "69097a0a" }
+hyper = "0.11.27"
+jsonrpc-client-core = "0.5.0"
+jsonrpc-client-http = "0.5.0"
