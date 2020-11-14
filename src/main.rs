@@ -1,4 +1,6 @@
 use ckb_suite_rpc::{ckb_types::core::BlockView, Jsonrpc};
+use ckb_types::packed::{CellbaseWitness, Script};
+use ckb_types::prelude::*;
 use crossbeam::channel::{bounded, Sender};
 use influxdb::{Client, InfluxDbWriteable, Timestamp, WriteQuery};
 use lazy_static::lazy_static;
@@ -18,6 +20,9 @@ pub struct BlockSerie {
     uncles_count: u32,
     proposals_count: u32,
     version: u32,
+
+    #[tag]
+    miner_lock_args: String,
 }
 
 #[derive(InfluxDbWriteable)]
@@ -27,6 +32,9 @@ pub struct UncleSerie {
     number: u64,
     proposals_count: u32,
     version: u32,
+
+    #[tag]
+    miner_lock_args: String,
 }
 
 #[derive(InfluxDbWriteable)]
@@ -111,9 +119,11 @@ fn analyze_blocks(query_sender: Sender<WriteQuery>) {
         if let Some(json_block) = rpc.get_block_by_number(number) {
             let block: BlockView = json_block.into();
             query_sender.send(analyze_block(&block, &parent)).unwrap();
-            analyze_block_uncles(&block).into_iter().for_each(|query| {
-                query_sender.send(query).unwrap();
-            });
+            analyze_block_uncles(&rpc, &block)
+                .into_iter()
+                .for_each(|query| {
+                    query_sender.send(query).unwrap();
+                });
 
             parent = block;
         }
@@ -130,6 +140,7 @@ fn analyze_block(block: &BlockView, parent: &BlockView) -> WriteQuery {
     let uncles_count = block.uncles().hashes().len() as u32;
     let proposals_count = block.union_proposal_ids().len() as u32;
     let version = block.version();
+    let miner_lock_args = miner_lock(&block).args().to_string();
     BlockSerie {
         time,
         number,
@@ -138,29 +149,38 @@ fn analyze_block(block: &BlockView, parent: &BlockView) -> WriteQuery {
         uncles_count,
         proposals_count,
         version,
+        miner_lock_args,
     }
     .into_query(QUERY_NAME)
 }
 
-fn analyze_block_uncles(block: &BlockView) -> Vec<WriteQuery> {
+fn analyze_block_uncles(rpc: &Jsonrpc, block: &BlockView) -> Vec<WriteQuery> {
     static QUERY_NAME: &str = "uncles";
 
     let mut queries = Vec::with_capacity(block.uncle_hashes().len());
-    for uncle in block.uncles().data() {
-        let header = uncle.header().into_view();
-        let number = header.number();
-        let proposals_count = uncle.proposals().len() as u32;
-        let time = Timestamp::Milliseconds(header.timestamp() as u128);
-        let version = header.version();
-        let query = UncleSerie {
-            time,
-            number,
-            proposals_count,
-            version,
+    for uncle_hash in block.uncle_hashes() {
+        match rpc.get_fork_block(uncle_hash.clone()) {
+            None => eprintln!("rpc.get_fork_block(\"{}\") return None", uncle_hash),
+            Some(json_uncle) => {
+                let uncle: BlockView = json_uncle.into();
+                let number = uncle.number();
+                let time = Timestamp::Milliseconds(uncle.timestamp() as u128);
+                let proposals_count = uncle.union_proposal_ids().len() as u32;
+                let version = uncle.version();
+                let miner_lock_args = miner_lock(&uncle).args().to_string();
+                let query = UncleSerie {
+                    time,
+                    number,
+                    proposals_count,
+                    version,
+                    miner_lock_args,
+                }
+                .into_query(QUERY_NAME);
+                queries.push(query);
+            }
         }
-        .into_query(QUERY_NAME);
-        queries.push(query);
     }
+
     queries
 }
 
@@ -181,4 +201,11 @@ fn prompt_progress(total: u64, processed: u64, start: Instant) {
             left_duration.as_secs()
         );
     }
+}
+
+fn miner_lock(block: &BlockView) -> Script {
+    let cellbase = block.transaction(0).unwrap();
+    let witness = cellbase.witnesses().get(0).unwrap().raw_data();
+    let cellbase_witness = CellbaseWitness::from_slice(witness.as_ref()).unwrap();
+    cellbase_witness.lock()
 }
