@@ -96,9 +96,10 @@ fn analyze_blocks(query_sender: Sender<WriteQuery>) {
     let rpc = Jsonrpc::connect(CKB_URL.as_str());
     let start = Instant::now();
 
+    // TODO make the blocks range configurable
     let (from, to) = {
         let tip = rpc.get_tip_block_number();
-        (tip.saturating_sub(100000), tip)
+        (tip.saturating_sub(10000), tip)
     };
     let mut parent: BlockView = rpc
         .get_block_by_number(from.saturating_sub(1))
