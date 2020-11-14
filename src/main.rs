@@ -118,19 +118,14 @@ fn analyze_blocks(query_sender: Sender<WriteQuery>) {
 
         if let Some(json_block) = rpc.get_block_by_number(number) {
             let block: BlockView = json_block.into();
-            query_sender.send(analyze_block(&block, &parent)).unwrap();
-            analyze_block_uncles(&rpc, &block)
-                .into_iter()
-                .for_each(|query| {
-                    query_sender.send(query).unwrap();
-                });
-
+            analyze_block(&block, &parent, &query_sender);
+            analyze_block_uncles(&rpc, &block, &query_sender);
             parent = block;
         }
     }
 }
 
-fn analyze_block(block: &BlockView, parent: &BlockView) -> WriteQuery {
+fn analyze_block(block: &BlockView, parent: &BlockView, query_sender: &Sender<WriteQuery>) {
     static QUERY_NAME: &str = "blocks";
 
     let time = Timestamp::Milliseconds(block.timestamp() as u128);
@@ -141,7 +136,7 @@ fn analyze_block(block: &BlockView, parent: &BlockView) -> WriteQuery {
     let proposals_count = block.union_proposal_ids().len() as u32;
     let version = block.version();
     let miner_lock_args = miner_lock(&block).args().to_string();
-    BlockSerie {
+    let query = BlockSerie {
         time,
         number,
         time_interval,
@@ -151,13 +146,13 @@ fn analyze_block(block: &BlockView, parent: &BlockView) -> WriteQuery {
         version,
         miner_lock_args,
     }
-    .into_query(QUERY_NAME)
+    .into_query(QUERY_NAME);
+    query_sender.send(query).unwrap();
 }
 
-fn analyze_block_uncles(rpc: &Jsonrpc, block: &BlockView) -> Vec<WriteQuery> {
+fn analyze_block_uncles(rpc: &Jsonrpc, block: &BlockView, query_sender: &Sender<WriteQuery>) {
     static QUERY_NAME: &str = "uncles";
 
-    let mut queries = Vec::with_capacity(block.uncle_hashes().len());
     for uncle_hash in block.uncle_hashes() {
         match rpc.get_fork_block(uncle_hash.clone()) {
             None => eprintln!("rpc.get_fork_block(\"{}\") return None", uncle_hash),
@@ -176,12 +171,10 @@ fn analyze_block_uncles(rpc: &Jsonrpc, block: &BlockView) -> Vec<WriteQuery> {
                     miner_lock_args,
                 }
                 .into_query(QUERY_NAME);
-                queries.push(query);
+                query_sender.send(query).unwrap();
             }
         }
     }
-
-    queries
 }
 
 fn prompt_progress(total: u64, processed: u64, start: Instant) {
