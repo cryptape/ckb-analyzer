@@ -32,6 +32,7 @@ pub struct UncleSerie {
     number: u64,
     proposals_count: u32,
     version: u32,
+    slower_than_cousin: i64,
 
     #[tag]
     miner_lock_args: String,
@@ -150,10 +151,10 @@ fn analyze_block(block: &BlockView, parent: &BlockView, query_sender: &Sender<Wr
     .into_query(QUERY_NAME);
     if LOG_LEVEL.as_str() != "ERROR" {
         println!(
-            "[DEBUG] block #{}({}), miner: {}",
+            "[DEBUG] block #{}, miner: {}, timestamp: {}",
             number,
-            block.hash(),
-            miner_lock(&block).args()
+            miner_lock(&block).args(),
+            block.timestamp(),
         );
     }
     query_sender.send(query).unwrap();
@@ -172,20 +173,27 @@ fn analyze_block_uncles(rpc: &Jsonrpc, block: &BlockView, query_sender: &Sender<
                 let proposals_count = uncle.union_proposal_ids().len() as u32;
                 let version = uncle.version();
                 let miner_lock_args = miner_lock(&uncle).args().to_string();
+                let slower_than_cousin = {
+                    let cousin = rpc.get_header_by_number(number).unwrap().inner;
+                    cousin.timestamp.value() as i64 - uncle.timestamp() as i64
+                };
                 let query = UncleSerie {
                     time,
                     number,
                     proposals_count,
                     version,
                     miner_lock_args,
+                    slower_than_cousin,
                 }
                 .into_query(QUERY_NAME);
                 if LOG_LEVEL.as_str() != "ERROR" {
                     println!(
-                        "[DEBUG] uncle #{}({}), miner: {}",
+                        "[DEBUG] uncle #{}({}), miner: {}, timestamp: {}, slower_than_cousin: {}",
                         number,
                         uncle.hash(),
-                        miner_lock(&uncle).args()
+                        miner_lock(&uncle).args(),
+                        uncle.timestamp(),
+                        slower_than_cousin,
                     );
                 }
                 query_sender.send(query).unwrap();
