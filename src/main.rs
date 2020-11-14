@@ -1,10 +1,12 @@
 use ckb_suite_rpc::{ckb_types::core::BlockView, Jsonrpc};
 use crossbeam::channel::{bounded, Sender};
-use influxdb::{Client, InfluxDbWriteable, Timestamp};
+use influxdb::{Client, InfluxDbWriteable, Timestamp, WriteQuery};
 use lazy_static::lazy_static;
 use std::env::var;
 use std::thread::spawn;
 use std::time::Instant;
+
+mod network;
 
 #[derive(InfluxDbWriteable)]
 pub struct BlockSerie {
@@ -12,7 +14,9 @@ pub struct BlockSerie {
 
     number: u64,
     time_interval: u64, // ms
+    transactions_count: u32,
     uncles_count: u32,
+    proposals_count: u32,
 }
 
 #[derive(InfluxDbWriteable)]
@@ -40,39 +44,45 @@ async fn main() {
         return;
     }
 
-    let (serie_sender, serie_receiver) = bounded(5000);
-    spawn(move || {
-        stream_series(serie_sender);
-    });
-    while let Ok(block_serie) = serie_receiver.recv() {
-        let write_result = client.query(&block_serie.into_query("blocks")).await;
-        assert!(write_result.is_ok(), "{:?}", write_result);
-    }
+    let (query_sender, query_receiver) = bounded(5000);
+    let query_sender_ = query_sender.clone();
+    spawn(move || analyze_blocks(query_sender_));
+    spawn(move || analyze_epoches(query_sender));
 
-    {
-        let rpc = Jsonrpc::connect(CKB_URL.as_str());
-        let current_epoch = rpc.get_current_epoch();
-        for number in 0..current_epoch.number.value() {
-            let epoch = rpc.get_epoch_by_number(number).unwrap();
-            let length = epoch.length.value();
-            let start_number: u64 = epoch.start_number.value();
-            let end_number = start_number + length - 1;
-            let start_header = rpc.get_header_by_number(start_number).unwrap();
-            let end_header = rpc.get_header_by_number(end_number).unwrap();
-            let start_timestamp = start_header.inner.timestamp.value() / 1000;
-            let end_timestamp = end_header.inner.timestamp.value() / 1000;
-            let epoch_serie = EpochSerie {
-                time: Timestamp::Seconds(start_timestamp as u128),
-                length,
-                duration: end_timestamp.saturating_sub(start_timestamp),
-            };
-            let write_result = client.query(&epoch_serie.into_query("epochs")).await;
-            assert!(write_result.is_ok(), "{:?}", write_result);
-        }
+    for query in query_receiver {
+        let write_result = client.query(&query).await;
+        assert!(
+            write_result.is_ok(),
+            "client.query({:?}), error: {:?}",
+            query,
+            write_result.unwrap_err()
+        );
     }
 }
 
-fn stream_series(block_serie_sender: Sender<BlockSerie>) {
+fn analyze_epoches(query_sender: Sender<WriteQuery>) {
+    let rpc = Jsonrpc::connect(CKB_URL.as_str());
+    let current_epoch = rpc.get_current_epoch();
+    for number in 0..current_epoch.number.value() {
+        let epoch = rpc.get_epoch_by_number(number).unwrap();
+        let length = epoch.length.value();
+        let start_number: u64 = epoch.start_number.value();
+        let end_number = start_number + length - 1;
+        let start_header = rpc.get_header_by_number(start_number).unwrap();
+        let end_header = rpc.get_header_by_number(end_number).unwrap();
+        let start_timestamp = start_header.inner.timestamp.value() / 1000;
+        let end_timestamp = end_header.inner.timestamp.value() / 1000;
+        let write_query = EpochSerie {
+            time: Timestamp::Seconds(start_timestamp as u128),
+            length,
+            duration: end_timestamp.saturating_sub(start_timestamp),
+        }
+        .into_query("epochs");
+        query_sender.send(write_query).unwrap();
+    }
+}
+
+fn analyze_blocks(query_sender: Sender<WriteQuery>) {
     let rpc = Jsonrpc::connect(CKB_URL.as_str());
     let start = Instant::now();
 
@@ -100,14 +110,19 @@ fn stream_series(block_serie_sender: Sender<BlockSerie>) {
 
             let time = Timestamp::Milliseconds(block.timestamp() as u128);
             let time_interval = block.timestamp().saturating_sub(previous.timestamp()); // ms
+            let transactions_count = block.transactions().len() as u32;
             let uncles_count = block.uncles().hashes().len() as u32;
-            let block_serie = BlockSerie {
+            let proposals_count = block.union_proposal_ids().len() as u32;
+            let write_query = BlockSerie {
                 time,
                 number,
                 time_interval,
+                transactions_count,
                 uncles_count,
-            };
-            block_serie_sender.send(block_serie).unwrap();
+                proposals_count,
+            }
+            .into_query("blocks");
+            query_sender.send(write_query).unwrap();
 
             previous = block;
         }
