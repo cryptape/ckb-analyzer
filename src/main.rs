@@ -52,6 +52,7 @@ lazy_static! {
     static ref INFLUXDB_DATABASE: String = var("INFLUXDB_DATABASE").unwrap_or_else(|_| panic!(
         "please specify influxdb database name via environment variable INFLUXDB_DATABASE"
     ));
+    static ref LOG_LEVEL: String = var("LOG_LEVEL").unwrap_or("ERROR".to_string());
 }
 
 #[tokio::main]
@@ -147,6 +148,14 @@ fn analyze_block(block: &BlockView, parent: &BlockView, query_sender: &Sender<Wr
         miner_lock_args,
     }
     .into_query(QUERY_NAME);
+    if LOG_LEVEL.as_str() != "ERROR" {
+        println!(
+            "[DEBUG] block #{}({}), miner: {}",
+            number,
+            block.hash(),
+            miner_lock(&block).args()
+        );
+    }
     query_sender.send(query).unwrap();
 }
 
@@ -171,6 +180,14 @@ fn analyze_block_uncles(rpc: &Jsonrpc, block: &BlockView, query_sender: &Sender<
                     miner_lock_args,
                 }
                 .into_query(QUERY_NAME);
+                if LOG_LEVEL.as_str() != "ERROR" {
+                    println!(
+                        "[DEBUG] uncle #{}({}), miner: {}",
+                        number,
+                        uncle.hash(),
+                        miner_lock(&uncle).args()
+                    );
+                }
                 query_sender.send(query).unwrap();
             }
         }
