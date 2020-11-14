@@ -1,9 +1,11 @@
 use ckb_suite_rpc::{ckb_types::core::BlockView, Jsonrpc};
-use ckb_types::packed::{CellbaseWitness, Script};
+use ckb_types::core::BlockNumber;
+use ckb_types::packed::{CellbaseWitness, ProposalShortId, Script};
 use ckb_types::prelude::*;
 use crossbeam::channel::{bounded, Sender};
 use influxdb::{Client, InfluxDbWriteable, Timestamp, WriteQuery};
 use lazy_static::lazy_static;
+use std::collections::{HashMap, HashSet};
 use std::env::var;
 use std::thread::spawn;
 use std::time::Instant;
@@ -45,6 +47,14 @@ pub struct EpochSerie {
 
     length: u64,
     duration: u64, // seconds
+}
+
+#[derive(InfluxDbWriteable)]
+pub struct TransactionSerie {
+    time: Timestamp,
+
+    number: u64, // block number
+    pc_delay: u32,
 }
 
 lazy_static! {
@@ -112,6 +122,11 @@ fn analyze_blocks(query_sender: Sender<WriteQuery>) {
         let tip = rpc.get_tip_block_number();
         (tip.saturating_sub(10000), tip)
     };
+    let (window, mut proposals_zones) = {
+        let window = (2u64, 10u64);
+        let proposals_zones = HashMap::with_capacity(window.1 as usize);
+        (window, proposals_zones)
+    };
     let mut parent: BlockView = rpc
         .get_block_by_number(from.saturating_sub(1))
         .unwrap()
@@ -123,6 +138,7 @@ fn analyze_blocks(query_sender: Sender<WriteQuery>) {
             let block: BlockView = json_block.into();
             analyze_block(&block, &parent, &query_sender);
             analyze_block_uncles(&rpc, &block, &query_sender);
+            analyze_block_transactions(&block, &window, &mut proposals_zones, &query_sender);
             parent = block;
         }
     }
@@ -203,6 +219,42 @@ fn analyze_block_uncles(rpc: &Jsonrpc, block: &BlockView, query_sender: &Sender<
             }
         }
     }
+}
+
+fn analyze_block_transactions(
+    block: &BlockView,
+    window: &(u64, u64),
+    proposals_zones: &mut HashMap<BlockNumber, HashSet<ProposalShortId>>,
+    query_sender: &Sender<WriteQuery>,
+) {
+    static QUERY_NAME: &str = "transactions";
+
+    let number = block.number();
+    for transaction in block.transactions() {
+        let proposal_id = transaction.proposal_short_id();
+        for proposed in number - window.1..=number - window.0 {
+            let removed = proposals_zones
+                .get_mut(&proposed)
+                .map(|proposals_zone| proposals_zone.remove(&proposal_id))
+                .unwrap_or(false);
+            if removed {
+                let time = Timestamp::Milliseconds(block.timestamp() as u128);
+                let pc_delay = (number - proposed) as u32;
+                let query = TransactionSerie {
+                    time,
+                    number,
+                    pc_delay,
+                }
+                .into_query(QUERY_NAME);
+                query_sender.send(query).unwrap();
+                break;
+            }
+        }
+    }
+
+    // Prune outdated proposals zone
+    proposals_zones.remove(&(number - window.1));
+    proposals_zones.insert(number, block.union_proposal_ids());
 }
 
 fn prompt_progress(total: u64, processed: u64, start: Instant) {
