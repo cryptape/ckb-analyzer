@@ -138,7 +138,7 @@ fn analyze_block(block: &BlockView, parent: &BlockView, query_sender: &Sender<Wr
     let uncles_count = block.uncles().hashes().len() as u32;
     let proposals_count = block.union_proposal_ids().len() as u32;
     let version = block.version();
-    let miner_lock_args = miner_lock(&block).args().to_string();
+    let miner_lock_args = extract_miner_lock(&block).args().to_string();
     let query = BlockSerie {
         time,
         number,
@@ -154,7 +154,7 @@ fn analyze_block(block: &BlockView, parent: &BlockView, query_sender: &Sender<Wr
         println!(
             "[DEBUG] block #{}, miner: {}, timestamp: {}",
             number,
-            miner_lock(&block).args(),
+            extract_miner_lock(&block).args(),
             block.timestamp(),
         );
     }
@@ -174,7 +174,7 @@ fn analyze_block_uncles(rpc: &Jsonrpc, block: &BlockView, query_sender: &Sender<
                 let proposals_count = uncle.union_proposal_ids().len() as u32;
                 let transactions_count = uncle.transactions().len() as u32;
                 let version = uncle.version();
-                let miner_lock_args = miner_lock(&uncle).args().to_string();
+                let miner_lock_args = extract_miner_lock(&uncle).args().to_string();
                 let slower_than_cousin = {
                     let cousin = rpc.get_header_by_number(number).unwrap().inner;
                     cousin.timestamp.value() as i64 - uncle.timestamp() as i64
@@ -194,7 +194,7 @@ fn analyze_block_uncles(rpc: &Jsonrpc, block: &BlockView, query_sender: &Sender<
                         "[DEBUG] uncle #{}({}), miner: {}, timestamp: {}, slower_than_cousin: {}",
                         number,
                         uncle.hash(),
-                        miner_lock(&uncle).args(),
+                        extract_miner_lock(&uncle).args(),
                         uncle.timestamp(),
                         slower_than_cousin,
                     );
@@ -224,7 +224,7 @@ fn prompt_progress(total: u64, processed: u64, start: Instant) {
     }
 }
 
-fn miner_lock(block: &BlockView) -> Script {
+fn extract_miner_lock(block: &BlockView) -> Script {
     let cellbase = block.transaction(0).unwrap();
     let witness = cellbase.witnesses().get(0).unwrap().raw_data();
     let cellbase_witness = CellbaseWitness::from_slice(witness.as_ref()).unwrap();
