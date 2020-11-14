@@ -30,6 +30,7 @@ pub struct UncleSerie {
     time: Timestamp,
 
     number: u64,
+    transactions_count: u32,
     proposals_count: u32,
     version: u32,
     slower_than_cousin: i64,
@@ -171,6 +172,7 @@ fn analyze_block_uncles(rpc: &Jsonrpc, block: &BlockView, query_sender: &Sender<
                 let number = uncle.number();
                 let time = Timestamp::Milliseconds(uncle.timestamp() as u128);
                 let proposals_count = uncle.union_proposal_ids().len() as u32;
+                let transactions_count = uncle.transactions().len() as u32;
                 let version = uncle.version();
                 let miner_lock_args = miner_lock(&uncle).args().to_string();
                 let slower_than_cousin = {
@@ -181,6 +183,7 @@ fn analyze_block_uncles(rpc: &Jsonrpc, block: &BlockView, query_sender: &Sender<
                     time,
                     number,
                     proposals_count,
+                    transactions_count,
                     version,
                     miner_lock_args,
                     slower_than_cousin,
