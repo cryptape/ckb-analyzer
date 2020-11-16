@@ -101,25 +101,16 @@ impl Handler {
         compact_block: CompactBlock,
     ) {
         let hash = compact_block.calc_header_hash();
-        let mut compact_blocks = self.compact_blocks.lock().unwrap();
-        let (first_received, peers) = compact_blocks
-            .entry(hash)
-            .or_insert_with(|| (Instant::now(), HashSet::default()));
-        if peers.insert(peer_index) {
-            let peers_total = self.peers.lock().unwrap().len();
-            let last_percentile = ((peers.len() - 1) as f32 * 100.0 / peers_total as f32) as u32;
-            let percentile = (peers.len() as f32 * 100.0 / peers_total as f32) as u32;
-            let elapsed = first_received.elapsed();
-            if last_percentile < 99 && percentile >= 99 {
-                let query = make_propagation_query(elapsed.as_millis() as u64, 99, "compact_block");
-                self.query_sender.send(query).unwrap();
-            } else if last_percentile < 95 && percentile >= 95 {
-                let query = make_propagation_query(elapsed.as_millis() as u64, 95, "compact_block");
-                self.query_sender.send(query).unwrap();
-            } else if last_percentile < 80 && percentile >= 80 {
-                let query = make_propagation_query(elapsed.as_millis() as u64, 50, "compact_block");
-                self.query_sender.send(query).unwrap();
-            }
+        let (peers_received, first_received, newly_inserted) = {
+            let mut compact_blocks = self.compact_blocks.lock().unwrap();
+            let (first_received, peers) = compact_blocks
+                .entry(hash)
+                .or_insert_with(|| (Instant::now(), HashSet::default()));
+            let newly_inserted = peers.insert(peer_index);
+            (peers.len() as u32, *first_received, newly_inserted)
+        };
+        if newly_inserted {
+            self.send_propagation_query("compact_block", peers_received, first_received)
         }
     }
 
@@ -137,22 +128,52 @@ impl Handler {
         peer_index: PeerIndex,
         hash: Byte32,
     ) {
-        let mut transaction_hashes = self.transaction_hashes.lock().unwrap();
-        let (first_received, peers) = transaction_hashes
-            .entry(hash)
-            .or_insert_with(|| (Instant::now(), HashSet::default()));
-        if peers.insert(peer_index) {
-            let peers_total = self.peers.lock().unwrap().len();
-            let elapsed = first_received.elapsed();
-            if peers.len() == peers_total / 2 {
-                let query =
-                    make_propagation_query(elapsed.as_millis() as u64, 50, "transaction_hash");
-                self.query_sender.send(query).unwrap();
-            } else if peers.len() * 10 == peers_total * 9 {
-                let query =
-                    make_propagation_query(elapsed.as_millis() as u64, 90, "transaction_hash");
-                self.query_sender.send(query).unwrap();
+        let (peers_received, first_received, newly_inserted) = {
+            let mut transaction_hashes = self.transaction_hashes.lock().unwrap();
+            let (first_received, peers) = transaction_hashes
+                .entry(hash)
+                .or_insert_with(|| (Instant::now(), HashSet::default()));
+            let newly_inserted = peers.insert(peer_index);
+            (peers.len() as u32, *first_received, newly_inserted)
+        };
+        if newly_inserted {
+            self.send_propagation_query("transaction_hash", peers_received, first_received)
+        }
+    }
+
+    fn send_propagation_query<M>(
+        &self,
+        message_type: M,
+        peers_received: u32,
+        first_received: Instant,
+    ) where
+        M: ToString,
+    {
+        static QUERY_NAME: &str = "propagation";
+
+        let peers_total = self.peers.lock().unwrap().len();
+        let last_percentile = ((peers_received - 1) as f32 * 100.0 / peers_total as f32) as u32;
+        let current_percentile = (peers_received as f32 * 100.0 / peers_total as f32) as u32;
+        let time_interval = first_received.elapsed().as_millis() as u64;
+        let percentile = if last_percentile < 99 && current_percentile >= 99 {
+            Some(99)
+        } else if last_percentile < 95 && current_percentile >= 95 {
+            Some(95)
+        } else if last_percentile < 80 && current_percentile >= 80 {
+            Some(80)
+        } else {
+            None
+        };
+
+        if let Some(percentile) = percentile {
+            let query = PropagationSerie {
+                time: Utc::now().into(),
+                time_interval,
+                percentile,
+                message_type: message_type.to_string(),
             }
+            .into_query(QUERY_NAME);
+            self.query_sender.send(query).unwrap();
         }
     }
 }
@@ -196,21 +217,6 @@ impl CKBProtocolHandler for Handler {
             self.received_sync(nc, peer_index, data);
         }
     }
-}
-
-fn make_propagation_query<M>(time_interval: u64, percentile: u32, message_type: M) -> WriteQuery
-where
-    M: ToString,
-{
-    static QUERY_NAME: &str = "propagation";
-
-    PropagationSerie {
-        time: Utc::now().into(),
-        time_interval,
-        percentile,
-        message_type: message_type.to_string(),
-    }
-    .into_query(QUERY_NAME)
 }
 
 pub(crate) fn spawn_analyze(query_sender: Sender<WriteQuery>) {
