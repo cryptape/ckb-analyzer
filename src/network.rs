@@ -32,6 +32,7 @@ pub struct PropagationSerie {
     message_type: String,
 }
 
+#[allow(clippy::type_complexity)]
 #[derive(Clone)]
 pub struct Handler {
     peers: Arc<Mutex<HashMap<PeerIndex, bool>>>,
@@ -106,12 +107,17 @@ impl Handler {
             .or_insert_with(|| (Instant::now(), HashSet::default()));
         if peers.insert(peer_index) {
             let peers_total = self.peers.lock().unwrap().len();
+            let last_percentile = ((peers.len() - 1) as f32 * 100.0 / peers_total as f32) as u32;
+            let percentile = (peers.len() as f32 * 100.0 / peers_total as f32) as u32;
             let elapsed = first_received.elapsed();
-            if peers.len() == peers_total / 2 {
-                let query = make_propagation_query(elapsed.as_millis() as u64, 50, "compact_block");
+            if last_percentile < 99 && percentile >= 99 {
+                let query = make_propagation_query(elapsed.as_millis() as u64, 99, "compact_block");
                 self.query_sender.send(query).unwrap();
-            } else if peers.len() * 10 == peers_total * 9 {
-                let query = make_propagation_query(elapsed.as_millis() as u64, 90, "compact_block");
+            } else if last_percentile < 95 && percentile >= 95 {
+                let query = make_propagation_query(elapsed.as_millis() as u64, 95, "compact_block");
+                self.query_sender.send(query).unwrap();
+            } else if last_percentile < 80 && percentile >= 80 {
+                let query = make_propagation_query(elapsed.as_millis() as u64, 50, "compact_block");
                 self.query_sender.send(query).unwrap();
             }
         }
@@ -161,21 +167,19 @@ impl CKBProtocolHandler for Handler {
         _version: &str,
     ) {
         let mut peers = self.peers.lock().unwrap();
-        if *peers.entry(peer_index).or_insert(true) {
-            if crate::LOG_LEVEL.as_str() != "ERROR" {
-                if let Some(peer) = _nc.get_peer(peer_index) {
-                    println!("connect with #{}({:?})", peer_index, peer.connected_addr);
-                }
+        if *peers.entry(peer_index).or_insert(true) && crate::LOG_LEVEL.as_str() != "ERROR" {
+            if let Some(peer) = _nc.get_peer(peer_index) {
+                println!("connect with #{}({:?})", peer_index, peer.connected_addr);
             }
         }
     }
 
     fn disconnected(&mut self, _nc: Arc<dyn CKBProtocolContext + Sync>, peer_index: PeerIndex) {
-        if self.peers.lock().unwrap().remove(&peer_index).is_some() {
-            if crate::LOG_LEVEL.as_str() != "ERROR" {
-                if let Some(peer) = _nc.get_peer(peer_index) {
-                    println!("disconnect with #{}({:?})", peer_index, peer.connected_addr);
-                }
+        if self.peers.lock().unwrap().remove(&peer_index).is_some()
+            && crate::LOG_LEVEL.as_str() != "ERROR"
+        {
+            if let Some(peer) = _nc.get_peer(peer_index) {
+                println!("disconnect with #{}({:?})", peer_index, peer.connected_addr);
             }
         }
     }

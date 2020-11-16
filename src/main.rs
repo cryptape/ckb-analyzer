@@ -9,8 +9,8 @@ mod network;
 mod on_chain;
 
 lazy_static! {
-    static ref LOG_LEVEL: String = var("LOG_LEVEL").unwrap_or("ERROR".to_string());
-    static ref CKB_URL: String = var("CKB_URL").unwrap_or("http://0.0.0.0:8114".to_string());
+    static ref LOG_LEVEL: String = var("LOG_LEVEL").unwrap_or_else(|_| "ERROR".to_string());
+    static ref CKB_URL: String = var("CKB_URL").unwrap_or_else(|_| "http://0.0.0.0:8114".to_string());
     static ref CKB_NETWORK: String = var("CKB_NETWORK").unwrap_or_else(|_|  panic!(
         "please specify network name via environment variable CKB_NETWORK, \"mainnet\" or \"testnet\""
     ));
@@ -21,7 +21,7 @@ lazy_static! {
             _unknown => panic!("unknown ckb network, only support \"mainnet\" and \"testnet\"")
         }
     };
-    static ref INFLUXDB_URL: String = var("INFLUXDB_URL").unwrap_or("http://0.0.0.0:8086".to_string());
+    static ref INFLUXDB_URL: String = var("INFLUXDB_URL").unwrap_or_else(|_| "http://0.0.0.0:8086".to_string());
     static ref INFLUXDB_DATABASE: String = CKB_NETWORK.clone();
 }
 
