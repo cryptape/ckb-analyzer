@@ -7,8 +7,9 @@ use ckb_types::prelude::*;
 use crossbeam::channel::Sender;
 use influxdb::{InfluxDbWriteable, Timestamp, WriteQuery};
 use std::collections::{HashMap, HashSet};
-use std::thread::spawn;
-use std::time::Instant;
+use std::env::var;
+use std::thread::{sleep, spawn};
+use std::time::{Duration, Instant};
 
 #[derive(InfluxDbWriteable)]
 pub struct BlockSerie {
@@ -84,31 +85,39 @@ fn analyze_epochs(query_sender: Sender<WriteQuery>) {
 }
 
 fn analyze_blocks(query_sender: Sender<WriteQuery>) {
-    let rpc = Jsonrpc::connect(CKB_URL.as_str());
-    let start = Instant::now();
+    let from = var("ANALYZE_ON_CHAIN_FROM")
+        .map(|s| s.parse::<u64>().unwrap())
+        .unwrap_or(1);
+    let mut number = from;
+    assert!(from > 0);
 
-    // TODO make the blocks range configurable
-    let (from, to) = {
-        let tip = rpc.get_tip_block_number();
-        (tip.saturating_sub(10000), tip)
-    };
     let (window, mut proposals_zones) = {
         let window = (2u64, 10u64);
         let proposals_zones = HashMap::with_capacity(window.1 as usize);
         (window, proposals_zones)
     };
+
+    let rpc = Jsonrpc::connect(CKB_URL.as_str());
+    let mut tip = rpc.get_tip_block_number();
     let mut parent: BlockView = rpc
-        .get_block_by_number(from.saturating_sub(1))
+        .get_block_by_number(number.saturating_sub(1))
         .unwrap()
         .into();
-    for number in from..=to {
-        prompt_progress(to - from + 1, number - from, start);
+    loop {
+        // Assume 10 is block confirmation
+        if number >= tip - 10 {
+            sleep(Duration::from_secs(1));
+            tip = rpc.get_tip_block_number();
+            continue;
+        }
 
         if let Some(json_block) = rpc.get_block_by_number(number) {
             let block: BlockView = json_block.into();
             analyze_block(&block, &parent, &query_sender);
             analyze_block_uncles(&rpc, &block, &query_sender);
             analyze_block_transactions(&block, &window, &mut proposals_zones, &query_sender);
+
+            number += 1;
             parent = block;
         }
     }
@@ -227,6 +236,7 @@ fn analyze_block_transactions(
     proposals_zones.insert(number, block.union_proposal_ids());
 }
 
+#[allow(unused)]
 fn prompt_progress(total: u64, processed: u64, start: Instant) {
     const PROMPT_STEP: u64 = 10000;
 
