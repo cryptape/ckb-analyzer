@@ -17,7 +17,7 @@ log_to_stdout = true
 
 [sentry]
 # set to blank to disable sentry error collection
-dsn = "https://dda4f353e15f4b62800d273a2afe70c2@sentry.nervos.org/4"
+dsn = ""
 # if you are willing to help us to improve,
 # please leave a way to contact you when we have troubles to reproduce the errors.
 # org_contact = ""
@@ -32,6 +32,7 @@ dsn = "https://dda4f353e15f4b62800d273a2afe70c2@sentry.nervos.org/4"
 options_file = "default.db-options"
 
 [network]
+path = "data/network"
 listen_addresses = ["/ip4/0.0.0.0/tcp/8115"]
 ### Specify the public and routable network addresses
 # public_addresses = []
