@@ -32,12 +32,13 @@ pub struct PropagationSerie {
     message_type: String,
 }
 
-#[allow(clippy::type_complexity)]
+type PropagationHashes = Arc<Mutex<HashMap<Byte32, (Instant, HashSet<PeerIndex>)>>>;
+
 #[derive(Clone)]
 pub struct Handler {
     peers: Arc<Mutex<HashMap<PeerIndex, bool>>>,
-    compact_blocks: Arc<Mutex<HashMap<Byte32, (Instant, HashSet<PeerIndex>)>>>,
-    transaction_hashes: Arc<Mutex<HashMap<Byte32, (Instant, HashSet<PeerIndex>)>>>,
+    compact_blocks: PropagationHashes,
+    transaction_hashes: PropagationHashes,
     query_sender: Sender<WriteQuery>,
 }
 
@@ -114,14 +115,6 @@ impl Handler {
         }
     }
 
-    fn received_send_block(
-        &mut self,
-        _nc: Arc<dyn CKBProtocolContext + Sync>,
-        _peer_index: PeerIndex,
-        _send_block: SendBlock,
-    ) {
-    }
-
     fn received_transaction_hash(
         &mut self,
         _nc: Arc<dyn CKBProtocolContext + Sync>,
@@ -139,6 +132,14 @@ impl Handler {
         if newly_inserted {
             self.send_propagation_query("transaction_hash", peers_received, first_received)
         }
+    }
+
+    fn received_send_block(
+        &mut self,
+        _nc: Arc<dyn CKBProtocolContext + Sync>,
+        _peer_index: PeerIndex,
+        _send_block: SendBlock,
+    ) {
     }
 
     fn send_propagation_query<M>(
