@@ -314,6 +314,8 @@ dependencies = [
 name = "ckb-analyzer"
 version = "0.1.0"
 dependencies = [
+ "chrono",
+ "ckb-app-config",
  "ckb-build-info",
  "ckb-logger",
  "ckb-network",
