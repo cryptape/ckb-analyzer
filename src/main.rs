@@ -17,7 +17,7 @@ lazy_static! {
     static ref CKB_NETWORK_IDENTIFIER: String = {
         match CKB_NETWORK.as_str() {
             "mainnet" => "/ckb/92b197aa".to_string(),
-            "testnet" => "/ckb/10639e08".to_string(),
+            "testnet" => "/ckb_testnet/10639e08".to_string(),
             _unknown => panic!("unknown ckb network, only support \"mainnet\" and \"testnet\"")
         }
     };
