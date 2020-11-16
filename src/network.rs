@@ -159,11 +159,21 @@ impl CKBProtocolHandler for Handler {
         _version: &str,
     ) {
         let mut peers = self.peers.lock().unwrap();
-        peers.entry(peer_index).or_insert(true);
+        if *peers.entry(peer_index).or_insert(true) {
+            if crate::LOG_LEVEL.as_str() != "ERROR" {
+                let peer = _nc.get_peer(peer_index).unwrap();
+                println!("connected peer {:?}", peer);
+            }
+        }
     }
 
     fn disconnected(&mut self, _nc: Arc<dyn CKBProtocolContext + Sync>, peer_index: PeerIndex) {
-        self.peers.lock().unwrap().remove(&peer_index);
+        if self.peers.lock().unwrap().remove(&peer_index).is_some() {
+            if crate::LOG_LEVEL.as_str() != "ERROR" {
+                let peer = _nc.get_peer(peer_index).unwrap();
+                println!("disconnected peer {:?}", peer);
+            }
+        }
     }
 
     fn received(
