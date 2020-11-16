@@ -18,14 +18,7 @@ use std::thread::spawn;
 use std::time::Instant;
 
 // TODO --sync-historical-uncles
-
-#[derive(Clone)]
-pub struct Handler {
-    peers: Arc<Mutex<HashMap<PeerIndex, bool>>>,
-    compact_blocks: Arc<Mutex<HashMap<Byte32, (Instant, HashSet<PeerIndex>)>>>,
-    transaction_hashes: Arc<Mutex<HashMap<Byte32, (Instant, HashSet<PeerIndex>)>>>,
-    query_sender: Sender<WriteQuery>,
-}
+// TODO don't send query unless connected peers are over 50
 
 #[derive(InfluxDbWriteable)]
 pub struct PropagationSerie {
@@ -37,6 +30,14 @@ pub struct PropagationSerie {
     percentile: u32,
     #[tag]
     message_type: String,
+}
+
+#[derive(Clone)]
+pub struct Handler {
+    peers: Arc<Mutex<HashMap<PeerIndex, bool>>>,
+    compact_blocks: Arc<Mutex<HashMap<Byte32, (Instant, HashSet<PeerIndex>)>>>,
+    transaction_hashes: Arc<Mutex<HashMap<Byte32, (Instant, HashSet<PeerIndex>)>>>,
+    query_sender: Sender<WriteQuery>,
 }
 
 impl Handler {
@@ -162,8 +163,9 @@ impl CKBProtocolHandler for Handler {
         let mut peers = self.peers.lock().unwrap();
         if *peers.entry(peer_index).or_insert(true) {
             if crate::LOG_LEVEL.as_str() != "ERROR" {
-                let peer = _nc.get_peer(peer_index).unwrap();
-                println!("connected peer {:?}", peer);
+                if let Some(peer) = _nc.get_peer(peer_index) {
+                    println!("connect with #{}({:?})", peer_index, peer.connected_addr);
+                }
             }
         }
     }
@@ -171,8 +173,9 @@ impl CKBProtocolHandler for Handler {
     fn disconnected(&mut self, _nc: Arc<dyn CKBProtocolContext + Sync>, peer_index: PeerIndex) {
         if self.peers.lock().unwrap().remove(&peer_index).is_some() {
             if crate::LOG_LEVEL.as_str() != "ERROR" {
-                let peer = _nc.get_peer(peer_index).unwrap();
-                println!("disconnected peer {:?}", peer);
+                if let Some(peer) = _nc.get_peer(peer_index) {
+                    println!("disconnect with #{}({:?})", peer_index, peer.connected_addr);
+                }
             }
         }
     }
