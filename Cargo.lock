@@ -327,6 +327,7 @@ dependencies = [
  "influxdb",
  "lazy_static",
  "tokio 0.2.23",
+ "toml",
 ]
 
 [[package]]

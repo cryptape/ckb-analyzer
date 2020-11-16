@@ -11,6 +11,7 @@ use std::env::var;
 use std::thread::spawn;
 use std::time::Instant;
 
+mod app_config;
 mod get_version;
 mod network;
 
@@ -60,23 +61,20 @@ pub struct TransactionSerie {
 }
 
 lazy_static! {
-    static ref CKB_URL: String = var("CKB_URL").unwrap_or("http://0.0.0.0:8114".to_string());
-    static ref INFLUXDB_URL: String =
-        var("INFLUXDB_URL").unwrap_or("http://0.0.0.0:8086".to_string());
-    static ref INFLUXDB_DATABASE: String = var("INFLUXDB_DATABASE").unwrap_or_else(|_| panic!(
-        "please specify influxdb database name via environment variable INFLUXDB_DATABASE"
-    ));
     static ref LOG_LEVEL: String = var("LOG_LEVEL").unwrap_or("ERROR".to_string());
-    static ref NETWORK_NAME: String = var("NETWORK_NAME").unwrap_or_else(|_|  panic!(
-        "please specify network name via environment variable NETWORK_NAME, \"mainnet\" or \"testnet\""
+    static ref CKB_URL: String = var("CKB_URL").unwrap_or("http://0.0.0.0:8114".to_string());
+    static ref CKB_NETWORK: String = var("CKB_NETWORK").unwrap_or_else(|_|  panic!(
+        "please specify network name via environment variable CKB_NETWORK, \"mainnet\" or \"testnet\""
     ));
-    static ref NETWORK_IDENTIFIER: String = {
-        match NETWORK_NAME.as_str() {
+    static ref CKB_NETWORK_IDENTIFIER: String = {
+        match CKB_NETWORK.as_str() {
             "mainnet" => "/ckb/92b197aa".to_string(),
             "testnet" => "/ckb/10639e08".to_string(),
-            customed_name => customed_name.to_string(),
+            _unknown => panic!("unknown ckb network, only support \"mainnet\" and \"testnet\"")
         }
     };
+    static ref INFLUXDB_URL: String = var("INFLUXDB_URL").unwrap_or("http://0.0.0.0:8086".to_string());
+    static ref INFLUXDB_DATABASE: String = CKB_NETWORK.clone();
 }
 
 #[tokio::main]

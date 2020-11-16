@@ -18,6 +18,7 @@ ckb-build-info = { git = "https://github.com/nervosnetwork/ckb", rev = "6a803019
 ckb-types = { git = "https://github.com/nervosnetwork/ckb", rev = "6a80301935" }
 chrono = { version = "0.4.19" }
 ckb-app-config = { git = "https://github.com/nervosnetwork/ckb", rev = "6a80301935" }
+toml = { version = "0.5" }
 
 [workspace]
 members = [

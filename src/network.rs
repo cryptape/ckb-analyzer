@@ -1,7 +1,7 @@
+use crate::app_config::app_config;
 use crate::get_version::get_version;
-use crate::NETWORK_IDENTIFIER;
+use crate::CKB_NETWORK_IDENTIFIER;
 use chrono::Utc;
-use ckb_app_config::NetworkConfig;
 use ckb_network::{
     bytes::Bytes, CKBProtocol, CKBProtocolContext, CKBProtocolHandler, DefaultExitHandler,
     NetworkService, NetworkState, PeerIndex, SupportProtocols,
@@ -196,8 +196,7 @@ where
 }
 
 pub(crate) fn run_network_service(handler: Handler) {
-    let config: NetworkConfig = NetworkConfig::default();
-
+    let config = app_config().network;
     let network_state = Arc::new(NetworkState::from_config(config).unwrap());
     let exit_handler = DefaultExitHandler::default();
     let version = get_version();
@@ -220,7 +219,7 @@ pub(crate) fn run_network_service(handler: Handler) {
         network_state,
         ckb_protocols,
         required_protocol_ids,
-        NETWORK_IDENTIFIER.clone(),
+        CKB_NETWORK_IDENTIFIER.clone(),
         version.to_string(),
         exit_handler.clone(),
     )
