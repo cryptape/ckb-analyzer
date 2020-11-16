@@ -1,3 +1,4 @@
+use crate::network::{run_network_service, Handler as NetworkHandler};
 use ckb_suite_rpc::{ckb_types::core::BlockView, Jsonrpc};
 use ckb_types::core::BlockNumber;
 use ckb_types::packed::{CellbaseWitness, ProposalShortId, Script};
@@ -10,6 +11,7 @@ use std::env::var;
 use std::thread::spawn;
 use std::time::Instant;
 
+mod get_version;
 mod network;
 
 #[derive(InfluxDbWriteable)]
@@ -65,6 +67,16 @@ lazy_static! {
         "please specify influxdb database name via environment variable INFLUXDB_DATABASE"
     ));
     static ref LOG_LEVEL: String = var("LOG_LEVEL").unwrap_or("ERROR".to_string());
+    static ref NETWORK_NAME: String = var("NETWORK_NAME").unwrap_or_else(|_|  panic!(
+        "please specify network name via environment variable NETWORK_NAME, \"mainnet\" or \"testnet\""
+    ));
+    static ref NETWORK_IDENTIFIER: String = {
+        match NETWORK_NAME.as_str() {
+            "mainnet" => "/ckb/92b197aa".to_string(),
+            "testnet" => "/ckb/10639e08".to_string(),
+            customed_name => customed_name.to_string(),
+        }
+    };
 }
 
 #[tokio::main]
@@ -74,8 +86,14 @@ async fn main() {
         eprintln!("client.ping error: {:?}", err);
         return;
     }
-
     let (query_sender, query_receiver) = bounded(5000);
+
+    let query_sender_ = query_sender.clone();
+    spawn(move || {
+        let handler = NetworkHandler::new(query_sender_);
+        run_network_service(handler)
+    });
+
     let query_sender_ = query_sender.clone();
     spawn(move || analyze_blocks(query_sender_));
     spawn(move || analyze_epoches(query_sender));
