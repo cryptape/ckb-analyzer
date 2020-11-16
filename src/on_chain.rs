@@ -147,9 +147,8 @@ fn analyze_block(block: &BlockView, parent: &BlockView, query_sender: &Sender<Wr
     .into_query(QUERY_NAME);
     if LOG_LEVEL.as_str() != "ERROR" {
         println!(
-            "[DEBUG] block #{}, miner: {}, timestamp: {}",
+            "[DEBUG] block #{}, timestamp: {}",
             number,
-            extract_miner_lock(&block).args(),
             block.timestamp(),
         );
     }
@@ -159,24 +158,28 @@ fn analyze_block(block: &BlockView, parent: &BlockView, query_sender: &Sender<Wr
 fn analyze_block_uncles(rpc: &Jsonrpc, block: &BlockView, query_sender: &Sender<WriteQuery>) {
     static QUERY_NAME: &str = "uncles";
 
-    for uncle_hash in block.uncle_hashes() {
+    for uncle_view in block.uncles() {
+        let uncle_number = uncle_view.number();
+        let uncle_hash = uncle_view.hash();
         match rpc.get_fork_block(uncle_hash.clone()) {
-            None => eprintln!("rpc.get_fork_block(\"{}\") return None", uncle_hash),
+            None => eprintln!(
+                "rpc.get_fork_block(\"#{}({})\") return None",
+                uncle_number, uncle_hash
+            ),
             Some(json_uncle) => {
                 let uncle: BlockView = json_uncle.into();
-                let number = uncle.number();
                 let time = Timestamp::Milliseconds(uncle.timestamp() as u128);
                 let proposals_count = uncle.union_proposal_ids().len() as u32;
                 let transactions_count = uncle.transactions().len() as u32;
                 let version = uncle.version();
                 let miner_lock_args = extract_miner_lock(&uncle).args().to_string();
                 let slower_than_cousin = {
-                    let cousin = rpc.get_header_by_number(number).unwrap().inner;
+                    let cousin = rpc.get_header_by_number(uncle_number).unwrap().inner;
                     cousin.timestamp.value() as i64 - uncle.timestamp() as i64
                 };
                 let query = UncleSerie {
                     time,
-                    number,
+                    number: uncle_number,
                     proposals_count,
                     transactions_count,
                     version,
@@ -186,10 +189,9 @@ fn analyze_block_uncles(rpc: &Jsonrpc, block: &BlockView, query_sender: &Sender<
                 .into_query(QUERY_NAME);
                 if LOG_LEVEL.as_str() != "ERROR" {
                     println!(
-                        "[DEBUG] uncle #{}({}), miner: {}, timestamp: {}, slower_than_cousin: {}",
-                        number,
+                        "[DEBUG] uncle #{}({}), timestamp: {}, slower_than_cousin: {}",
+                        uncle_number,
                         uncle.hash(),
-                        extract_miner_lock(&uncle).args(),
                         uncle.timestamp(),
                         slower_than_cousin,
                     );
