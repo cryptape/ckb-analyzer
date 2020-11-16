@@ -14,6 +14,7 @@ use crossbeam::channel::Sender;
 use influxdb::{InfluxDbWriteable, Timestamp, WriteQuery};
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
+use std::thread::spawn;
 use std::time::Instant;
 
 // TODO --sync-historical-uncles
@@ -205,6 +206,11 @@ where
     .into_query(QUERY_NAME)
 }
 
+pub(crate) fn spawn_analyze(query_sender: Sender<WriteQuery>) {
+    let handler = Handler::new(query_sender);
+    spawn(move || run_network_service(handler));
+}
+
 pub(crate) fn run_network_service(handler: Handler) {
     let config = app_config().network;
     let network_state = Arc::new(NetworkState::from_config(config).unwrap());
@@ -233,7 +239,7 @@ pub(crate) fn run_network_service(handler: Handler) {
         version.to_string(),
         exit_handler.clone(),
     )
-    .start(Some("NetworkService"))
+    .start(Some("ckb-analyzer::network"))
     .unwrap();
 
     exit_handler.wait_for_exit();
