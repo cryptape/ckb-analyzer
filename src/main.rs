@@ -35,7 +35,7 @@ async fn main() {
     let (query_sender, query_receiver) = bounded(5000);
 
     network::spawn_analyze(query_sender.clone());
-    // on_chain::spawn_analyze(query_sender);
+    on_chain::spawn_analyze(query_sender);
 
     for query in query_receiver {
         let write_result = client.query(&query).await;
