@@ -92,12 +92,15 @@ async fn main() {
         run_network_service(handler)
     });
 
-    let query_sender_ = query_sender.clone();
-    spawn(move || analyze_blocks(query_sender_));
-    spawn(move || analyze_epoches(query_sender));
+    // let query_sender_ = query_sender.clone();
+    // spawn(move || analyze_blocks(query_sender_));
+    // spawn(move || analyze_epochs(query_sender));
 
     for query in query_receiver {
         let write_result = client.query(&query).await;
+        if LOG_LEVEL.as_str() != "ERROR" {
+            println!("client.query(\"{:?}\")", query);
+        }
         assert!(
             write_result.is_ok(),
             "client.query({:?}), error: {:?}",
@@ -107,7 +110,7 @@ async fn main() {
     }
 }
 
-fn analyze_epoches(query_sender: Sender<WriteQuery>) {
+fn analyze_epochs(query_sender: Sender<WriteQuery>) {
     let rpc = Jsonrpc::connect(CKB_URL.as_str());
     let current_epoch = rpc.get_current_epoch();
     for number in 0..current_epoch.number.value() {
