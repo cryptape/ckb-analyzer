@@ -153,14 +153,14 @@ impl Handler {
         static QUERY_NAME: &str = "propagation";
 
         let peers_total = self.peers.lock().unwrap().len();
-        let last_percentile = ((peers_received - 1) as f32 * 100.0 / peers_total as f32) as u32;
-        let current_percentile = (peers_received as f32 * 100.0 / peers_total as f32) as u32;
+        let last_percentile = (peers_received - 1) as f32 * 100.0 / peers_total as f32;
+        let current_percentile = peers_received as f32 * 100.0 / peers_total as f32;
         let time_interval = first_received.elapsed().as_millis() as u64;
-        let percentile = if last_percentile < 99 && current_percentile >= 99 {
+        let percentile = if last_percentile < 99.0 && current_percentile >= 99.0 {
             Some(99)
-        } else if last_percentile < 95 && current_percentile >= 95 {
+        } else if last_percentile < 95.0 && current_percentile >= 95.0 {
             Some(95)
-        } else if last_percentile < 80 && current_percentile >= 80 {
+        } else if last_percentile < 80.0 && current_percentile >= 80.0 {
             Some(80)
         } else {
             None
