@@ -33,7 +33,7 @@ options_file = "default.db-options"
 
 [network]
 path = "data/network"
-listen_addresses = ["/ip4/0.0.0.0/tcp/8115"]
+listen_addresses = ["/ip4/0.0.0.0/tcp/18118"]
 ### Specify the public and routable network addresses
 # public_addresses = []
 

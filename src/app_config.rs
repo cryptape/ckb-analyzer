@@ -1,6 +1,7 @@
 use crate::CKB_NETWORK;
 use ckb_app_config::CKBAppConfig;
 
+// TODO support --app-config
 pub(crate) fn app_config() -> CKBAppConfig {
     match CKB_NETWORK.as_str() {
         "mainnet" => {
