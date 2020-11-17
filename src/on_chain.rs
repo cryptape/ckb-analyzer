@@ -64,8 +64,14 @@ pub fn spawn_analyze(query_sender: Sender<WriteQuery>) {
 
 fn analyze_epochs(query_sender: Sender<WriteQuery>) {
     let rpc = Jsonrpc::connect(CKB_URL.as_str());
-    let current_epoch = rpc.get_current_epoch();
-    for number in 0..current_epoch.number.value() {
+    let mut number = 0;
+    loop {
+        let current_epoch = rpc.get_current_epoch();
+        if number >= current_epoch.number.value()  {
+            sleep(Duration::from_secs(60 * 10));
+            continue
+        }
+
         let epoch = rpc.get_epoch_by_number(number).unwrap();
         let length = epoch.length.value();
         let start_number: u64 = epoch.start_number.value();
@@ -79,8 +85,10 @@ fn analyze_epochs(query_sender: Sender<WriteQuery>) {
             length,
             duration: end_timestamp.saturating_sub(start_timestamp),
         }
-        .into_query("epochs");
+            .into_query("epochs");
         query_sender.send(write_query).unwrap();
+
+        number += 1;
     }
 }
 
