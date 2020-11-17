@@ -19,6 +19,10 @@ use std::time::Instant;
 
 // TODO --sync-historical-uncles
 // TODO don't send query unless connected peers are over 50
+// TODO query consists of peers_total
+// TODO this program should be deployed onto all machines, so that retrieve realtime info
+// TODO network topological graph
+// TODO query attaches node_id
 
 #[derive(InfluxDbWriteable)]
 pub struct PropagationSerie {
