@@ -10,6 +10,7 @@ use std::collections::{HashMap, HashSet};
 use std::env::var;
 use std::thread::{sleep, spawn};
 use std::time::{Duration, Instant};
+use std::cmp::max;
 
 #[derive(InfluxDbWriteable)]
 pub struct BlockSerie {
@@ -96,8 +97,7 @@ fn analyze_blocks(query_sender: Sender<WriteQuery>) {
     let from = var("ANALYZE_ON_CHAIN_FROM")
         .map(|s| s.parse::<u64>().unwrap())
         .unwrap_or(1);
-    let mut number = from;
-    assert!(from > 0);
+    let mut number = max(1, from);
 
     let (window, mut proposals_zones) = {
         let window = (2u64, 10u64);
