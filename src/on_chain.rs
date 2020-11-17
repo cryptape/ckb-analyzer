@@ -67,9 +67,9 @@ fn analyze_epochs(query_sender: Sender<WriteQuery>) {
     let mut number = 0;
     loop {
         let current_epoch = rpc.get_current_epoch();
-        if number >= current_epoch.number.value()  {
+        if number >= current_epoch.number.value() {
             sleep(Duration::from_secs(60 * 10));
-            continue
+            continue;
         }
 
         let epoch = rpc.get_epoch_by_number(number).unwrap();
@@ -85,7 +85,7 @@ fn analyze_epochs(query_sender: Sender<WriteQuery>) {
             length,
             duration: end_timestamp.saturating_sub(start_timestamp),
         }
-            .into_query("epochs");
+        .into_query("epochs");
         query_sender.send(write_query).unwrap();
 
         number += 1;
