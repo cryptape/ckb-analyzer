@@ -1,4 +1,5 @@
-use crate::{CKB_URL, LOG_LEVEL};
+use crate::CONFIG;
+use crate::LOG_LEVEL;
 use ckb_suite_rpc::Jsonrpc;
 use ckb_types::core::BlockNumber;
 use ckb_types::core::BlockView;
@@ -64,7 +65,7 @@ pub fn spawn_analyze(query_sender: Sender<WriteQuery>) {
 }
 
 fn analyze_epochs(query_sender: Sender<WriteQuery>) {
-    let rpc = Jsonrpc::connect(CKB_URL.as_str());
+    let rpc = Jsonrpc::connect(CONFIG.chain.ckb_url.as_str());
     let mut number = 0;
     loop {
         let current_epoch = rpc.get_current_epoch();
@@ -105,7 +106,7 @@ fn analyze_blocks(query_sender: Sender<WriteQuery>) {
         (window, proposals_zones)
     };
 
-    let rpc = Jsonrpc::connect(CKB_URL.as_str());
+    let rpc = Jsonrpc::connect(CONFIG.chain.ckb_url.as_str());
     let mut tip = rpc.get_tip_block_number();
     let mut parent: BlockView = rpc
         .get_block_by_number(number.saturating_sub(1))

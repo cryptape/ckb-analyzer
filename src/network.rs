@@ -1,6 +1,6 @@
 use crate::app_config::app_config;
 use crate::get_version::get_version;
-use crate::CKB_NETWORK_IDENTIFIER;
+use crate::CONFIG;
 use chrono::Utc;
 use ckb_network::{
     bytes::Bytes, CKBProtocol, CKBProtocolContext, CKBProtocolHandler, DefaultExitHandler,
@@ -303,7 +303,7 @@ pub(crate) fn run_network_service(handler: Handler) {
         network_state,
         ckb_protocols,
         required_protocol_ids,
-        CKB_NETWORK_IDENTIFIER.clone(),
+        CONFIG.network.ckb_network_identifier.clone(),
         version.to_string(),
         exit_handler.clone(),
     )

@@ -10,28 +10,24 @@ mod get_version;
 mod network;
 mod topology;
 
+pub use config::{init_config, ChainConfig, Config, InfluxdbConfig, NetworkConfig, TopologyConfig};
+
 lazy_static! {
     static ref LOG_LEVEL: String = var("LOG_LEVEL").unwrap_or_else(|_| "ERROR".to_string());
-    static ref CKB_URL: String = var("CKB_URL").unwrap_or_else(|_| "http://0.0.0.0:8114".to_string());
-    static ref CKB_NETWORK: String = var("CKB_NETWORK").unwrap_or_else(|_|  panic!(
-        "please specify network name via environment variable CKB_NETWORK, \"mainnet\" or \"testnet\""
-    ));
-    static ref CKB_NETWORK_IDENTIFIER: String = {
-        match CKB_NETWORK.as_str() {
-            "mainnet" => "/ckb/92b197aa".to_string(),
-            "testnet" => "/ckb_testnet/10639e08".to_string(),
-            _unknown => panic!("unknown ckb network, only support \"mainnet\" and \"testnet\"")
-        }
+    static ref CONFIG: Config = {
+        let config_path = var("CKB_ANALYZER_CONFIG").unwrap_or_else(|_| {
+            panic!("please specify config path via environment variable CKB_ANALYZER_CONFIG")
+        });
+        init_config(config_path)
     };
-    static ref INFLUXDB_URL: String = var("INFLUXDB_URL").unwrap_or_else(|_| "http://127.0.0.1:8086".to_string());
-    static ref INFLUXDB_DATABASE: String = CKB_NETWORK.clone();
-    static ref NODE_ID: String = var("NODE_ID").unwrap_or_else(|_| panic!("please specify node id via environment variable NODE_ID"));
-    static ref HOSTNAME: String = gethostname::gethostname().to_string_lossy().to_string();
 }
 
 #[tokio::main]
 async fn main() {
-    let client = Client::new(INFLUXDB_URL.as_str(), INFLUXDB_DATABASE.as_str());
+    let client = Client::new(
+        CONFIG.influxdb.url.as_str(),
+        CONFIG.influxdb.database.as_str(),
+    );
     if let Err(err) = client.ping().await {
         eprintln!("client.ping error: {:?}", err);
         return;
@@ -45,8 +41,8 @@ async fn main() {
     for mut query in query_receiver {
         // Attach built-in tags
         query = query
-            .add_tag("node_id", NODE_ID.clone())
-            .add_tag("hostname", HOSTNAME.clone());
+            .add_tag("node_id", CONFIG.influxdb.node_id.clone())
+            .add_tag("hostname", CONFIG.influxdb.hostname.clone());
 
         let write_result = client.query(&query).await;
         if let Err(err) = write_result {

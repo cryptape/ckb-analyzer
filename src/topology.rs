@@ -1,76 +1,104 @@
-use ckb_network::peer_store::types::IpPort;
+use crate::CONFIG;
 use ckb_network::MultiaddrExt;
-use ckb_suite_rpc::ckb_jsonrpc_types::{LocalNode, RemoteNode};
 use ckb_suite_rpc::Jsonrpc;
+use crossbeam::channel::Sender;
+use influxdb::WriteQuery;
 use multiaddr::MultiAddr;
 use std::collections::{HashMap, HashSet};
-use std::net::{SocketAddr, SocketAddrV4, ToSocketAddrs};
+use std::net::SocketAddr;
+use std::thread::{sleep, spawn};
+use std::time::Duration;
 
-fn network_nodes() -> Vec<String> {
-    let urls = if crate::CKB_NETWORK.as_str() == "mainnet" {
-        vec![
-            "http://47.110.15.57:8124",
-            "http://47.245.31.79:8124",
-            "http://13.234.144.148:8124",
-            "http://3.218.170.86:8124",
-            "http://52.59.155.249:8124",
-            "http://39.107.100.85:8124",
-            "http://47.103.44.208:8124",
-            "http://120.24.85.239:8124",
-            "http://47.91.238.128:8124",
-            "http://147.139.137.53:8124",
-            "http://13.52.18.181:8124",
-            "http://18.140.240.153:8124",
-            "http://35.183.172.68:8124",
-            "http://3.10.216.39:8124",
-            "http://3.105.209.193:8124",
-            "http://18.229.214.173:8124",
-        ]
-    } else if crate::CKB_NETWORK.as_str() == "testnet" {
-        vec![
-            "http://47.111.169.36:18121",
-            "http://18.217.146.65:18121",
-            "http://18.136.60.221:18121",
-            "http://35.176.207.239:18121",
-        ]
-    } else {
-        unimplemented!()
-    };
-    urls.into_iter().map(|url| url.to_string()).collect()
+pub(crate) fn spawn_analyze(query_sender: Sender<WriteQuery>) {
+    spawn(move || {
+        let ckb_urls = CONFIG.topology.ckb_urls.clone();
+        loop {
+            sleep(Duration::from_secs(60 * 10));
+            analyze(&query_sender, &ckb_urls);
+        }
+    });
 }
 
-pub(crate) fn spawn_analyze() {
-    let nodes = network_nodes();
-    analyze(&nodes)
-}
-
-pub(crate) fn analyze<S: AsRef<str>>(ckb_urls: &[S]) {
+pub(crate) fn analyze<S: AsRef<str>>(_query_sender: &Sender<WriteQuery>, ckb_urls: &[S]) {
     let mut connections = HashSet::new();
 
     let rpcs: Vec<_> = ckb_urls
-        .into_iter()
+        .iter()
         .map(|url| Jsonrpc::connect(url.as_ref()))
         .collect();
     for rpc in rpcs.iter() {
         let local = rpc.local_node_info();
-        let local_addr = extract_socket_addr(&local.addresses[0].address);
+        let local_ip = extract_ip(&local.addresses[0].address);
         for remote in rpc.get_peers() {
-            let remote_addr = extract_socket_addr(&remote.addresses[0].address);
-            if local_addr > remote_addr {
-                connections.insert((local_addr.clone(), remote_addr));
+            let remote_ip = extract_ip(&remote.addresses[0].address);
+            if local_ip > remote_ip {
+                connections.insert((local_ip.clone(), remote_ip));
             } else {
-                connections.insert((remote_addr, local_addr.clone()));
+                connections.insert((remote_ip, local_ip.clone()));
             }
         }
     }
 
-    connections.iter().for_each(|(inbound, outbound)| {
-        println!("{} --- {}", inbound, outbound);
-    });
+    println!("graph Topology {{");
+
+    let known_ips = ckb_urls
+        .iter()
+        .map(|ckb_url| extract_ip(ckb_url.as_ref()))
+        .collect::<HashSet<_>>();
+    let dot2line = |ip: &str| {
+        let new = ip.replace(".", "_");
+        format!("host_{}", new)
+    };
+
+    {
+        let mut counts = HashMap::new();
+        connections.iter().for_each(|(inbound, outbound)| {
+            if known_ips.contains(inbound) && known_ips.contains(outbound) {
+                let entry = counts.entry(inbound.to_owned()).or_insert(0);
+                *entry += 1;
+                let entry = counts.entry(outbound.to_owned()).or_insert(0);
+                *entry += 1;
+            }
+        });
+        connections.iter().for_each(|(inbound, outbound)| {
+            if let Some(count) = counts.remove(inbound) {
+                println!(
+                    "    {} [ label = \"{} *{}*\" ];",
+                    dot2line(inbound),
+                    inbound,
+                    count
+                );
+            }
+            if let Some(count) = counts.remove(outbound) {
+                println!(
+                    "    {} [ label = \"{} *{}*\" ];",
+                    dot2line(outbound),
+                    outbound,
+                    count
+                );
+            }
+        });
+    }
+
+    {
+        connections.iter().for_each(|(inbound, outbound)| {
+            if known_ips.contains(inbound) && known_ips.contains(outbound) {
+                println!("    {} -- {};", dot2line(inbound), dot2line(outbound));
+            }
+        });
+    }
+    println!("}}");
 }
 
-fn extract_socket_addr(address: &str) -> String {
-    let multiaddr = address.parse::<MultiAddr>().unwrap();
-    let ip_port = multiaddr.extract_ip_addr().unwrap();
-    format!("{ip}:{port}", ip = ip_port.ip, port = ip_port.port)
+// FIXME Use more accurate identifier
+fn extract_ip(address: &str) -> String {
+    if let Ok(multiaddr) = address.parse::<MultiAddr>() {
+        let ip_port = multiaddr.extract_ip_addr().unwrap();
+        ip_port.ip.to_string()
+    } else if let Ok(socket_addr) = address[7..].parse::<SocketAddr>() {
+        // FIXME ugly
+        socket_addr.ip().to_string()
+    } else {
+        panic!("cannot parse {}", address)
+    }
 }

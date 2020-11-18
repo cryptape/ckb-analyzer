@@ -21,6 +21,7 @@ pub struct ChainConfig {
 pub struct NetworkConfig {
     #[serde(default)]
     pub enabled: bool,
+    pub ckb_toml: String,
     pub ckb_network_identifier: String,
 }
 

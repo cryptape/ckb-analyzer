@@ -1,14 +1,13 @@
-use crate::CKB_NETWORK;
+use crate::CONFIG;
 use ckb_app_config::CKBAppConfig;
 
-// TODO support --app-config
 pub(crate) fn app_config() -> CKBAppConfig {
-    match CKB_NETWORK.as_str() {
-        "mainnet" => {
+    match CONFIG.network.ckb_toml.as_str() {
+        "ckb.mainnet.toml" => {
             let bytes = include_bytes!("../specs/ckb.mainnet.toml");
             toml::from_slice(bytes).unwrap()
         }
-        "testnet" => {
+        "ckb.testnet.toml" => {
             let bytes = include_bytes!("../specs/ckb.testnet.toml");
             toml::from_slice(bytes).unwrap()
         }
