@@ -169,43 +169,37 @@ fn analyze_block_uncles(rpc: &Jsonrpc, block: &BlockView, query_sender: &Sender<
     for uncle_view in block.uncles() {
         let uncle_number = uncle_view.number();
         let uncle_hash = uncle_view.hash();
-        match rpc.get_fork_block(uncle_hash.clone()) {
-            None => eprintln!(
-                "rpc.get_fork_block(\"#{}({})\") return None",
-                uncle_number, uncle_hash
-            ),
-            Some(json_uncle) => {
-                let uncle: BlockView = json_uncle.into();
-                let time = Timestamp::Milliseconds(uncle.timestamp() as u128);
-                let proposals_count = uncle.union_proposal_ids().len() as u32;
-                let transactions_count = uncle.transactions().len() as u32;
-                let version = uncle.version();
-                let miner_lock_args = extract_miner_lock(&uncle).args().to_string();
-                let slower_than_cousin = {
-                    let cousin = rpc.get_header_by_number(uncle_number).unwrap().inner;
-                    cousin.timestamp.value() as i64 - uncle.timestamp() as i64
-                };
-                let query = UncleSerie {
-                    time,
-                    number: uncle_number,
-                    proposals_count,
-                    transactions_count,
-                    version,
-                    miner_lock_args,
-                    slower_than_cousin,
-                }
-                .into_query(QUERY_NAME);
-                if LOG_LEVEL.as_str() != "ERROR" {
-                    println!(
-                        "[DEBUG] uncle #{}({}), timestamp: {}, slower_than_cousin: {}",
-                        uncle_number,
-                        uncle.hash(),
-                        uncle.timestamp(),
-                        slower_than_cousin,
-                    );
-                }
-                query_sender.send(query).unwrap();
+        if let Some(json_uncle) = rpc.get_fork_block(uncle_hash.clone()) {
+            let uncle: BlockView = json_uncle.into();
+            let time = Timestamp::Milliseconds(uncle.timestamp() as u128);
+            let proposals_count = uncle.union_proposal_ids().len() as u32;
+            let transactions_count = uncle.transactions().len() as u32;
+            let version = uncle.version();
+            let miner_lock_args = extract_miner_lock(&uncle).args().to_string();
+            let slower_than_cousin = {
+                let cousin = rpc.get_header_by_number(uncle_number).unwrap().inner;
+                cousin.timestamp.value() as i64 - uncle.timestamp() as i64
+            };
+            let query = UncleSerie {
+                time,
+                number: uncle_number,
+                proposals_count,
+                transactions_count,
+                version,
+                miner_lock_args,
+                slower_than_cousin,
             }
+            .into_query(QUERY_NAME);
+            if LOG_LEVEL.as_str() != "ERROR" {
+                println!(
+                    "[DEBUG] uncle #{}({}), timestamp: {}, slower_than_cousin: {}",
+                    uncle_number,
+                    uncle.hash(),
+                    uncle.timestamp(),
+                    slower_than_cousin,
+                );
+            }
+            query_sender.send(query).unwrap();
         }
     }
 }
