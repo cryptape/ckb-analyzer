@@ -20,6 +20,7 @@ chrono = { version = "0.4.19" }
 ckb-app-config = { git = "https://github.com/nervosnetwork/ckb", rev = "6a80301935" }
 toml = { version = "0.5" }
 multiaddr = { version = "0.2.0", package = "tentacle-multiaddr" }
+gethostname = { version = "0.2.1" }
 
 [workspace]
 members = [

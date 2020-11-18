@@ -24,6 +24,8 @@ lazy_static! {
     };
     static ref INFLUXDB_URL: String = var("INFLUXDB_URL").unwrap_or_else(|_| "http://0.0.0.0:8086".to_string());
     static ref INFLUXDB_DATABASE: String = CKB_NETWORK.clone();
+    static ref NODE_ID: String = var("NODE_ID").unwrap_or_else(|_| panic!("please specify node id via environment variable NODE_ID"));
+    static ref HOSTNAME: String = gethostname::gethostname().to_string_lossy().to_string();
 }
 
 #[tokio::main]
@@ -39,16 +41,14 @@ async fn main() {
     on_chain::spawn_analyze(query_sender.clone());
     topology::spawn_analyze(query_sender);
 
-    for query in query_receiver {
+    for mut query in query_receiver {
+        query = query
+            .add_tag("node_id", NODE_ID.clone())
+            .add_tag("hostname", HOSTNAME.clone());
+
         let write_result = client.query(&query).await;
-        if LOG_LEVEL.as_str() != "ERROR" {
-            println!("client.query(\"{:?}\")", query);
+        if let Err(err) = write_result {
+            eprintln!("influxdb.query({:?}, error: {:?}", query, err);
         }
-        assert!(
-            write_result.is_ok(),
-            "client.query({:?}), error: {:?}",
-            query,
-            write_result.unwrap_err()
-        );
     }
 }
