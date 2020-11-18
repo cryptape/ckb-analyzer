@@ -25,11 +25,11 @@ pub struct Jsonrpc {
 }
 
 pub fn env_username() -> String {
-    var("CKB_STAGING_USERNAME").unwrap_or_else(|_| "".to_owned())
+    var("CKB_RPC_USERNAME").unwrap_or_else(|_| "".to_owned())
 }
 
 pub fn env_password() -> String {
-    var("CKB_STAGING_PASSWORD").unwrap_or_else(|_| "".to_owned())
+    var("CKB_RPC_PASSWORD").unwrap_or_else(|_| "".to_owned())
 }
 
 impl Jsonrpc {
@@ -37,7 +37,7 @@ impl Jsonrpc {
         let transport = HttpTransport::new().standalone().unwrap();
         let mut transport = transport
             .handle(uri)
-            .unwrap_or_else(|_| panic!("Jsonrpc::connect({})", uri));
+            .unwrap_or_else(|err| panic!("Jsonrpc::connect(\"{}\"), error: {:?}", uri, err));
 
         if !env_username().is_empty() && !env_password().is_empty() {
             transport.set_header(Authorization(Basic {
@@ -64,7 +64,14 @@ impl Jsonrpc {
             .lock()
             .get_block(hash.unpack())
             .call()
-            .unwrap_or_else(|_| panic!("Jsonrpc::get_block({}, {})", self.uri(), hash))
+            .unwrap_or_else(|err| {
+                panic!(
+                    "Jsonrpc::get_block(\"{}\", {}), error: {:?}",
+                    self.uri(),
+                    hash,
+                    err
+                )
+            })
     }
 
     pub fn get_block_by_number(&self, number: CoreBlockNumber) -> Option<BlockView> {
@@ -72,7 +79,14 @@ impl Jsonrpc {
             .lock()
             .get_block_by_number(number.into())
             .call()
-            .unwrap_or_else(|_| panic!("Jsonrpc::get_block_by_number({}, {})", self.uri(), number))
+            .unwrap_or_else(|err| {
+                panic!(
+                    "Jsonrpc::get_block_by_number(\"{}\", {}), error: {:?}",
+                    self.uri(),
+                    number,
+                    err
+                )
+            })
     }
 
     pub fn get_transaction(&self, hash: Byte32) -> Option<TransactionWithStatus> {
@@ -80,7 +94,14 @@ impl Jsonrpc {
             .lock()
             .get_transaction(hash.unpack())
             .call()
-            .unwrap_or_else(|_| panic!("Jsonrpc::get_transaction({}, {})", self.uri(), hash))
+            .unwrap_or_else(|err| {
+                panic!(
+                    "Jsonrpc::get_transaction(\"{}\", {}), error: {:?}",
+                    self.uri(),
+                    hash,
+                    err
+                )
+            })
     }
 
     pub fn get_block_hash(&self, number: CoreBlockNumber) -> Option<H256> {
@@ -88,7 +109,14 @@ impl Jsonrpc {
             .lock()
             .get_block_hash(number.into())
             .call()
-            .unwrap_or_else(|_| panic!("Jsonrpc::get_block_hash({}, {})", self.uri(), number))
+            .unwrap_or_else(|err| {
+                panic!(
+                    "Jsonrpc::get_block_hash(\"{}\", {}), error: {:?}",
+                    self.uri(),
+                    number,
+                    err
+                )
+            })
     }
 
     pub fn get_tip_header(&self) -> HeaderView {
@@ -96,7 +124,13 @@ impl Jsonrpc {
             .lock()
             .get_tip_header()
             .call()
-            .unwrap_or_else(|_| panic!("Jsonrpc::get_tip_header({})", self.uri()))
+            .unwrap_or_else(|err| {
+                panic!(
+                    "Jsonrpc::get_tip_header(\"{}\"), error: {:?}",
+                    self.uri(),
+                    err
+                )
+            })
     }
 
     pub fn get_header_by_number(&self, number: CoreBlockNumber) -> Option<HeaderView> {
@@ -104,7 +138,14 @@ impl Jsonrpc {
             .lock()
             .get_header_by_number(number.into())
             .call()
-            .unwrap_or_else(|_| panic!("Jsonrpc::get_header_by_number({}, {})", self.uri(), number))
+            .unwrap_or_else(|err| {
+                panic!(
+                    "Jsonrpc::get_header_by_number(\"{}\", {}), error: {:?}",
+                    self.uri(),
+                    number,
+                    err
+                )
+            })
     }
 
     pub fn get_cells_by_lock_hash(
@@ -117,13 +158,14 @@ impl Jsonrpc {
             .lock()
             .get_cells_by_lock_hash(lock_hash.unpack(), from.into(), to.into())
             .call()
-            .unwrap_or_else(|_| {
+            .unwrap_or_else(|err| {
                 panic!(
-                    "Jsonrpc::get_cells_by_lock_hash({}, {}, {}, {})",
+                    "Jsonrpc::get_cells_by_lock_hash(\"{}\", {}, {}, {}), error: {:?}",
                     self.uri(),
                     lock_hash,
                     from,
-                    to
+                    to,
+                    err
                 )
             })
     }
@@ -133,7 +175,14 @@ impl Jsonrpc {
             .lock()
             .get_live_cell(out_point.clone())
             .call()
-            .unwrap_or_else(|_| panic!("Jsonrpc::get_live_cell({}, {:?})", self.uri(), out_point))
+            .unwrap_or_else(|err| {
+                panic!(
+                    "Jsonrpc::get_live_cell(\"{}\", {:?}), error: {:?}",
+                    self.uri(),
+                    out_point,
+                    err
+                )
+            })
     }
 
     pub fn get_tip_block_number(&self) -> CoreBlockNumber {
@@ -141,7 +190,13 @@ impl Jsonrpc {
             .lock()
             .get_tip_block_number()
             .call()
-            .unwrap_or_else(|_| panic!("Jsonrpc::get_tip_block_number({})", self.uri()))
+            .unwrap_or_else(|err| {
+                panic!(
+                    "Jsonrpc::get_tip_block_number(\"{}\"), error: {:?}",
+                    self.uri(),
+                    err
+                )
+            })
             .into()
     }
 
@@ -150,15 +205,19 @@ impl Jsonrpc {
             .lock()
             .local_node_info()
             .call()
-            .unwrap_or_else(|_| panic!("Jsonrpc::local_node_info({})", self.uri()))
+            .unwrap_or_else(|err| {
+                panic!(
+                    "Jsonrpc::local_node_info(\"{}\"), error: {:?}",
+                    self.uri(),
+                    err
+                )
+            })
     }
 
     pub fn get_peers(&self) -> Vec<RemoteNode> {
-        self.inner
-            .lock()
-            .get_peers()
-            .call()
-            .unwrap_or_else(|_| panic!("Jsonrpc::get_peers({})", self.uri()))
+        self.inner.lock().get_peers().call().unwrap_or_else(|err| {
+            panic!("Jsonrpc::get_peers(\"{}\"), error: {:?}", self.uri(), err)
+        })
     }
 
     pub fn get_block_template(
@@ -174,13 +233,14 @@ impl Jsonrpc {
             .lock()
             .get_block_template(bytes_limit, proposals_limit, max_version)
             .call()
-            .unwrap_or_else(|_| {
+            .unwrap_or_else(|err| {
                 panic!(
-                    "Jsonrpc::get_block_template({}, {:?}, {:?}, {:?})",
+                    "Jsonrpc::get_block_template(\"{}\", {:?}, {:?}, {:?}), error: {:?}",
                     self.uri(),
                     bytes_limit,
                     proposals_limit,
-                    max_version
+                    max_version,
+                    err
                 )
             })
     }
@@ -190,7 +250,14 @@ impl Jsonrpc {
             .lock()
             .submit_block(work_id, block.clone())
             .call()
-            .unwrap_or_else(|_| panic!("Jsonrpc::submit_block({}, {:?})", self.uri(), block))
+            .unwrap_or_else(|err| {
+                panic!(
+                    "Jsonrpc::submit_block(\"{}\", {:?}), error: {:?}",
+                    self.uri(),
+                    block,
+                    err
+                )
+            })
     }
 
     pub fn get_blockchain_info(&self) -> ChainInfo {
@@ -198,7 +265,13 @@ impl Jsonrpc {
             .lock()
             .get_blockchain_info()
             .call()
-            .unwrap_or_else(|_| panic!("Jsonrpc::get_blockchain_info({})", self.uri()))
+            .unwrap_or_else(|err| {
+                panic!(
+                    "Jsonrpc::get_blockchain_info(\"{}\"), error: {:?}",
+                    self.uri(),
+                    err
+                )
+            })
     }
 
     pub fn send_transaction(&self, tx: Transaction) -> H256 {
@@ -206,7 +279,14 @@ impl Jsonrpc {
             .lock()
             .send_transaction(tx.clone())
             .call()
-            .unwrap_or_else(|_| panic!("Jsonrpc::send_transaction({}, {:?})", self.uri(), tx))
+            .unwrap_or_else(|err| {
+                panic!(
+                    "Jsonrpc::send_transaction(\"{}\", {:?}), error: {:?}",
+                    self.uri(),
+                    tx,
+                    err
+                )
+            })
     }
 
     pub fn broadcast_transaction(&self, tx: Transaction) -> H256 {
@@ -214,7 +294,14 @@ impl Jsonrpc {
             .lock()
             .broadcast_transaction(tx.clone())
             .call()
-            .unwrap_or_else(|_| panic!("Jsonrpc::broadcast_transaction({}, {:?})", self.uri(), tx))
+            .unwrap_or_else(|err| {
+                panic!(
+                    "Jsonrpc::broadcast_transaction(\"{}\", {:?}), error: {:?}",
+                    self.uri(),
+                    tx,
+                    err
+                )
+            })
     }
 
     pub fn send_transaction_result(&self, tx: Transaction) -> JsonRpcResult<H256> {
@@ -226,7 +313,13 @@ impl Jsonrpc {
             .lock()
             .tx_pool_info()
             .call()
-            .unwrap_or_else(|_| panic!("Jsonrpc::tx_pool_info({})", self.uri()))
+            .unwrap_or_else(|err| {
+                panic!(
+                    "Jsonrpc::tx_pool_info(\"{}\"), error: {:?}",
+                    self.uri(),
+                    err
+                )
+            })
     }
 
     pub fn get_current_epoch(&self) -> EpochView {
@@ -234,7 +327,13 @@ impl Jsonrpc {
             .lock()
             .get_current_epoch()
             .call()
-            .expect("rpc call get_current_epoch")
+            .unwrap_or_else(|err| {
+                panic!(
+                    "Jsonrpc::get_current_epoch(\"{}\"), error: {:?}",
+                    self.uri(),
+                    err
+                )
+            })
     }
 
     pub fn get_epoch_by_number(&self, number: CoreEpochNumber) -> Option<EpochView> {
@@ -242,7 +341,14 @@ impl Jsonrpc {
             .lock()
             .get_epoch_by_number(number.into())
             .call()
-            .expect("rpc call get_epoch_by_number")
+            .unwrap_or_else(|err| {
+                panic!(
+                    "Jsonrpc::get_epoch_by_number(\"{}\", {}), error: {:?}",
+                    self.uri(),
+                    number,
+                    err
+                )
+            })
     }
 
     pub fn get_fork_block(&self, hash: Byte32) -> Option<BlockView> {
@@ -250,7 +356,14 @@ impl Jsonrpc {
             .lock()
             .get_fork_block(hash.unpack())
             .call()
-            .expect("rpc call get_fork_block")
+            .unwrap_or_else(|err| {
+                panic!(
+                    "Jsonrpc::get_fork_block(\"{}\", {}), error: {:?}",
+                    self.uri(),
+                    hash,
+                    err
+                )
+            })
     }
 
     pub fn add_node(&self, peer_id: String, address: String) {
@@ -258,12 +371,13 @@ impl Jsonrpc {
             .lock()
             .add_node(peer_id.clone(), address.clone())
             .call()
-            .unwrap_or_else(|_| {
+            .unwrap_or_else(|err| {
                 panic!(
-                    "Jsonrpc::add_node({}, {}, {})",
+                    "Jsonrpc::add_node(\"{}\", {}, {}), error: {:?}",
                     self.uri(),
                     peer_id,
-                    address
+                    address,
+                    err,
                 )
             });
     }
@@ -273,7 +387,14 @@ impl Jsonrpc {
             .lock()
             .remove_node(peer_id.clone())
             .call()
-            .unwrap_or_else(|_| panic!("Jsonrpc::remove_node({}, {})", self.uri(), peer_id))
+            .unwrap_or_else(|err| {
+                panic!(
+                    "Jsonrpc::remove_node(\"{}\", {}), error: {:?}",
+                    self.uri(),
+                    peer_id,
+                    err
+                )
+            })
     }
 
     pub fn process_block_without_verify(&self, block: Block) -> Option<H256> {
@@ -281,11 +402,12 @@ impl Jsonrpc {
             .lock()
             .process_block_without_verify(block.clone())
             .call()
-            .unwrap_or_else(|_| {
+            .unwrap_or_else(|err| {
                 panic!(
-                    "Jsonrpc::process_block_without_verify({}, {:?})",
+                    "Jsonrpc::process_block_without_verify(\"{}\", {:?}), error: {:?}",
                     self.uri(),
-                    block
+                    block,
+                    err
                 )
             })
     }
