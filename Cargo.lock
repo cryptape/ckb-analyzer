@@ -327,6 +327,7 @@ dependencies = [
  "gethostname",
  "influxdb",
  "lazy_static",
+ "serde",
  "tentacle-multiaddr",
  "tokio 0.2.23",
  "toml",

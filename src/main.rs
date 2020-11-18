@@ -5,6 +5,7 @@ use std::env::var;
 
 mod app_config;
 mod chain;
+mod config;
 mod get_version;
 mod network;
 mod topology;
