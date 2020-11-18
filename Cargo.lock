@@ -326,6 +326,7 @@ dependencies = [
  "crossbeam",
  "influxdb",
  "lazy_static",
+ "tentacle-multiaddr",
  "tokio 0.2.23",
  "toml",
 ]
