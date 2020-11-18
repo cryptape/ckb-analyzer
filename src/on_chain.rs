@@ -6,11 +6,11 @@ use ckb_types::packed::{CellbaseWitness, ProposalShortId, Script};
 use ckb_types::prelude::*;
 use crossbeam::channel::Sender;
 use influxdb::{InfluxDbWriteable, Timestamp, WriteQuery};
+use std::cmp::max;
 use std::collections::{HashMap, HashSet};
 use std::env::var;
 use std::thread::{sleep, spawn};
 use std::time::{Duration, Instant};
-use std::cmp::max;
 
 #[derive(InfluxDbWriteable)]
 pub struct BlockSerie {
