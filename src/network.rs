@@ -19,10 +19,7 @@ use std::time::Duration;
 use std::time::Instant;
 
 // TODO --sync-historical-uncles
-// TODO don't send query unless connected peers are over 50
-// TODO query consists of peers_total
 // TODO this program should be deployed onto all machines, so that retrieve realtime info
-// TODO query attaches node_id
 // TODO map customed-hostname to ip for our machines
 // TODO handle threads panic
 // TODO --item onchain,network,topolofy|all
@@ -48,6 +45,12 @@ pub struct HighLatencySerie {
 
     #[tag]
     addr: String,
+}
+
+#[derive(InfluxDbWriteable)]
+pub struct PeersTotalSerie {
+    time: Timestamp,
+    peers_total: u32,
 }
 
 type PropagationHashes = Arc<Mutex<HashMap<Byte32, (Instant, HashSet<PeerIndex>)>>>;
@@ -211,6 +214,20 @@ impl Handler {
             self.query_sender.send(query).unwrap();
         }
     }
+
+    fn send_peers_total_query(&self) {
+        static QUERY_NAME: &str = "peers_total";
+
+        if let Ok(guard) = self.peers.lock() {
+            let peers_total = guard.len() as u32;
+            let query = PeersTotalSerie {
+                time: Utc::now().into(),
+                peers_total,
+            }
+            .into_query(QUERY_NAME);
+            self.query_sender.send(query).unwrap();
+        }
+    }
 }
 
 impl CKBProtocolHandler for Handler {
@@ -228,6 +245,7 @@ impl CKBProtocolHandler for Handler {
                 println!("connect with #{}({:?})", peer_index, peer.connected_addr);
             }
         }
+        self.send_peers_total_query();
     }
 
     fn disconnected(&mut self, _nc: Arc<dyn CKBProtocolContext + Sync>, peer_index: PeerIndex) {
@@ -238,6 +256,7 @@ impl CKBProtocolHandler for Handler {
                 println!("disconnect with #{}({:?})", peer_index, peer.connected_addr);
             }
         }
+        self.send_peers_total_query();
     }
 
     fn received(
