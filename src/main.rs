@@ -4,9 +4,9 @@ use lazy_static::lazy_static;
 use std::env::var;
 
 mod app_config;
+mod chain;
 mod get_version;
 mod network;
-mod chain;
 mod topology;
 
 lazy_static! {
@@ -22,7 +22,7 @@ lazy_static! {
             _unknown => panic!("unknown ckb network, only support \"mainnet\" and \"testnet\"")
         }
     };
-    static ref INFLUXDB_URL: String = var("INFLUXDB_URL").unwrap_or_else(|_| "http://0.0.0.0:8086".to_string());
+    static ref INFLUXDB_URL: String = var("INFLUXDB_URL").unwrap_or_else(|_| "http://127.0.0.1:8086".to_string());
     static ref INFLUXDB_DATABASE: String = CKB_NETWORK.clone();
     static ref NODE_ID: String = var("NODE_ID").unwrap_or_else(|_| panic!("please specify node id via environment variable NODE_ID"));
     static ref HOSTNAME: String = gethostname::gethostname().to_string_lossy().to_string();
