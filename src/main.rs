@@ -7,6 +7,7 @@ mod app_config;
 mod get_version;
 mod network;
 mod on_chain;
+mod topology;
 
 lazy_static! {
     static ref LOG_LEVEL: String = var("LOG_LEVEL").unwrap_or_else(|_| "ERROR".to_string());
@@ -35,7 +36,8 @@ async fn main() {
     let (query_sender, query_receiver) = bounded(5000);
 
     network::spawn_analyze(query_sender.clone());
-    on_chain::spawn_analyze(query_sender);
+    on_chain::spawn_analyze(query_sender.clone());
+    topology::spawn_analyze(query_sender);
 
     for query in query_receiver {
         let write_result = client.query(&query).await;
