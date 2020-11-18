@@ -4,7 +4,7 @@ use crate::CKB_NETWORK_IDENTIFIER;
 use chrono::Utc;
 use ckb_network::{
     bytes::Bytes, CKBProtocol, CKBProtocolContext, CKBProtocolHandler, DefaultExitHandler,
-    NetworkService, NetworkState, PeerIndex, SupportProtocols,
+    NetworkService, NetworkState, Peer, PeerIndex, SupportProtocols,
 };
 use ckb_types::packed::{
     Byte32, CompactBlock, RelayMessage, RelayMessageUnion, SendBlock, SyncMessage, SyncMessageUnion,
@@ -15,6 +15,7 @@ use influxdb::{InfluxDbWriteable, Timestamp, WriteQuery};
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
 use std::thread::spawn;
+use std::time::Duration;
 use std::time::Instant;
 
 // TODO --sync-historical-uncles
@@ -23,6 +24,11 @@ use std::time::Instant;
 // TODO this program should be deployed onto all machines, so that retrieve realtime info
 // TODO network topological graph
 // TODO query attaches node_id
+// TODO handle rpc error
+// TODO map customed-hostname to ip for our machines
+// TODO handle threads panic
+// TODO --item onchain,network,topolofy|all
+// TODO ckb_urls should not hardcode
 
 #[derive(InfluxDbWriteable)]
 pub struct PropagationSerie {
@@ -34,6 +40,16 @@ pub struct PropagationSerie {
     percentile: u32,
     #[tag]
     message_type: String,
+}
+
+#[derive(InfluxDbWriteable)]
+pub struct HighLatencySerie {
+    time: Timestamp,
+
+    time_interval: u64,
+
+    #[tag]
+    addr: String,
 }
 
 type PropagationHashes = Arc<Mutex<HashMap<Byte32, (Instant, HashSet<PeerIndex>)>>>;
@@ -101,7 +117,7 @@ impl Handler {
 
     fn received_compact_block(
         &mut self,
-        _nc: Arc<dyn CKBProtocolContext + Sync>,
+        nc: Arc<dyn CKBProtocolContext + Sync>,
         peer_index: PeerIndex,
         compact_block: CompactBlock,
     ) {
@@ -115,6 +131,8 @@ impl Handler {
             (peers.len() as u32, *first_received, newly_inserted)
         };
         if newly_inserted {
+            let peer = nc.get_peer(peer_index).unwrap();
+            self.send_high_latency_query(first_received, &peer);
             self.send_propagation_query("compact_block", peers_received, first_received)
         }
     }
@@ -144,6 +162,20 @@ impl Handler {
         _peer_index: PeerIndex,
         _send_block: SendBlock,
     ) {
+    }
+
+    fn send_high_latency_query(&self, first_received: Instant, peer: &Peer) {
+        static QUERY_NAME: &str = "high_latency";
+        let time_interval = first_received.elapsed();
+        if time_interval > Duration::from_secs(8) {
+            let query = HighLatencySerie {
+                time: Utc::now().into(),
+                time_interval: time_interval.as_millis() as u64,
+                addr: peer.connected_addr.to_string(),
+            }
+            .into_query(QUERY_NAME);
+            self.query_sender.send(query).unwrap();
+        }
     }
 
     fn send_propagation_query<M>(
