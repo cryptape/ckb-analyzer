@@ -21,7 +21,7 @@ use std::time::Instant;
 // TODO --sync-historical-uncles
 // TODO handle threads panic
 // TODO ckb_urls should not hardcode
-// TODO --item on_chain,network,topology|all
+// TODO --item chain,network,topology|all
 
 #[derive(InfluxDbWriteable)]
 pub struct PropagationSerie {

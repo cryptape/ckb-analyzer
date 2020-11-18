@@ -94,7 +94,7 @@ fn analyze_epochs(query_sender: Sender<WriteQuery>) {
 }
 
 fn analyze_blocks(query_sender: Sender<WriteQuery>) {
-    let from = var("ANALYZE_ON_CHAIN_FROM")
+    let from = var("ANALYZE_CHAIN_FROM")
         .map(|s| s.parse::<u64>().unwrap())
         .unwrap_or(1);
     let mut number = max(1, from);

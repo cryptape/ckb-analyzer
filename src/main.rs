@@ -6,7 +6,7 @@ use std::env::var;
 mod app_config;
 mod get_version;
 mod network;
-mod on_chain;
+mod chain;
 mod topology;
 
 lazy_static! {
@@ -38,7 +38,7 @@ async fn main() {
     let (query_sender, query_receiver) = bounded(5000);
 
     network::spawn_analyze(query_sender.clone());
-    on_chain::spawn_analyze(query_sender.clone());
+    chain::spawn_analyze(query_sender.clone());
     topology::spawn_analyze(query_sender);
 
     for mut query in query_receiver {
