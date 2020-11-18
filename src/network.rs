@@ -19,11 +19,9 @@ use std::time::Duration;
 use std::time::Instant;
 
 // TODO --sync-historical-uncles
-// TODO this program should be deployed onto all machines, so that retrieve realtime info
-// TODO map customed-hostname to ip for our machines
 // TODO handle threads panic
-// TODO --item onchain,network,topolofy|all
 // TODO ckb_urls should not hardcode
+// TODO --item on_chain,network,topology|all
 
 #[derive(InfluxDbWriteable)]
 pub struct PropagationSerie {
@@ -168,15 +166,17 @@ impl Handler {
     fn send_high_latency_query(&self, first_received: Instant, peer: &Peer) {
         static QUERY_NAME: &str = "high_latency";
         let time_interval = first_received.elapsed();
-        if time_interval > Duration::from_secs(8) {
-            let query = HighLatencySerie {
-                time: Utc::now().into(),
-                time_interval: time_interval.as_millis() as u64,
-                addr: peer.connected_addr.to_string(),
-            }
-            .into_query(QUERY_NAME);
-            self.query_sender.send(query).unwrap();
+        if time_interval < Duration::from_secs(8) {
+            return;
         }
+
+        let query = HighLatencySerie {
+            time: Utc::now().into(),
+            time_interval: time_interval.as_millis() as u64,
+            addr: peer.connected_addr.to_string(),
+        }
+        .into_query(QUERY_NAME);
+        self.query_sender.send(query).unwrap();
     }
 
     fn send_propagation_query<M>(

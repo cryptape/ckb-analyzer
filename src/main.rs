@@ -42,6 +42,7 @@ async fn main() {
     topology::spawn_analyze(query_sender);
 
     for mut query in query_receiver {
+        // Attach built-in tags
         query = query
             .add_tag("node_id", NODE_ID.clone())
             .add_tag("hostname", HOSTNAME.clone());
