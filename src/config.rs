@@ -38,8 +38,6 @@ pub struct InfluxdbConfig {
     pub enabled: bool,
     pub database: String,
     pub url: String,
-    pub node_id: String,
-    pub hostname: String,
 }
 
 pub fn init_config<P: AsRef<Path>>(filepath: P) -> Config {
