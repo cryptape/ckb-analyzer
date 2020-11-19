@@ -328,6 +328,7 @@ dependencies = [
  "influxdb",
  "lazy_static",
  "serde",
+ "serde_json",
  "tentacle-multiaddr",
  "tokio 0.2.23",
  "toml",

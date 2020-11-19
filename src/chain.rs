@@ -9,7 +9,6 @@ use crossbeam::channel::Sender;
 use influxdb::{InfluxDbWriteable, Timestamp, WriteQuery};
 use std::cmp::max;
 use std::collections::{HashMap, HashSet};
-use std::env::var;
 use std::thread::{sleep, spawn};
 use std::time::{Duration, Instant};
 
@@ -58,9 +57,9 @@ pub struct TransactionSerie {
     pc_delay: u32,
 }
 
-pub fn spawn_analyze(query_sender: Sender<WriteQuery>) {
+pub fn spawn_analyze(query_sender: Sender<WriteQuery>, last_number: BlockNumber) {
     let query_sender_ = query_sender.clone();
-    spawn(move || analyze_blocks(query_sender_));
+    spawn(move || analyze_blocks(query_sender_, last_number));
     spawn(move || analyze_epochs(query_sender));
 }
 
@@ -94,10 +93,8 @@ fn analyze_epochs(query_sender: Sender<WriteQuery>) {
     }
 }
 
-fn analyze_blocks(query_sender: Sender<WriteQuery>) {
-    let from = var("ANALYZE_CHAIN_FROM")
-        .map(|s| s.parse::<u64>().unwrap())
-        .unwrap_or(1);
+fn analyze_blocks(query_sender: Sender<WriteQuery>, last_number: BlockNumber) {
+    let from = last_number + 1;
     let mut number = max(1, from);
 
     let (window, mut proposals_zones) = {

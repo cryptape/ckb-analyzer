@@ -24,6 +24,7 @@ use std::time::Instant;
 // TODO --item chain,network,topology|all
 // TODO logger
 // TODO create data/ dir before Network::init...
+// TODO install node-exporter on testnet machines
 
 #[derive(InfluxDbWriteable)]
 pub struct PropagationSerie {
