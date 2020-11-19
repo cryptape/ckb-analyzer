@@ -132,9 +132,10 @@ impl Handler {
             (peers.len() as u32, *first_received, newly_inserted)
         };
         if newly_inserted {
-            let peer = nc.get_peer(peer_index).unwrap();
-            self.send_high_latency_query(first_received, &peer);
-            self.send_propagation_query("compact_block", peers_received, first_received)
+            if let Some(peer) = nc.get_peer(peer_index) {
+                self.send_high_latency_query(first_received, &peer);
+                self.send_propagation_query("compact_block", peers_received, first_received)
+            }
         }
     }
 
@@ -237,13 +238,13 @@ impl CKBProtocolHandler for Handler {
 
     fn connected(
         &mut self,
-        _nc: Arc<dyn CKBProtocolContext + Sync>,
+        nc: Arc<dyn CKBProtocolContext + Sync>,
         peer_index: PeerIndex,
         _version: &str,
     ) {
         if let Ok(mut peers) = self.peers.lock() {
             if *peers.entry(peer_index).or_insert(true) && crate::LOG_LEVEL.as_str() != "ERROR" {
-                if let Some(peer) = _nc.get_peer(peer_index) {
+                if let Some(peer) = nc.get_peer(peer_index) {
                     println!("connect with #{}({:?})", peer_index, peer.connected_addr);
                 }
             }
@@ -251,10 +252,10 @@ impl CKBProtocolHandler for Handler {
         self.send_peers_total_query();
     }
 
-    fn disconnected(&mut self, _nc: Arc<dyn CKBProtocolContext + Sync>, peer_index: PeerIndex) {
+    fn disconnected(&mut self, nc: Arc<dyn CKBProtocolContext + Sync>, peer_index: PeerIndex) {
         if let Ok(mut peers) = self.peers.lock() {
             if peers.remove(&peer_index).is_some() && crate::LOG_LEVEL.as_str() != "ERROR" {
-                if let Some(peer) = _nc.get_peer(peer_index) {
+                if let Some(peer) = nc.get_peer(peer_index) {
                     println!("disconnect with #{}({:?})", peer_index, peer.connected_addr);
                 }
             }
