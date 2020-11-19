@@ -41,16 +41,18 @@ async fn main() {
         )
         .with_auth(INFLUXDB_USERNAME.as_str(), INFLUXDB_PASSWORD.as_str())
     };
-    // FIXME
-    // if let Err(err) = client.ping().await {
-    //     eprintln!("client.ping error: {:?}", err);
-    //     return;
-    // }
     let (query_sender, query_receiver) = bounded(5000);
 
-    network::spawn_analyze(query_sender.clone());
-    chain::spawn_analyze(query_sender.clone());
-    topology::spawn_analyze(query_sender);
+    assert!(CONFIG.network.enabled || CONFIG.chain.enabled || CONFIG.topology.enabled);
+    if CONFIG.network.enabled {
+        network::spawn_analyze(query_sender.clone());
+    }
+    if CONFIG.chain.enabled {
+        chain::spawn_analyze(query_sender.clone());
+    }
+    if CONFIG.topology.enabled {
+        topology::spawn_analyze(query_sender);
+    }
 
     for mut query in query_receiver {
         // Attach built-in tags
@@ -58,7 +60,7 @@ async fn main() {
 
         let write_result = client.query(&query).await;
         if let Err(err) = write_result {
-            eprintln!("influxdb.query({:?}, error: {:?}", query, err);
+            eprintln!("influxdb.query, error: {}", err);
         }
     }
 }

@@ -23,6 +23,7 @@ use std::time::Instant;
 // TODO ckb_urls should not hardcode
 // TODO --item chain,network,topology|all
 // TODO logger
+// TODO create data/ dir before Network::init...
 
 #[derive(InfluxDbWriteable)]
 pub struct PropagationSerie {
