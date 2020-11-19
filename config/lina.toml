@@ -6,7 +6,7 @@ ckb_url = "http://47.110.15.57:8124"
 [network]
 ## default is false
 enabled = true
-ckb_app_config = "ckb.mainnet.toml" # "ckb.testnet.toml" | "ckb.mainnet.toml"
+ckb_app_config = "lina" # "lina" | "aggron"
 ckb_network_identifier = "/ckb/92b197aa" # mainnet
 
 [topology]
