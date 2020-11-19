@@ -20,18 +20,32 @@ lazy_static! {
         });
         init_config(config_path)
     };
+    static ref INFLUXDB_USERNAME: String =
+        var("INFLUXDB_USERNAME").unwrap_or_else(|_| "".to_string());
+    static ref INFLUXDB_PASSWORD: String =
+        var("INFLUXDB_PASSWORD").unwrap_or_else(|_| "".to_string());
+    static ref HOSTNAME: String = gethostname::gethostname().to_string_lossy().to_string();
 }
 
 #[tokio::main]
 async fn main() {
-    let client = Client::new(
-        CONFIG.influxdb.url.as_str(),
-        CONFIG.influxdb.database.as_str(),
-    );
-    if let Err(err) = client.ping().await {
-        eprintln!("client.ping error: {:?}", err);
-        return;
-    }
+    let client = if INFLUXDB_USERNAME.is_empty() {
+        Client::new(
+            CONFIG.influxdb.url.as_str(),
+            CONFIG.influxdb.database.as_str(),
+        )
+    } else {
+        Client::new(
+            CONFIG.influxdb.url.as_str(),
+            CONFIG.influxdb.database.as_str(),
+        )
+        .with_auth(INFLUXDB_USERNAME.as_str(), INFLUXDB_PASSWORD.as_str())
+    };
+    // FIXME
+    // if let Err(err) = client.ping().await {
+    //     eprintln!("client.ping error: {:?}", err);
+    //     return;
+    // }
     let (query_sender, query_receiver) = bounded(5000);
 
     network::spawn_analyze(query_sender.clone());
@@ -40,9 +54,7 @@ async fn main() {
 
     for mut query in query_receiver {
         // Attach built-in tags
-        query = query
-            .add_tag("node_id", CONFIG.influxdb.node_id.clone())
-            .add_tag("hostname", CONFIG.influxdb.hostname.clone());
+        query = query.add_tag("hostname", HOSTNAME.clone());
 
         let write_result = client.query(&query).await;
         if let Err(err) = write_result {
