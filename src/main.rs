@@ -29,7 +29,7 @@ lazy_static! {
 
 #[tokio::main]
 async fn main() {
-    let client = if INFLUXDB_USERNAME.is_empty() {
+    let influx = if INFLUXDB_USERNAME.is_empty() {
         Client::new(
             CONFIG.influxdb.url.as_str(),
             CONFIG.influxdb.database.as_str(),
@@ -58,7 +58,7 @@ async fn main() {
         // Attach built-in tags
         query = query.add_tag("hostname", HOSTNAME.clone());
 
-        let write_result = client.query(&query).await;
+        let write_result = influx.query(&query).await;
         if let Err(err) = write_result {
             eprintln!("influxdb.query, error: {}", err);
         }
