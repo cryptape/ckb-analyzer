@@ -241,21 +241,22 @@ impl CKBProtocolHandler for Handler {
         peer_index: PeerIndex,
         _version: &str,
     ) {
-        let mut peers = self.peers.lock().unwrap();
-        if *peers.entry(peer_index).or_insert(true) && crate::LOG_LEVEL.as_str() != "ERROR" {
-            if let Some(peer) = _nc.get_peer(peer_index) {
-                println!("connect with #{}({:?})", peer_index, peer.connected_addr);
+        if let Ok(mut peers) = self.peers.lock() {
+            if *peers.entry(peer_index).or_insert(true) && crate::LOG_LEVEL.as_str() != "ERROR" {
+                if let Some(peer) = _nc.get_peer(peer_index) {
+                    println!("connect with #{}({:?})", peer_index, peer.connected_addr);
+                }
             }
         }
         self.send_peers_total_query();
     }
 
     fn disconnected(&mut self, _nc: Arc<dyn CKBProtocolContext + Sync>, peer_index: PeerIndex) {
-        if self.peers.lock().unwrap().remove(&peer_index).is_some()
-            && crate::LOG_LEVEL.as_str() != "ERROR"
-        {
-            if let Some(peer) = _nc.get_peer(peer_index) {
-                println!("disconnect with #{}({:?})", peer_index, peer.connected_addr);
+        if let Ok(mut peers) = self.peers.lock() {
+            if peers.remove(&peer_index).is_some() && crate::LOG_LEVEL.as_str() != "ERROR" {
+                if let Some(peer) = _nc.get_peer(peer_index) {
+                    println!("disconnect with #{}({:?})", peer_index, peer.connected_addr);
+                }
             }
         }
         self.send_peers_total_query();
