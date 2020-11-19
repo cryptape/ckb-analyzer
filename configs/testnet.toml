@@ -1,0 +1,39 @@
+
+[chain]
+# default is false
+# enabled = false
+ckb_url = "http://47.111.169.36:8121"
+
+[network]
+# default is false
+enabled = true
+ckb_toml = "ckb.testnet.toml" # "ckb.testnet.toml" | "ckb.mainnet.toml"
+ckb_network_identifier = "/ckb_testnet/10639e08"
+
+[topology]
+# default is false
+# enabled = false
+ckb_urls = [
+    "http://47.111.169.36:8121",
+    "http://18.217.146.65:8121",
+    "http://18.136.60.221:8121",
+    "http://35.176.207.239:8121",
+    "http://47.103.65.40:8121",
+    "http://39.104.177.87:8121",
+    "http://47.245.29.58:8121",
+    "http://47.89.252.15:8121",
+    "http://47.90.209.219:8121",
+    "http://47.254.234.14:8121",
+    "http://47.254.175.152:8121",
+    "http://47.74.66.72:8121",
+    "http://47.99.63.192:8121",
+]
+
+[influxdb]
+database = "testnet"
+# url = "{{ influxdb_instance }}"
+# node_id = "{{ ansible_host }}"
+# hostname = "{{ hostname }}"
+url = "http://127.0.0.1:8086"
+node_id = "127.0.0.1"
+hostname = "keroro"
