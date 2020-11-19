@@ -31,4 +31,4 @@ ckb_urls = [
 
 [influxdb]
 database = "testnet"
-url = "{{ influxdb_instance }}" # e.g "http://127.0.0.1:8086"
+url = {{ influxdb_instance }}

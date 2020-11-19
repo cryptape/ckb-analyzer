@@ -33,9 +33,4 @@ ckb_urls = [
 
 [influxdb]
 database = "mainnet"
-# url = "{{ influxdb_instance }}"
-# node_id = "{{ ansible_host }}"
-# hostname = "{{ hostname }}"
-url = "http://127.0.0.1:8086"
-node_id = "127.0.0.1"
-hostname = "keroro"
+url = "{{ influxdb_instance }}"
