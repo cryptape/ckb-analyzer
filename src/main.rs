@@ -50,8 +50,11 @@ async fn main() {
         network::spawn_analyze(query_sender.clone());
     }
     if CONFIG.chain.enabled {
-        let sql = "SELECT last(number) FROM blocks";
-        let query_last_number = ReadQuery::new(sql);
+        let sql = format!(
+            "SELECT last(number) FROM blocks WHERE network = '{}'",
+            CONFIG.network.ckb_network_name
+        );
+        let query_last_number = ReadQuery::new(&sql);
         let last_number = match influx.query(&query_last_number).await {
             Err(err) => {
                 eprintln!("influxdb.query(\"{}\"), error: {}", sql, err);
