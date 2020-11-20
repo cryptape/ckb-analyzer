@@ -1,8 +1,8 @@
 use crate::CONFIG;
 use crate::LOG_LEVEL;
 use ckb_suite_rpc::Jsonrpc;
-use ckb_types::core::BlockNumber;
 use ckb_types::core::BlockView;
+use ckb_types::core::{BlockNumber, HeaderView};
 use ckb_types::packed::{CellbaseWitness, ProposalShortId, Script};
 use ckb_types::prelude::*;
 use crossbeam::channel::Sender;
@@ -47,7 +47,8 @@ pub struct EpochSerie {
 
     number: u64,
     length: u64,
-    duration: u64, // seconds
+    duration: u64, // ms
+    uncles_count: u32,
 }
 
 #[derive(InfluxDbWriteable)]
@@ -59,40 +60,7 @@ pub struct TransactionSerie {
 }
 
 pub fn spawn_analyze(query_sender: Sender<WriteQuery>, last_number: BlockNumber) {
-    let query_sender_ = query_sender.clone();
-    spawn(move || analyze_blocks(query_sender_, last_number));
-    spawn(move || analyze_epochs(query_sender));
-}
-
-fn analyze_epochs(query_sender: Sender<WriteQuery>) {
-    let rpc = Jsonrpc::connect(CONFIG.chain.ckb_url.as_str());
-    let mut number = 0;
-    loop {
-        let current_epoch = rpc.get_current_epoch();
-        if number >= current_epoch.number.value() {
-            sleep(Duration::from_secs(60 * 10));
-            continue;
-        }
-
-        let epoch = rpc.get_epoch_by_number(number).unwrap();
-        let length = epoch.length.value();
-        let start_number: u64 = epoch.start_number.value();
-        let end_number = start_number + length - 1;
-        let start_header = rpc.get_header_by_number(start_number).unwrap();
-        let end_header = rpc.get_header_by_number(end_number).unwrap();
-        let start_timestamp = start_header.inner.timestamp.value() / 1000;
-        let end_timestamp = end_header.inner.timestamp.value() / 1000;
-        let write_query = EpochSerie {
-            time: Timestamp::Seconds(start_timestamp as u128),
-            number,
-            length,
-            duration: end_timestamp.saturating_sub(start_timestamp),
-        }
-        .into_query("epochs");
-        query_sender.send(write_query).unwrap();
-
-        number += 1;
-    }
+    spawn(move || analyze_blocks(query_sender, last_number));
 }
 
 fn analyze_blocks(query_sender: Sender<WriteQuery>, last_number: BlockNumber) {
@@ -107,6 +75,7 @@ fn analyze_blocks(query_sender: Sender<WriteQuery>, last_number: BlockNumber) {
 
     let rpc = Jsonrpc::connect(CONFIG.chain.ckb_url.as_str());
     let mut tip = rpc.get_tip_block_number();
+    let (mut current_epoch, mut current_epoch_uncles_total) = (rpc.get_current_epoch(), 0);
     let mut parent: BlockView = rpc
         .get_block_by_number(number.saturating_sub(1))
         .unwrap()
@@ -124,6 +93,13 @@ fn analyze_blocks(query_sender: Sender<WriteQuery>, last_number: BlockNumber) {
             analyze_block(&block, &parent, &query_sender);
             analyze_block_uncles(&rpc, &block, &query_sender);
             analyze_block_transactions(&block, &window, &mut proposals_zones, &query_sender);
+            analyze_epoch(
+                &rpc,
+                &mut current_epoch,
+                &mut current_epoch_uncles_total,
+                &block,
+                &query_sender,
+            );
 
             number += 1;
             parent = block;
@@ -238,6 +214,43 @@ fn analyze_block_transactions(
     // Prune outdated proposals zone
     proposals_zones.remove(&(number - window.1));
     proposals_zones.insert(number, block.union_proposal_ids());
+}
+
+fn analyze_epoch(
+    rpc: &Jsonrpc,
+    current_epoch: &mut ckb_suite_rpc::ckb_jsonrpc_types::EpochView,
+    current_epoch_uncles_total: &mut u32,
+    block: &BlockView,
+    query_sender: &Sender<WriteQuery>,
+) {
+    static QUERY_NAME: &str = "epochs";
+
+    // Sum epoch uncles total
+    let start_number = current_epoch.start_number.value();
+    let length = current_epoch.length.value();
+    let end_number = start_number + length - 1;
+    if end_number < block.number() {
+        let number = current_epoch.number.value();
+        let start_header: HeaderView = rpc.get_header_by_number(start_number).unwrap().into();
+        let end_header: HeaderView = rpc.get_header_by_number(end_number).unwrap().into();
+        let duration = end_header
+            .timestamp()
+            .saturating_sub(start_header.timestamp());
+        let query = EpochSerie {
+            time: Timestamp::Milliseconds(end_header.timestamp() as u128),
+            number,
+            length,
+            duration,
+            uncles_count: *current_epoch_uncles_total,
+        }
+            .into_query(QUERY_NAME);
+        query_sender.send(query).unwrap();
+
+        *current_epoch = rpc.get_current_epoch();
+        *current_epoch_uncles_total = 0;
+    }
+
+    *current_epoch_uncles_total += block.uncle_hashes().len() as u32;
 }
 
 #[allow(unused)]
