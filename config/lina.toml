@@ -6,7 +6,7 @@ ckb_url = "http://47.110.15.57:8124"
 [network]
 ## default is false
 enabled = true
-ckb_app_config = "lina" # "lina" | "aggron"
+ckb_network_name = "lina" # "lina" | "aggron"
 ckb_network_identifier = "/ckb/92b197aa" # mainnet
 
 [topology]
@@ -32,5 +32,5 @@ ckb_urls = [
 ]
 
 [influxdb]
-database = "mainnet"
+database = "ckb"
 url = "{{ influxdb_instance }}"
