@@ -25,7 +25,6 @@ lazy_static! {
         var("INFLUXDB_USERNAME").unwrap_or_else(|_| "".to_string());
     static ref INFLUXDB_PASSWORD: String =
         var("INFLUXDB_PASSWORD").unwrap_or_else(|_| "".to_string());
-    static ref HOSTNAME: String = gethostname::gethostname().to_string_lossy().to_string();
 }
 
 #[tokio::main]
@@ -79,11 +78,13 @@ async fn main() {
         topology::spawn_analyze(query_sender);
     }
 
+    let network = CONFIG.network.ckb_network_name.clone();
+    let hostname = gethostname::gethostname().to_string_lossy().to_string();
     for mut query in query_receiver {
         // Attach built-in tags
         query = query
-            .add_tag("network", CONFIG.network.ckb_network_name.clone())
-            .add_tag("hostname", HOSTNAME.clone());
+            .add_tag("network", network.clone())
+            .add_tag("hostname", hostname.clone());
 
         // Writes asynchronously
         let influx_ = influx.clone();
