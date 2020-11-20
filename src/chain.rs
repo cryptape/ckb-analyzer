@@ -45,6 +45,7 @@ pub struct UncleSerie {
 pub struct EpochSerie {
     time: Timestamp,
 
+    number: u64,
     length: u64,
     duration: u64, // seconds
 }
@@ -83,6 +84,7 @@ fn analyze_epochs(query_sender: Sender<WriteQuery>) {
         let end_timestamp = end_header.inner.timestamp.value() / 1000;
         let write_query = EpochSerie {
             time: Timestamp::Seconds(start_timestamp as u128),
+            number,
             length,
             duration: end_timestamp.saturating_sub(start_timestamp),
         }
