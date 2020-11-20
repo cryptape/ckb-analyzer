@@ -81,7 +81,9 @@ async fn main() {
 
     for mut query in query_receiver {
         // Attach built-in tags
-        query = query.add_tag("hostname", HOSTNAME.clone());
+        query = query
+            .add_tag("network", CONFIG.network.ckb_network_name.clone())
+            .add_tag("hostname", HOSTNAME.clone());
 
         // Writes asynchronously
         let influx_ = influx.clone();
