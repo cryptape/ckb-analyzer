@@ -1,9 +1,11 @@
 use crate::CONFIG;
-use ckb_network::MultiaddrExt;
+use ckb_network::{
+    MultiaddrExt,
+    multiaddr::MultiAddr,
+};
 use ckb_suite_rpc::Jsonrpc;
 use crossbeam::channel::Sender;
 use influxdb::WriteQuery;
-use multiaddr::MultiAddr;
 use std::collections::{HashMap, HashSet};
 use std::net::SocketAddr;
 use std::thread::{sleep, spawn};

@@ -5,21 +5,21 @@ authors = ["keroro <keroroxx520@gmail.com>"]
 edition = "2018"
 
 [dependencies]
+ckb-suite-rpc = { path = "ckb-suite-rpc" }
+ckb-network = { version = "0.37.0" }
+ckb-util = { version = "0.37.0" }
+ckb-sync = { version = "0.37.0" }
+ckb-logger = { version = "0.37.0" }
+ckb-build-info = { version = "0.37.0" }
+ckb-types = { version = "0.37.0" }
+ckb-app-config = { version = "0.37.0" }
+
 influxdb = { version = "0.3.0", features = ["derive"] }
 tokio = { version = "0.2.22", features = ["full"] }
 crossbeam = { version = "0.8.0" }
-ckb-suite-rpc = { path = "ckb-suite-rpc" }
-lazy_static = { version = "1.4.0" }
-ckb-network = { git = "https://github.com/nervosnetwork/ckb", rev = "6a80301935" }
-ckb-util = { git = "https://github.com/nervosnetwork/ckb", rev = "6a80301935" }
-ckb-sync = { git = "https://github.com/nervosnetwork/ckb", rev = "6a80301935" }
-ckb-logger = { git = "https://github.com/nervosnetwork/ckb", rev = "6a80301935" }
-ckb-build-info = { git = "https://github.com/nervosnetwork/ckb", rev = "6a80301935" }
-ckb-types = { git = "https://github.com/nervosnetwork/ckb", rev = "6a80301935" }
 chrono = { version = "0.4.19" }
-ckb-app-config = { git = "https://github.com/nervosnetwork/ckb", rev = "6a80301935" }
+lazy_static = { version = "1.4.0" }
 toml = { version = "0.5" }
-multiaddr = { version = "0.2.0", package = "tentacle-multiaddr" }
 gethostname = { version = "0.2.1" }
 serde = { version = "1.0.117", features = [ "derive" ] }
 serde_json = { version = "1.0.59" }
