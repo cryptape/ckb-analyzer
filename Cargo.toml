@@ -1,11 +1,14 @@
 [package]
 name = "ckb-analyzer"
-version = "0.1.0"
+version = "0.37.0"
+license = "MIT"
 authors = ["keroro <keroroxx520@gmail.com>"]
 edition = "2018"
+description = "ckb-analyzer analyzes kinds of data sources and upload the results into InfluxDB"
+homepage = "https://github.com/keroro520/ckb-analyzer"
 
 [dependencies]
-ckb-suite-rpc = { path = "ckb-suite-rpc" }
+ckb-suite-rpc = { path = "ckb-suite-rpc", version = "0.37.0" }
 ckb-network = { version = "0.37.0" }
 ckb-util = { version = "0.37.0" }
 ckb-sync = { version = "0.37.0" }
