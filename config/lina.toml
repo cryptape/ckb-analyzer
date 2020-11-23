@@ -1,7 +1,7 @@
 [chain]
 ## default is false
 # enabled = false
-ckb_url = "http://47.110.15.57:8124"
+ckb_url = "http://127.0.0.1:8124"
 
 [network]
 ## default is false
@@ -12,25 +12,8 @@ ckb_network_identifier = "/ckb/92b197aa" # mainnet
 [topology]
 ## default is false
 # enabled = false
-ckb_urls = [
-    "http://47.110.15.57:8124",
-    "http://47.245.31.79:8124",
-    "http://13.234.144.148:8124",
-    "http://3.218.170.86:8124",
-    "http://52.59.155.249:8124",
-    "http://39.107.100.85:8124",
-    "http://47.103.44.208:8124",
-    "http://120.24.85.239:8124",
-    "http://47.91.238.128:8124",
-    "http://147.139.137.53:8124",
-    "http://13.52.18.181:8124",
-    "http://18.140.240.153:8124",
-    "http://35.183.172.68:8124",
-    "http://3.10.216.39:8124",
-    "http://3.105.209.193:8124",
-    "http://18.229.214.173:8124",
-]
+ckb_urls = []
 
 [influxdb]
 database = "ckb"
-url = "{{ influxdb_instance }}"
+url = "http://127.0.0.1:8086"
