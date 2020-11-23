@@ -1,6 +1,6 @@
 [package]
 name = "ckb-analyzer"
-version = "0.37.0"
+version = "0.38.0"
 license = "MIT"
 authors = ["keroro <keroroxx520@gmail.com>"]
 edition = "2018"
@@ -8,14 +8,14 @@ description = "ckb-analyzer analyzes kinds of data sources and upload the result
 homepage = "https://github.com/keroro520/ckb-analyzer"
 
 [dependencies]
-ckb-suite-rpc = { path = "ckb-suite-rpc", version = "0.37.0" }
-ckb-network = { version = "0.37.0" }
-ckb-util = { version = "0.37.0" }
-ckb-sync = { version = "0.37.0" }
-ckb-logger = { version = "0.37.0" }
-ckb-build-info = { version = "0.37.0" }
-ckb-types = { version = "0.37.0" }
-ckb-app-config = { version = "0.37.0" }
+ckb-suite-rpc = { path = "ckb-suite-rpc", version = "0.38.0" }
+ckb-network = { version = "0.38.0" }
+ckb-util = { version = "0.38.0" }
+ckb-sync = { version = "0.38.0" }
+ckb-logger = { version = "0.38.0" }
+ckb-build-info = { version = "0.38.0" }
+ckb-types = { version = "0.38.0" }
+ckb-app-config = { version = "0.38.0" }
 
 influxdb = { version = "0.3.0", features = ["derive"] }
 tokio = { version = "0.2.22", features = ["full"] }
