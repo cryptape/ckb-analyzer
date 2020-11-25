@@ -1,8 +1,5 @@
 use crate::CONFIG;
-use ckb_network::{
-    MultiaddrExt,
-    multiaddr::MultiAddr,
-};
+use ckb_network::{multiaddr::MultiAddr, MultiaddrExt};
 use ckb_suite_rpc::Jsonrpc;
 use crossbeam::channel::Sender;
 use influxdb::WriteQuery;
