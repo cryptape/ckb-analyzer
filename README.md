@@ -6,6 +6,8 @@ ckb-analyzer is an agent for collecting metrics from ckb, then writing the proce
 - real-time the network metrics, include block propagation, transaction propagation, and high latency records
 - the network topology
 
+ckb-analyzer is still work in progress.
+
 ### FAQ
 
 * Ckb itself also exposes metrics. So why create ckb-analyzer?
@@ -18,8 +20,23 @@ ckb-analyzer is an agent for collecting metrics from ckb, then writing the proce
 
 ### Snapshot Example
 
-Contract [us](keroroxx520@gmail.com) if you want the dashboard json file.
+Please reference our Grafana dashboard files at [`dashboards`](https://github.com/keroro520/ckb-analyzer/tree/main/dashboards)
 
-* network prober: https://snapshot.raintank.io/dashboard/snapshot/5clx4H72cGkEt1Tmiz8jkkJ8M3C7IE5O
+* Network Prober: https://snapshot.raintank.io/dashboard/snapshot/5Yql0Y9q1EW20hHZjBzgXXbU1DSYuqaR
+* MainChain: https://snapshot.raintank.io/dashboard/snapshot/THchboPCVZBQ827X0jRtdlFzi20I4Gvk
 
-* chain: https://snapshot.raintank.io/dashboard/snapshot/aR840AN8IJ9xehuP5vxgbVvifi3lMkaC
+### How to Use
+
+ckb-analyzer reads several environment variables:
+
+* `CKB_ANALYZER_CONFIG` specify the configuration file path
+* `CKB_RPC_USERNAME` specify the authorization username to ckb rpc service, default is `""`
+* `CKB_RPC_PASSWORD` specify the authorization password to ckb rpc service, default is `""`
+* `INFLUXDB_USERNAME` specify the influxdb username, default is `""`
+* `INFLUXDB_PASSWORD` specify the influxdb password, default is `""`
+
+Command example:
+
+```shell
+CKB_ANALYZER_CONFIG=config/local.toml cargo run --release
+```
