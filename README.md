@@ -15,7 +15,15 @@ Please reference our Grafana dashboard files at [`dashboards`](https://github.co
 * MainChain: https://snapshot.raintank.io/dashboard/snapshot/O6cJmrxQTmdcOzmCqvGIGRhfrqH4ulHy
 * Network Prober: https://snapshot.raintank.io/dashboard/snapshot/5Yql0Y9q1EW20hHZjBzgXXbU1DSYuqaR
 
-### How to Use
+### Install
+
+Download from [releases](https://github.com/keroro520/ckb-analyzer/releases) or
+
+```shell
+cargo install ckb-analyzer
+```
+
+### Usage
 
 ckb-analyzer reads several environment variables:
 
