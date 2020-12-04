@@ -1,6 +1,6 @@
 use crate::app_config::app_config;
 use crate::get_version::get_version;
-use crate::serie::{HighLatencySerie, PeersTotalSerie, PropagationSerie};
+use crate::serie::{HighLatency, IntoWriteQuery, Peers, Propagation, WriteQuery};
 use crate::CONFIG;
 use chrono::Utc;
 use ckb_network::{
@@ -12,10 +12,8 @@ use ckb_types::packed::{
 };
 use ckb_types::prelude::*;
 use crossbeam::channel::Sender;
-use influxdb::{InfluxDbWriteable, WriteQuery};
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
-use std::thread::spawn;
 use std::time::Duration;
 use std::time::Instant;
 
@@ -30,14 +28,14 @@ use std::time::Instant;
 type PropagationHashes = Arc<Mutex<HashMap<Byte32, (Instant, HashSet<PeerIndex>)>>>;
 
 #[derive(Clone)]
-pub struct Handler {
+pub struct NetworkProbe {
     peers: Arc<Mutex<HashMap<PeerIndex, bool>>>,
     compact_blocks: PropagationHashes,
     transaction_hashes: PropagationHashes,
     query_sender: Sender<WriteQuery>,
 }
 
-impl Handler {
+impl NetworkProbe {
     pub fn new(query_sender: Sender<WriteQuery>) -> Self {
         Self {
             peers: Default::default(),
@@ -45,6 +43,40 @@ impl Handler {
             transaction_hashes: Default::default(),
             query_sender,
         }
+    }
+
+    pub async fn run(&mut self) {
+        let config = app_config().network;
+        let network_state = Arc::new(NetworkState::from_config(config).unwrap());
+        let exit_handler = DefaultExitHandler::default();
+        let version = get_version();
+        let protocols = vec![SupportProtocols::Sync, SupportProtocols::Relay];
+        let required_protocol_ids = protocols
+            .iter()
+            .map(|protocol| protocol.protocol_id())
+            .collect();
+        let ckb_protocols = protocols
+            .into_iter()
+            .map(|protocol| {
+                CKBProtocol::new_with_support_protocol(
+                    protocol,
+                    Box::new(self.clone()),
+                    Arc::clone(&network_state),
+                )
+            })
+            .collect();
+        let _network_controller = NetworkService::new(
+            network_state,
+            ckb_protocols,
+            required_protocol_ids,
+            CONFIG.network.ckb_network_identifier.clone(),
+            version.to_string(),
+            exit_handler.clone(),
+        )
+        .start(Some("ckb-analyzer::network"))
+        .unwrap();
+
+        exit_handler.wait_for_exit();
     }
 
     #[allow(clippy::single_match)]
@@ -141,18 +173,17 @@ impl Handler {
     }
 
     fn send_high_latency_query(&self, first_received: Instant, peer: &Peer) {
-        static QUERY_NAME: &str = "high_latency";
         let time_interval = first_received.elapsed();
         if time_interval < Duration::from_secs(8) {
             return;
         }
 
-        let query = HighLatencySerie {
+        let query = HighLatency {
             time: Utc::now().into(),
             time_interval: time_interval.as_millis() as u64,
             addr: peer.connected_addr.to_string(),
         }
-        .into_query(QUERY_NAME);
+        .into_write_query();
         self.query_sender.send(query).unwrap();
     }
 
@@ -164,8 +195,6 @@ impl Handler {
     ) where
         M: ToString,
     {
-        static QUERY_NAME: &str = "propagation";
-
         let peers_total = self.peers.lock().unwrap().len();
         let last_percentile = (peers_received - 1) as f32 * 100.0 / peers_total as f32;
         let current_percentile = peers_received as f32 * 100.0 / peers_total as f32;
@@ -181,33 +210,31 @@ impl Handler {
         };
 
         if let Some(percentile) = percentile {
-            let query = PropagationSerie {
+            let query = Propagation {
                 time: Utc::now().into(),
                 time_interval,
                 percentile,
                 message_type: message_type.to_string(),
             }
-            .into_query(QUERY_NAME);
+            .into_write_query();
             self.query_sender.send(query).unwrap();
         }
     }
 
     fn send_peers_total_query(&self) {
-        static QUERY_NAME: &str = "peers_total";
-
         if let Ok(guard) = self.peers.lock() {
             let peers_total = guard.len() as u32;
-            let query = PeersTotalSerie {
+            let query = Peers {
                 time: Utc::now().into(),
                 peers_total,
             }
-            .into_query(QUERY_NAME);
+            .into_write_query();
             self.query_sender.send(query).unwrap();
         }
     }
 }
 
-impl CKBProtocolHandler for Handler {
+impl CKBProtocolHandler for NetworkProbe {
     fn init(&mut self, _nc: Arc<dyn CKBProtocolContext + Sync>) {}
 
     fn connected(
@@ -249,43 +276,4 @@ impl CKBProtocolHandler for Handler {
             self.received_sync(nc, peer_index, data);
         }
     }
-}
-
-pub(crate) fn spawn_analyze(query_sender: Sender<WriteQuery>) {
-    let handler = Handler::new(query_sender);
-    spawn(move || run_network_service(handler));
-}
-
-pub(crate) fn run_network_service(handler: Handler) {
-    let config = app_config().network;
-    let network_state = Arc::new(NetworkState::from_config(config).unwrap());
-    let exit_handler = DefaultExitHandler::default();
-    let version = get_version();
-    let protocols = vec![SupportProtocols::Sync, SupportProtocols::Relay];
-    let required_protocol_ids = protocols
-        .iter()
-        .map(|protocol| protocol.protocol_id())
-        .collect();
-    let ckb_protocols = protocols
-        .into_iter()
-        .map(|protocol| {
-            CKBProtocol::new_with_support_protocol(
-                protocol,
-                Box::new(handler.clone()),
-                Arc::clone(&network_state),
-            )
-        })
-        .collect();
-    let _network_controller = NetworkService::new(
-        network_state,
-        ckb_protocols,
-        required_protocol_ids,
-        CONFIG.network.ckb_network_identifier.clone(),
-        version.to_string(),
-        exit_handler.clone(),
-    )
-    .start(Some("ckb-analyzer::network"))
-    .unwrap();
-
-    exit_handler.wait_for_exit();
 }

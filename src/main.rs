@@ -1,18 +1,15 @@
+use crate::analyzer::{Analyzer, MainChainConfig, NetworkTopologyConfig};
 pub use config::{init_config, Config};
 use crossbeam::channel::bounded;
-use influxdb::{Client, ReadQuery};
+use influxdb::Client;
 use lazy_static::lazy_static;
-use std::collections::HashMap;
 use std::env::var;
-use std::process::exit;
 
+mod analyzer;
 mod app_config;
-mod chain;
 mod config;
 mod get_version;
-mod network;
 mod serie;
-mod topology;
 
 lazy_static! {
     static ref LOG_LEVEL: String = var("LOG_LEVEL").unwrap_or_else(|_| "ERROR".to_string());
@@ -47,41 +44,25 @@ async fn main() {
     let (query_sender, query_receiver) = bounded(5000);
 
     assert!(CONFIG.network.enabled || CONFIG.chain.enabled || CONFIG.topology.enabled);
-    if CONFIG.network.enabled {
-        network::spawn_analyze(query_sender.clone());
-    }
-    if CONFIG.chain.enabled {
-        let sql = format!(
-            "SELECT last(number) FROM blocks WHERE network = '{}'",
-            CONFIG.network.ckb_network_name
-        );
-        let query_last_number = ReadQuery::new(&sql);
-        let last_number = match influx.query(&query_last_number).await {
-            Err(err) => {
-                eprintln!("influxdb.query(\"{}\"), error: {}", sql, err);
-                exit(1);
-            }
-            Ok(results) => {
-                let json: HashMap<String, serde_json::Value> =
-                    serde_json::from_str(&results).unwrap();
-                let results = json.get("results").unwrap().as_array().unwrap();
-                let result = results.get(0).unwrap().as_object().unwrap();
-                if let Some(series) = result.get("series") {
-                    let series = series.as_array().unwrap();
-                    let serie = series.get(0).unwrap().as_object().unwrap();
-                    let values = serie.get("values").unwrap().as_array().unwrap();
-                    let value = values.get(0).unwrap().as_array().unwrap();
-                    value.get(1).unwrap().as_u64().unwrap()
-                } else {
-                    1
-                }
-            }
-        };
 
-        chain::spawn_analyze(query_sender.clone(), last_number);
+    if CONFIG.chain.enabled {
+        let config = MainChainConfig {
+            ckb_rpc_url: CONFIG.chain.ckb_url.clone(),
+        };
+        let analyzer = Analyzer::MainChain(config);
+        let future = analyzer.run(influx.clone(), query_sender.clone());
+        tokio::spawn(future);
+    }
+    if CONFIG.network.enabled {
+        let future = Analyzer::NetworkProbe.run(influx.clone(), query_sender.clone());
+        tokio::spawn(future);
     }
     if CONFIG.topology.enabled {
-        topology::spawn_analyze(query_sender);
+        let config = NetworkTopologyConfig {
+            ckb_rpc_urls: CONFIG.topology.ckb_urls.clone(),
+        };
+        let future = Analyzer::NetworkTopology(config).run(influx.clone(), query_sender);
+        tokio::spawn(future);
     }
 
     for mut query in query_receiver {

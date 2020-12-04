@@ -26,6 +26,8 @@ toml = { version = "0.5" }
 gethostname = { version = "0.2.1" }
 serde = { version = "1.0.117", features = [ "derive" ] }
 serde_json = { version = "1.0.59" }
+case_style = { version = "0.2.1" }
+tynm = "0.1.6"
 
 [workspace]
 members = [
