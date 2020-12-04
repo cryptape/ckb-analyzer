@@ -11,6 +11,7 @@ mod chain;
 mod config;
 mod get_version;
 mod network;
+mod serie;
 mod topology;
 
 lazy_static! {

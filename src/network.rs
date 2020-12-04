@@ -1,5 +1,6 @@
 use crate::app_config::app_config;
 use crate::get_version::get_version;
+use crate::serie::{HighLatencySerie, PeersTotalSerie, PropagationSerie};
 use crate::CONFIG;
 use chrono::Utc;
 use ckb_network::{
@@ -11,7 +12,7 @@ use ckb_types::packed::{
 };
 use ckb_types::prelude::*;
 use crossbeam::channel::Sender;
-use influxdb::{InfluxDbWriteable, Timestamp, WriteQuery};
+use influxdb::{InfluxDbWriteable, WriteQuery};
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
 use std::thread::spawn;
@@ -25,34 +26,6 @@ use std::time::Instant;
 // TODO logger
 // TODO create data/ dir before Network::init...
 // TODO install node-exporter on testnet machines
-
-#[derive(InfluxDbWriteable)]
-pub struct PropagationSerie {
-    time: Timestamp,
-
-    time_interval: u64, // ms
-
-    #[tag]
-    percentile: u32,
-    #[tag]
-    message_type: String,
-}
-
-#[derive(InfluxDbWriteable)]
-pub struct HighLatencySerie {
-    time: Timestamp,
-
-    time_interval: u64,
-
-    #[tag]
-    addr: String,
-}
-
-#[derive(InfluxDbWriteable)]
-pub struct PeersTotalSerie {
-    time: Timestamp,
-    peers_total: u32,
-}
 
 type PropagationHashes = Arc<Mutex<HashMap<Byte32, (Instant, HashSet<PeerIndex>)>>>;
 

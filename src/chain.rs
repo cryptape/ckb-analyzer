@@ -1,3 +1,4 @@
+use crate::serie::{BlockSerie, EpochSerie, TransactionSerie, UncleSerie};
 use crate::CONFIG;
 use crate::LOG_LEVEL;
 use ckb_suite_rpc::Jsonrpc;
@@ -11,53 +12,6 @@ use std::cmp::max;
 use std::collections::{HashMap, HashSet};
 use std::thread::{sleep, spawn};
 use std::time::{Duration, Instant};
-
-#[derive(InfluxDbWriteable)]
-pub struct BlockSerie {
-    time: Timestamp,
-
-    number: u64,
-    time_interval: u64, // ms
-    transactions_count: u32,
-    uncles_count: u32,
-    proposals_count: u32,
-    version: u32,
-
-    #[tag]
-    miner_lock_args: String,
-}
-
-#[derive(InfluxDbWriteable)]
-pub struct UncleSerie {
-    time: Timestamp,
-
-    number: u64,
-    transactions_count: u32,
-    proposals_count: u32,
-    version: u32,
-    slower_than_cousin: i64,
-
-    #[tag]
-    miner_lock_args: String,
-}
-
-#[derive(InfluxDbWriteable)]
-pub struct EpochSerie {
-    time: Timestamp,
-
-    number: u64,
-    length: u64,
-    duration: u64, // ms
-    uncles_count: u32,
-}
-
-#[derive(InfluxDbWriteable)]
-pub struct TransactionSerie {
-    time: Timestamp,
-
-    number: u64, // block number
-    pc_delay: u32,
-}
 
 pub fn spawn_analyze(query_sender: Sender<WriteQuery>, last_number: BlockNumber) {
     spawn(move || analyze_blocks(query_sender, last_number));
