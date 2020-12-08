@@ -1,4 +1,4 @@
-use crate::analyzer::{Analyzer, MainChainConfig, NetworkTopologyConfig};
+use crate::analyzer::{Analyzer, ForkConfig, MainChainConfig, NetworkTopologyConfig};
 pub use config::{init_config, Config};
 use crossbeam::channel::bounded;
 use influxdb::Client;
@@ -10,6 +10,7 @@ mod app_config;
 mod config;
 mod get_version;
 mod serie;
+mod subscribe;
 
 lazy_static! {
     static ref LOG_LEVEL: String = var("LOG_LEVEL").unwrap_or_else(|_| "ERROR".to_string());
@@ -43,26 +44,26 @@ async fn main() {
     };
     let (query_sender, query_receiver) = bounded(5000);
 
-    assert!(CONFIG.network.enabled || CONFIG.chain.enabled || CONFIG.topology.enabled);
-
+    if CONFIG.fork.enabled {
+        let config = ForkConfig {
+            ckb_subscribe_url: CONFIG.fork.ckb_subscription_url.clone(),
+        };
+        tokio::spawn(Analyzer::Fork(config).run(influx.clone(), query_sender.clone()));
+    }
     if CONFIG.chain.enabled {
         let config = MainChainConfig {
             ckb_rpc_url: CONFIG.chain.ckb_url.clone(),
         };
-        let analyzer = Analyzer::MainChain(config);
-        let future = analyzer.run(influx.clone(), query_sender.clone());
-        tokio::spawn(future);
+        tokio::spawn(Analyzer::MainChain(config).run(influx.clone(), query_sender.clone()));
     }
     if CONFIG.network.enabled {
-        let future = Analyzer::NetworkProbe.run(influx.clone(), query_sender.clone());
-        tokio::spawn(future);
+        tokio::spawn(Analyzer::NetworkProbe.run(influx.clone(), query_sender.clone()));
     }
     if CONFIG.topology.enabled {
         let config = NetworkTopologyConfig {
             ckb_rpc_urls: CONFIG.topology.ckb_urls.clone(),
         };
-        let future = Analyzer::NetworkTopology(config).run(influx.clone(), query_sender);
-        tokio::spawn(future);
+        tokio::spawn(Analyzer::NetworkTopology(config).run(influx.clone(), query_sender));
     }
 
     for mut query in query_receiver {
