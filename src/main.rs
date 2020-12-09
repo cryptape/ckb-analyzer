@@ -1,4 +1,4 @@
-use crate::analyzer::{Analyzer, ReorganizationConfig, MainChainConfig, NetworkTopologyConfig};
+use crate::analyzer::{Analyzer, MainChainConfig, NetworkTopologyConfig, ReorganizationConfig};
 pub use config::{init_config, Config};
 use crossbeam::channel::bounded;
 use influxdb::Client;

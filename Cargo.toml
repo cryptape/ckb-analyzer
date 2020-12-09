@@ -27,15 +27,16 @@ gethostname = { version = "0.2.1" }
 serde = { version = "1.0.117", features = [ "derive" ] }
 serde_json = { version = "1.0.59" }
 case_style = { version = "0.2.1" }
-tynm = "0.1.6"
-jsonrpc-core = "15.1"
-jsonrpc-derive = "15.1"
-jsonrpc-tcp-server = "15.1"
-jsonrpc-ws-server = "15.1"
-jsonrpc-server-utils = "15.1"
-jsonrpc-pubsub = "15.1"
-jsonrpc-core-client = "15.1"
-jsonrpc-client-transports = "15.1"
+tynm = { version = "0.1.6" }
+jsonrpc-core = { version = "15.1" }
+jsonrpc-derive = { version = "15.1" }
+jsonrpc-tcp-server = { version = "15.1" }
+jsonrpc-ws-server = { version = "15.1" }
+jsonrpc-server-utils = { version = "15.1" }
+jsonrpc-pubsub = { version = "15.1" }
+jsonrpc-core-client = { version = "15.1" }
+jsonrpc-client-transports = { version = "15.1" }
+lru = { version = "0.6.1" }
 
 [workspace]
 members = [

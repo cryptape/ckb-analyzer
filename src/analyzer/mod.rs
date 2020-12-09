@@ -2,15 +2,15 @@ use crossbeam::channel::Sender;
 use influxdb::{Client as Influx, WriteQuery};
 use serde::{Deserialize, Serialize};
 
-mod reorganization;
 mod main_chain;
 mod network_probe;
 mod network_topology;
+mod reorganization;
 
-pub use reorganization::{Reorganization, ReorganizationConfig};
 pub use main_chain::{select_last_block_number_in_influxdb, MainChain, MainChainConfig};
 pub use network_probe::NetworkProbe;
 pub use network_topology::{NetworkTopology, NetworkTopologyConfig};
+pub use reorganization::{Reorganization, ReorganizationConfig};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum Analyzer {

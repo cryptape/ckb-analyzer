@@ -1,5 +1,6 @@
 use crate::serie::{self, IntoWriteQuery};
 use crate::subscribe::{Subscription, Topic};
+use ckb_suite_rpc::Jsonrpc;
 use ckb_types::core::{BlockNumber, HeaderView};
 use ckb_types::packed::Byte32;
 use crossbeam::channel::Sender;
@@ -7,9 +8,8 @@ use influxdb::{Timestamp, WriteQuery};
 use jsonrpc_core::futures::Stream;
 use jsonrpc_core::serde_from_str;
 use jsonrpc_server_utils::tokio::prelude::*;
+use lru::LruCache;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use ckb_suite_rpc::Jsonrpc;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ReorganizationConfig {
@@ -17,22 +17,24 @@ pub struct ReorganizationConfig {
     pub ckb_subscribe_url: String,
 }
 
-pub const MAX_REORGANIZE_LENGTH: u64 = 500;
-
 pub struct Reorganization {
     header_receiver: jsonrpc_server_utils::tokio::sync::mpsc::Receiver<String>,
     query_sender: Sender<WriteQuery>,
     jsonrpc: Jsonrpc,
     main_tip_number: BlockNumber,
     main_tip_hash: Byte32,
-    // #{ header_hash => header } TODO lrucache
-    cache: HashMap<Byte32, HeaderView>,
+    // #{ header_hash => header }
+    cache: LruCache<Byte32, HeaderView>,
 }
 
 impl Reorganization {
-    pub fn init(config: ReorganizationConfig, query_sender: Sender<WriteQuery>) -> (Self, Subscription) {
+    pub fn init(
+        config: ReorganizationConfig,
+        query_sender: Sender<WriteQuery>,
+    ) -> (Self, Subscription) {
         let jsonrpc = Jsonrpc::connect(&config.ckb_rpc_url);
-        let (header_sender, header_receiver) = jsonrpc_server_utils::tokio::sync::mpsc::channel(100);
+        let (header_sender, header_receiver) =
+            jsonrpc_server_utils::tokio::sync::mpsc::channel(100);
         let subscription =
             Subscription::new(config.ckb_subscribe_url, Topic::NewTipHeader, header_sender);
         (
@@ -42,7 +44,7 @@ impl Reorganization {
                 query_sender,
                 main_tip_number: Default::default(),
                 main_tip_hash: Default::default(),
-                cache: Default::default(),
+                cache: LruCache::new(1000),
             },
             subscription,
         )
@@ -53,10 +55,7 @@ impl Reorganization {
 
         // Take out the header_receiver to pass the Rust borrow rule
         let (_, mut dummy_receiver) = jsonrpc_server_utils::tokio::sync::mpsc::channel(100);
-        ::std::mem::swap(
-            &mut self.header_receiver,
-            &mut dummy_receiver,
-        );
+        ::std::mem::swap(&mut self.header_receiver, &mut dummy_receiver);
         let header_receiver = dummy_receiver;
 
         header_receiver
@@ -67,7 +66,6 @@ impl Reorganization {
                     });
                 let header: HeaderView = header.into();
                 self.handle(&header);
-                self.prune_staled();
                 Ok(())
             })
             .wait()
@@ -75,7 +73,7 @@ impl Reorganization {
     }
 
     fn handle(&mut self, header: &HeaderView) {
-        self.cache.insert(header.hash(), header.clone());
+        self.cache.put(header.hash(), header.clone());
 
         if self.main_tip_hash == header.parent_hash() || self.main_tip_number == 0 {
             self.main_tip_hash = header.hash();
@@ -111,12 +109,21 @@ impl Reorganization {
         return old_tip;
     }
 
-    fn report_reorganization(&mut self, new_tip: &HeaderView, old_tip: &HeaderView, ancestor: &HeaderView) {
+    fn report_reorganization(
+        &mut self,
+        new_tip: &HeaderView,
+        old_tip: &HeaderView,
+        ancestor: &HeaderView,
+    ) {
         let attached_length = new_tip.number() - ancestor.number();
         if crate::LOG_LEVEL.as_str() != "ERROR" {
             println!(
                 "Reorganize from #{}({:#x}) to #{}({:#x}), attached_length = {}",
-                old_tip.number(), old_tip.hash(), new_tip.number(), new_tip.hash(), attached_length
+                old_tip.number(),
+                old_tip.hash(),
+                new_tip.number(),
+                new_tip.hash(),
+                attached_length
             );
         }
         let query = serie::Reorganization {
@@ -129,7 +136,7 @@ impl Reorganization {
             ancestor_number: ancestor.number(),
             ancestor_hash: format!("{:#x}", ancestor.hash()),
         }
-            .into_write_query();
+        .into_write_query();
         self.query_sender.send(query).unwrap();
     }
 
@@ -140,27 +147,16 @@ impl Reorganization {
 
         if let Some(header) = self.jsonrpc.get_header(block_hash.clone()) {
             let header: HeaderView = header.into();
-            self.cache.insert(header.hash(), header.clone());
+            self.cache.put(header.hash(), header.clone());
             return header;
         }
 
         if let Some(block) = self.jsonrpc.get_fork_block(block_hash) {
             let header: HeaderView = block.header.into();
-            self.cache.insert(header.hash(), header.clone());
+            self.cache.put(header.hash(), header.clone());
             return header;
         }
 
         unreachable!()
-    }
-
-    fn prune_staled(&mut self) {
-        if self.cache.len() as u64 <= MAX_REORGANIZE_LENGTH * 8 {
-            return;
-        }
-
-        let tip_number = self.main_tip_number;
-        self.cache.retain(|_, header| {
-                tip_number <= header.number() + MAX_REORGANIZE_LENGTH
-        });
     }
 }
