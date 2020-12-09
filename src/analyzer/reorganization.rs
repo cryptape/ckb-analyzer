@@ -42,7 +42,7 @@ impl Reorganization {
                 jsonrpc,
                 header_receiver,
                 query_sender,
-                main_tip_number: Default::default(),
+                main_tip_number: 0,
                 main_tip_hash: Default::default(),
                 cache: LruCache::new(1000),
             },
@@ -51,7 +51,7 @@ impl Reorganization {
     }
 
     pub async fn run(mut self) {
-        println!("run {}", ::std::any::type_name::<Self>());
+        println!("{} started ...", ::std::any::type_name::<Self>());
 
         // Take out the header_receiver to pass the Rust borrow rule
         let (_, mut dummy_receiver) = jsonrpc_server_utils::tokio::sync::mpsc::channel(100);
@@ -92,6 +92,7 @@ impl Reorganization {
     fn locate_ancestor(&mut self, old_tip: &HeaderView, new_tip: &HeaderView) -> HeaderView {
         let mut old_tip = old_tip.clone();
         let mut new_tip = new_tip.clone();
+        #[allow(clippy::comparison_chain)]
         if old_tip.number() > new_tip.number() {
             for _ in 0..old_tip.number() - new_tip.number() {
                 old_tip = self.get_header(old_tip.parent_hash());
@@ -106,7 +107,7 @@ impl Reorganization {
             old_tip = self.get_header(old_tip.parent_hash());
             new_tip = self.get_header(new_tip.parent_hash());
         }
-        return old_tip;
+        old_tip
     }
 
     fn report_reorganization(
