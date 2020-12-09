@@ -2,33 +2,33 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
+#[serde(default)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash, Default)]
 pub struct Config {
-    #[serde(default)]
     pub chain: ChainConfig,
-    #[serde(default)]
     pub network: NetworkConfig,
-    #[serde(default)]
     pub topology: TopologyConfig,
-    #[serde(default)]
-    pub fork: ForkConfig,
+    pub reorganization: OrganizationConfig,
     pub influxdb: InfluxdbConfig,
 }
 
+#[serde(default)]
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash, Default)]
-pub struct ForkConfig {
-    #[serde(default)]
+pub struct OrganizationConfig {
     pub enabled: bool,
+    pub ckb_rpc_url: String,
     pub ckb_subscription_url: String,
 }
 
+#[serde(default)]
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash, Default)]
 pub struct ChainConfig {
     #[serde(default)]
     pub enabled: bool,
-    pub ckb_url: String,
+    pub ckb_rpc_url: String,
 }
 
+#[serde(default)]
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash, Default)]
 pub struct NetworkConfig {
     #[serde(default)]
@@ -37,17 +37,17 @@ pub struct NetworkConfig {
     pub ckb_network_identifier: String,
 }
 
+#[serde(default)]
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash, Default)]
 pub struct TopologyConfig {
     #[serde(default)]
     pub enabled: bool,
-    pub ckb_urls: Vec<String>,
+    pub ckb_rpc_urls: Vec<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
+#[serde(default)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash, Default)]
 pub struct InfluxdbConfig {
-    #[serde(default)]
-    pub enabled: bool,
     pub database: String,
     pub url: String,
 }
