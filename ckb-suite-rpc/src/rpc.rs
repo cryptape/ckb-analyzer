@@ -74,6 +74,21 @@ impl Jsonrpc {
             })
     }
 
+    pub fn get_header(&self, hash: Byte32) -> Option<HeaderView> {
+        self.inner
+            .lock()
+            .get_header(hash.unpack())
+            .call()
+            .unwrap_or_else(|err| {
+                panic!(
+                    "Jsonrpc::get_header(\"{}\", {}), error: {:?}",
+                    self.uri(),
+                    hash,
+                    err
+                )
+            })
+    }
+
     pub fn get_block_by_number(&self, number: CoreBlockNumber) -> Option<BlockView> {
         self.inner
             .lock()
@@ -415,6 +430,7 @@ impl Jsonrpc {
 
 jsonrpc_client!(pub struct Inner {
     pub fn get_block(&mut self, _hash: H256) -> RpcRequest<Option<BlockView>>;
+    pub fn get_header(&mut self, _hash: H256) -> RpcRequest<Option<HeaderView>>;
     pub fn get_block_by_number(&mut self, _number: BlockNumber) -> RpcRequest<Option<BlockView>>;
     pub fn get_header_by_number(&mut self, _number: BlockNumber) -> RpcRequest<Option<HeaderView>>;
     pub fn get_transaction(&mut self, _hash: H256) -> RpcRequest<Option<TransactionWithStatus>>;
