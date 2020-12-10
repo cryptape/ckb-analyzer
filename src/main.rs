@@ -11,6 +11,7 @@ mod config;
 mod get_version;
 mod serie;
 mod subscribe;
+mod dashboard;
 
 lazy_static! {
     static ref LOG_LEVEL: String = var("LOG_LEVEL").unwrap_or_else(|_| "ERROR".to_string());

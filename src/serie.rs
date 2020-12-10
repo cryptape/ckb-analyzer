@@ -1,5 +1,8 @@
 pub use influxdb::{InfluxDbWriteable, Timestamp, WriteQuery};
 
+// provide a comamnd to list all the serie; even print the show table influxsql, like `use
+// $database; show tables`
+
 pub trait IntoWriteQuery: InfluxDbWriteable {
     fn query_name(&self) -> String
     where
