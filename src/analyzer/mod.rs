@@ -6,6 +6,7 @@ mod main_chain;
 mod network_probe;
 mod network_topology;
 mod reorganization;
+mod pool_event;
 
 pub use main_chain::{select_last_block_number_in_influxdb, MainChain, MainChainConfig};
 pub use network_probe::NetworkProbe;
@@ -18,6 +19,7 @@ pub enum Analyzer {
     NetworkProbe,
     NetworkTopology(NetworkTopologyConfig),
     Reorganization(ReorganizationConfig),
+    PoolEvent(PoolEventConfig),
 }
 
 impl Analyzer {
@@ -32,7 +34,7 @@ impl Analyzer {
             Self::NetworkProbe => NetworkProbe::new(query_sender).run().await,
             Self::NetworkTopology(config) => NetworkTopology::new(config).run().await,
             Self::Reorganization(config) => {
-                let (reorganization, subscription) = Reorganization::init(config, query_sender);
+                let (reorganization, subscription) = Reorganization::new(config, query_sender);
 
                 // IMPORTANT: Use tokio 1.0 to run subscription. Since jsonrpc has not support 2.0 yet
                 ::std::thread::spawn(move || {

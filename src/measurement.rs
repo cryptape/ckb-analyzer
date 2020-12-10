@@ -1,7 +1,10 @@
 pub use influxdb::{InfluxDbWriteable, Timestamp, WriteQuery};
 
-// provide a comamnd to list all the measurements; even print the show table influxsql, like `use
+// TODO provide a comamnd to list all the measurements; even print the show table influxsql, like `use
 // $database; show tables`
+
+// TODO when document these measurements, please describe the related dashboards as well, which can
+// help underdand the measuement more deeply.
 
 pub trait IntoWriteQuery: InfluxDbWriteable {
     fn query_name(&self) -> String

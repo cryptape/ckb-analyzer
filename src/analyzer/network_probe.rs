@@ -1,3 +1,23 @@
+//! This module aims to collect the blockchain network information at p2p level.
+//! This modules produces the below measurements:
+//!   - [Propagation](TODO link)
+//!   - [Peers](TODO link)
+//!   - [HighLatency](TODO link)
+//!
+//! ### How it works?
+//!
+//! This module runs a p2p service, compatible with ckb network protocol, to connect peers(ckb nodes) as more as
+//! possible. By listening and aggregating the messages relayed from peers we can estimate that, from our owned
+//! perspective, how long it take to propagate a compate block or transaction, the number of public nodes, the version distribution around the network and so on.
+//!
+//! ### Why measure it?
+//!
+//! As a decentralized network, understanding the network is important.
+//!
+//! It is unable to observe a network directly. Instead we observe from the perspective of the network particants and then try to aggregate these information from different particants to construct the network picture.
+//!
+//! Note that in a decentralized network, one can only deploy programs on its owned machines, but not the entire network. So of cause, no one can see the whole picture of a decentralized network.
+
 use crate::app_config::app_config;
 use crate::get_version::get_version;
 use crate::measurement::{self, IntoWriteQuery, WriteQuery};

@@ -1,3 +1,23 @@
+//! This module aims to the instant chain reorganization events.
+//! This module produces the below measurements:
+//!   - [Reorganization](TODO link to Reorganization)
+//!
+//! ### How it works?
+//!
+//! There is an thread subscribed to CKB on the topic "NewTipHeader"(see more about CKB subscription
+//! interface from [..](TODO link to ckb subscribe). This subscription will notify us whenever the
+//! tip changes. Via observing the tip changing, we construct the last part of main chain. Then we
+//! can observe a chain reorganization occurs by comparing the arrival tip change with our
+//! constructed main chain.
+//!
+//! ### Why measure it?
+//!
+//! Monitoring to chain reorganization may help to:
+//!   - detect selfish mining attacks
+//!   - understand the network between miners
+
+// TODO rename main_ to canonical_; remove prefix main_ from main_tip_hash/main_tip_number
+
 use crate::measurement::{self, IntoWriteQuery};
 use crate::subscribe::{Subscription, Topic};
 use ckb_suite_rpc::Jsonrpc;
@@ -28,7 +48,7 @@ pub struct Reorganization {
 }
 
 impl Reorganization {
-    pub fn init(
+    pub fn new(
         config: ReorganizationConfig,
         query_sender: Sender<WriteQuery>,
     ) -> (Self, Subscription) {

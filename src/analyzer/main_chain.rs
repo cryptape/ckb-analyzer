@@ -1,3 +1,15 @@
+//! This module aims on the main chain data.
+//! This module travels the main chain and produces the below measurements:
+//!   - [Epoch](TODO link to measurement)
+//!   - [Block](TODO link to measurement)
+//!   - [Uncle](TODO link to measurement)
+//!   - [Transaction](TODO link to measurement)
+//!
+//! ### Why measure it?
+//!
+//! We can do much things based on the main chain data. Please reference more detail from the
+//! dashboards.
+
 use crate::measurement::{self, IntoWriteQuery};
 use crate::{CONFIG, LOG_LEVEL};
 use ckb_suite_rpc::Jsonrpc;
