@@ -74,13 +74,16 @@ async fn main() {
             .add_tag("hostname", HOSTNAME.clone());
 
         // Writes asynchronously
-        let influx_ = influx.clone();
-        tokio::spawn(async move { influx_.query(&query).await });
-
-        // Writes synchronously
-        // let write_result = influx.query(&query).await;
-        // if let Err(err) = write_result {
-        //     eprintln!("influxdb.query, error: {}", err);
-        // }
+        let asynchronize = true;
+        if asynchronize {
+            let influx_ = influx.clone();
+            tokio::spawn(async move {
+                if let Err(err) = influx_.query(&query).await {
+                    eprintln!("influxdb.query, error: {}", err);
+                }
+            });
+        } else if let Err(err) = influx.query(&query).await {
+            eprintln!("influxdb.query, error: {}", err);
+        }
     }
 }
