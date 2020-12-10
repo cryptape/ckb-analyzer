@@ -1,6 +1,5 @@
-use crate::serie::{Block, Epoch, IntoWriteQuery, Transaction, Uncle};
-use crate::CONFIG;
-use crate::LOG_LEVEL;
+use crate::measurement::{self, IntoWriteQuery};
+use crate::{CONFIG, LOG_LEVEL};
 use ckb_suite_rpc::Jsonrpc;
 use ckb_types::core::{BlockNumber, HeaderView};
 use ckb_types::core::{BlockView, EpochNumber};
@@ -94,7 +93,7 @@ impl MainChain {
         let proposals_count = block.union_proposal_ids().len() as u32;
         let version = block.version();
         let miner_lock_args = extract_miner_lock(&block).args().to_string();
-        let query = Block {
+        let query = measurement::Block {
             time,
             number,
             time_interval,
@@ -134,7 +133,7 @@ impl MainChain {
             let cousin = self.rpc.get_header_by_number(uncle_number).unwrap().inner;
             cousin.timestamp.value() as i64 - uncle.timestamp() as i64
         };
-        let query = Uncle {
+        let query = measurement::Uncle {
             time,
             number: uncle_number,
             proposals_count,
@@ -169,7 +168,7 @@ impl MainChain {
                 if removed {
                     let time = Timestamp::Milliseconds(block.timestamp() as u128);
                     let pc_delay = (number - proposed) as u32;
-                    let query = Transaction {
+                    let query = measurement::Transaction {
                         time,
                         number,
                         pc_delay,
@@ -204,7 +203,7 @@ impl MainChain {
             let duration = end_header
                 .timestamp()
                 .saturating_sub(start_header.timestamp());
-            let query = Epoch {
+            let query = measurement::Epoch {
                 time: Timestamp::Milliseconds(end_header.timestamp() as u128),
                 number: *current_epoch_number,
                 length,

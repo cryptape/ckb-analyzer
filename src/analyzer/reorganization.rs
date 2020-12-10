@@ -1,4 +1,4 @@
-use crate::serie::{self, IntoWriteQuery};
+use crate::measurement::{self, IntoWriteQuery};
 use crate::subscribe::{Subscription, Topic};
 use ckb_suite_rpc::Jsonrpc;
 use ckb_types::core::{BlockNumber, HeaderView};
@@ -127,7 +127,7 @@ impl Reorganization {
                 attached_length
             );
         }
-        let query = serie::Reorganization {
+        let query = measurement::Reorganization {
             time: Timestamp::Milliseconds(ancestor.timestamp() as u128),
             attached_length: attached_length as u32,
             old_tip_number: old_tip.number(),

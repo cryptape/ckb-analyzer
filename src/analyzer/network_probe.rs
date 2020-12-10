@@ -1,6 +1,6 @@
 use crate::app_config::app_config;
 use crate::get_version::get_version;
-use crate::serie::{HighLatency, IntoWriteQuery, Peers, Propagation, WriteQuery};
+use crate::measurement::{self, IntoWriteQuery, WriteQuery};
 use crate::CONFIG;
 use chrono::Utc;
 use ckb_network::{
@@ -179,7 +179,7 @@ impl NetworkProbe {
             return;
         }
 
-        let query = HighLatency {
+        let query = measurement::HighLatency {
             time: Utc::now().into(),
             time_interval: time_interval.as_millis() as u64,
             addr: peer.connected_addr.to_string(),
@@ -211,7 +211,7 @@ impl NetworkProbe {
         };
 
         if let Some(percentile) = percentile {
-            let query = Propagation {
+            let query = measurement::Propagation {
                 time: Utc::now().into(),
                 time_interval,
                 percentile,
@@ -225,7 +225,7 @@ impl NetworkProbe {
     fn send_peers_total_query(&self) {
         if let Ok(guard) = self.peers.lock() {
             let peers_total = guard.len() as u32;
-            let query = Peers {
+            let query = measurement::Peers {
                 time: Utc::now().into(),
                 peers_total,
             }

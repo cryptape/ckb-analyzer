@@ -8,10 +8,10 @@ use std::env::var;
 mod analyzer;
 mod app_config;
 mod config;
-mod get_version;
-mod serie;
-mod subscribe;
 mod dashboard;
+mod get_version;
+mod measurement;
+mod subscribe;
 
 lazy_static! {
     static ref LOG_LEVEL: String = var("LOG_LEVEL").unwrap_or_else(|_| "ERROR".to_string());
