@@ -105,7 +105,7 @@ impl PoolTransaction {
                     transaction.transaction.inner.into();
                 let transaction = transaction.into_view();
                 self.waiting.insert(transaction.hash(), Utc::now());
-                if self.last_checking_at.elapsed() >= ::std::time::Duration::from_secs(5 * 60) {
+                if self.last_checking_at.elapsed() >= ::std::time::Duration::from_secs(1 * 60) {
                     // TODO ticker checking trigger
                     self.last_checking_at = Instant::now();
                     self.report_waiting_total();

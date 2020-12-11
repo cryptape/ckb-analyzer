@@ -517,7 +517,6 @@ dependencies = [
  "jsonrpc-tcp-server",
  "jsonrpc-ws-server",
  "lazy_static",
- "lru",
  "serde",
  "serde_json",
  "tokio 0.2.23",
@@ -1072,6 +1071,7 @@ dependencies = [
  "hyper 0.11.27",
  "jsonrpc-client-core",
  "jsonrpc-client-http",
+ "lru",
 ]
 
 [[package]]

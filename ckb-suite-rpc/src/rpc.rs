@@ -15,6 +15,7 @@ use ckb_util::Mutex;
 use hyper::header::{Authorization, Basic};
 use jsonrpc_client_core::{expand_params, jsonrpc_client, Result as JsonRpcResult};
 use jsonrpc_client_http::{HttpHandle, HttpTransport};
+use lru::LruCache;
 use std::env::var;
 use std::sync::Arc;
 
@@ -22,6 +23,8 @@ use std::sync::Arc;
 pub struct Jsonrpc {
     uri: String,
     inner: Arc<Mutex<Inner<HttpHandle>>>,
+    blocks_cache: Arc<Mutex<LruCache<Byte32, BlockView>>>,
+    headers_cache: Arc<Mutex<LruCache<Byte32, HeaderView>>>,
 }
 
 pub fn env_username() -> String {
@@ -48,6 +51,8 @@ impl Jsonrpc {
         Self {
             uri: uri.to_string(),
             inner: Arc::new(Mutex::new(Inner::new(transport))),
+            blocks_cache: Arc::new(Mutex::new(LruCache::new(1000))),
+            headers_cache: Arc::new(Mutex::new(LruCache::new(1000))),
         }
     }
 
@@ -60,7 +65,12 @@ impl Jsonrpc {
     }
 
     pub fn get_block(&self, hash: Byte32) -> Option<BlockView> {
-        self.inner
+        if let Some(block) = self.blocks_cache.lock().get(&hash) {
+            return Some(block.clone());
+        }
+
+        let ret = self
+            .inner
             .lock()
             .get_block(hash.unpack())
             .call()
@@ -71,11 +81,25 @@ impl Jsonrpc {
                     hash,
                     err
                 )
-            })
+            });
+
+        if let Some(ref block) = ret {
+            self.blocks_cache
+                .lock()
+                .put(block.header.hash.pack(), block.clone());
+        }
+        ret
     }
 
     pub fn get_header(&self, hash: Byte32) -> Option<HeaderView> {
-        self.inner
+        if let Some(header) = self.headers_cache.lock().get(&hash) {
+            return Some(header.clone());
+        }
+        if let Some(block) = self.blocks_cache.lock().get(&hash) {
+            return Some(block.header.clone());
+        }
+
+        let ret = self.inner
             .lock()
             .get_header(hash.unpack())
             .call()
@@ -86,7 +110,13 @@ impl Jsonrpc {
                     hash,
                     err
                 )
-            })
+            });
+        if let Some(ref header) = ret {
+            self.headers_cache
+                .lock()
+                .put(header.hash.pack(), header.clone());
+        }
+        ret
     }
 
     pub fn get_block_by_number(&self, number: CoreBlockNumber) -> Option<BlockView> {

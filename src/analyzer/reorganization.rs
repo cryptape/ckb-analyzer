@@ -28,7 +28,6 @@ use influxdb::{Timestamp, WriteQuery};
 use jsonrpc_core::futures::Stream;
 use jsonrpc_core::serde_from_str;
 use jsonrpc_server_utils::tokio::prelude::*;
-use lru::LruCache;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -43,8 +42,6 @@ pub struct Reorganization {
     jsonrpc: Jsonrpc,
     main_tip_number: BlockNumber,
     main_tip_hash: Byte32,
-    // #{ header_hash => header }
-    cache: LruCache<Byte32, HeaderView>,
 }
 
 impl Reorganization {
@@ -64,7 +61,6 @@ impl Reorganization {
                 query_sender,
                 main_tip_number: 0,
                 main_tip_hash: Default::default(),
-                cache: LruCache::new(1000),
             },
             subscription,
         )
@@ -93,8 +89,6 @@ impl Reorganization {
     }
 
     fn handle(&mut self, header: &HeaderView) {
-        self.cache.put(header.hash(), header.clone());
-
         if self.main_tip_hash == header.parent_hash() || self.main_tip_number == 0 {
             self.main_tip_hash = header.hash();
             self.main_tip_number = header.number();
@@ -162,20 +156,12 @@ impl Reorganization {
     }
 
     fn get_header(&mut self, block_hash: Byte32) -> HeaderView {
-        if let Some(header) = self.cache.get(&block_hash) {
-            return header.clone();
-        }
-
         if let Some(header) = self.jsonrpc.get_header(block_hash.clone()) {
-            let header: HeaderView = header.into();
-            self.cache.put(header.hash(), header.clone());
-            return header;
+            return header.into();
         }
 
         if let Some(block) = self.jsonrpc.get_fork_block(block_hash) {
-            let header: HeaderView = block.header.into();
-            self.cache.put(header.hash(), header.clone());
-            return header;
+            return block.header.into();
         }
 
         unreachable!()
