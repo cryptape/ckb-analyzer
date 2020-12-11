@@ -9,15 +9,8 @@ pub struct Config {
     pub network: NetworkConfig,
     pub topology: TopologyConfig,
     pub reorganization: OrganizationConfig,
+    pub pool_transaction: PoolTransactionConfig,
     pub influxdb: InfluxdbConfig,
-}
-
-#[serde(default)]
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash, Default)]
-pub struct OrganizationConfig {
-    pub enabled: bool,
-    pub ckb_rpc_url: String,
-    pub ckb_subscription_url: String,
 }
 
 #[serde(default)]
@@ -43,6 +36,22 @@ pub struct TopologyConfig {
     #[serde(default)]
     pub enabled: bool,
     pub ckb_rpc_urls: Vec<String>,
+}
+
+#[serde(default)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash, Default)]
+pub struct OrganizationConfig {
+    pub enabled: bool,
+    pub ckb_rpc_url: String,
+    pub ckb_subscription_url: String,
+}
+
+#[serde(default)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash, Default)]
+pub struct PoolTransactionConfig {
+    pub enabled: bool,
+    pub ckb_rpc_url: String,
+    pub ckb_subscription_url: String,
 }
 
 #[serde(default)]

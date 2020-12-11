@@ -106,7 +106,7 @@ pub struct Peers {
 
 #[derive(InfluxDbWriteable, Clone, Debug)]
 pub struct Reorganization {
-    // timestamp of 1st block at the new tip chain
+    // timestamp of fixed point of forks
     pub time: Timestamp,
     pub attached_length: u32,
     pub old_tip_number: u64,
@@ -119,4 +119,22 @@ pub struct Reorganization {
     pub new_tip_hash: String,
     #[tag]
     pub ancestor_hash: String,
+}
+
+#[derive(InfluxDbWriteable, Clone, Debug)]
+pub struct PoolTransaction {
+    // timestamp of entering in transaction pool
+    pub time: Timestamp,
+
+    pub waiting_duration: u64, // ms
+    #[tag]
+    pub pool_event: String,
+    #[tag]
+    pub transaction_hash: String,
+}
+
+#[derive(InfluxDbWriteable, Clone, Debug)]
+pub struct PoolWaitingTransactionsTotal {
+    pub time: Timestamp,
+    pub transactions_total: u32,
 }

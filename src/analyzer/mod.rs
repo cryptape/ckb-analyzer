@@ -5,12 +5,13 @@ use serde::{Deserialize, Serialize};
 mod main_chain;
 mod network_probe;
 mod network_topology;
+mod pool_transaction;
 mod reorganization;
-mod pool_event;
 
 pub use main_chain::{select_last_block_number_in_influxdb, MainChain, MainChainConfig};
 pub use network_probe::NetworkProbe;
 pub use network_topology::{NetworkTopology, NetworkTopologyConfig};
+pub use pool_transaction::{PoolTransaction, PoolTransactionConfig};
 pub use reorganization::{Reorganization, ReorganizationConfig};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -19,7 +20,7 @@ pub enum Analyzer {
     NetworkProbe,
     NetworkTopology(NetworkTopologyConfig),
     Reorganization(ReorganizationConfig),
-    PoolEvent(PoolEventConfig),
+    PoolTransaction(PoolTransactionConfig),
 }
 
 impl Analyzer {
@@ -47,6 +48,15 @@ impl Analyzer {
                 // tokio::time::delay_for(::std::time::Duration::from_secs(3)).await;
 
                 reorganization.run().await;
+            }
+            Self::PoolTransaction(config) => {
+                let (pool_transaction, subscription) = PoolTransaction::new(config, query_sender);
+
+                // IMPORTANT: Use tokio 1.0 to run subscription. Since jsonrpc has not support 2.0 yet
+                ::std::thread::spawn(move || {
+                    jsonrpc_server_utils::tokio::run(subscription.run());
+                });
+                pool_transaction.run().await;
             }
         }
     }

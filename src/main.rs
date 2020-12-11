@@ -1,4 +1,6 @@
-use crate::analyzer::{Analyzer, MainChainConfig, NetworkTopologyConfig, ReorganizationConfig};
+use crate::analyzer::{
+    Analyzer, MainChainConfig, NetworkTopologyConfig, PoolTransactionConfig, ReorganizationConfig,
+};
 pub use config::{init_config, Config};
 use crossbeam::channel::bounded;
 use influxdb::Client;
@@ -45,13 +47,6 @@ async fn main() {
     };
     let (query_sender, query_receiver) = bounded(5000);
 
-    if CONFIG.reorganization.enabled {
-        let config = ReorganizationConfig {
-            ckb_rpc_url: CONFIG.reorganization.ckb_rpc_url.clone(),
-            ckb_subscribe_url: CONFIG.reorganization.ckb_subscription_url.clone(),
-        };
-        tokio::spawn(Analyzer::Reorganization(config).run(influx.clone(), query_sender.clone()));
-    }
     if CONFIG.chain.enabled {
         let config = MainChainConfig {
             ckb_rpc_url: CONFIG.chain.ckb_rpc_url.clone(),
@@ -65,7 +60,21 @@ async fn main() {
         let config = NetworkTopologyConfig {
             ckb_rpc_urls: CONFIG.topology.ckb_rpc_urls.clone(),
         };
-        tokio::spawn(Analyzer::NetworkTopology(config).run(influx.clone(), query_sender));
+        tokio::spawn(Analyzer::NetworkTopology(config).run(influx.clone(), query_sender.clone()));
+    }
+    if CONFIG.reorganization.enabled {
+        let config = ReorganizationConfig {
+            ckb_rpc_url: CONFIG.reorganization.ckb_rpc_url.clone(),
+            ckb_subscribe_url: CONFIG.reorganization.ckb_subscription_url.clone(),
+        };
+        tokio::spawn(Analyzer::Reorganization(config).run(influx.clone(), query_sender.clone()));
+    }
+    if CONFIG.pool_transaction.enabled {
+        let config = PoolTransactionConfig {
+            ckb_rpc_url: CONFIG.pool_transaction.ckb_rpc_url.clone(),
+            ckb_subscribe_url: CONFIG.pool_transaction.ckb_subscription_url.clone(),
+        };
+        tokio::spawn(Analyzer::PoolTransaction(config).run(influx.clone(), query_sender.clone()));
     }
 
     for mut query in query_receiver {
