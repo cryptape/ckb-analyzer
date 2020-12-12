@@ -99,7 +99,8 @@ impl Jsonrpc {
             return Some(block.header.clone());
         }
 
-        let ret = self.inner
+        let ret = self
+            .inner
             .lock()
             .get_header(hash.unpack())
             .call()

@@ -129,8 +129,8 @@ pub struct PoolTransaction {
     pub waiting_duration: u64, // ms
     #[tag]
     pub pool_event: String,
-    #[tag]
-    pub transaction_hash: String,
+    // #[tag]
+    // pub transaction_hash: String,
 }
 
 #[derive(InfluxDbWriteable, Clone, Debug)]

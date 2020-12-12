@@ -167,34 +167,34 @@ impl PoolTransaction {
         self.query_sender.send(query).unwrap();
     }
 
-    fn report_commit(&self, txhash: &Byte32, entering_timestamp: u64, committed_timestamp: u64) {
+    fn report_commit(&self, _txhash: &Byte32, entering_timestamp: u64, committed_timestamp: u64) {
         let query = measurement::PoolTransaction {
             time: Timestamp::Milliseconds(committed_timestamp as u128),
             waiting_duration: committed_timestamp.saturating_sub(entering_timestamp),
             pool_event: "commit".to_string(),
-            transaction_hash: format!("{:#x}", txhash),
+            // transaction_hash: format!("{:#x}", txhash),
         }
         .into_write_query();
         self.query_sender.send(query).unwrap();
     }
 
-    fn report_await(&self, txhash: &Byte32, instant: DateTime<Utc>) {
+    fn report_await(&self, _txhash: &Byte32, instant: DateTime<Utc>) {
         let query = measurement::PoolTransaction {
             time: instant.into(),
             waiting_duration: (Utc::now().timestamp_millis() - instant.timestamp_millis()) as u64,
             pool_event: "await".to_string(),
-            transaction_hash: format!("{:#x}", txhash),
+            // transaction_hash: format!("{:#x}", txhash),
         }
         .into_write_query();
         self.query_sender.send(query).unwrap();
     }
 
-    fn report_disappear(&self, txhash: &Byte32, instant: DateTime<Utc>) {
+    fn report_disappear(&self, _txhash: &Byte32, instant: DateTime<Utc>) {
         let query = measurement::PoolTransaction {
             time: instant.into(),
             waiting_duration: (Utc::now().timestamp_millis() - instant.timestamp_millis()) as u64,
             pool_event: "disappear".to_string(),
-            transaction_hash: format!("{:#x}", txhash),
+            // transaction_hash: format!("{:#x}", txhash),
         }
         .into_write_query();
         self.query_sender.send(query).unwrap();
