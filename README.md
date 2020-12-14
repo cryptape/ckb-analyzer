@@ -6,7 +6,7 @@ ckb-analyzer is an agent for collecting metrics from ckb, then writing the proce
 - the real-time network metrics include block propagation, transaction propagation, and high latency records
 - the network topology
 
-ckb-analyzer is still working in progress.
+ckb-analyzer is still working in progress rapidly.
 
 ### Dashboards
 
@@ -41,7 +41,7 @@ CKB_ANALYZER_CONFIG=config/local.toml cargo run --release
 
 ### FAQ
 
-* Ckb itself also exposes metrics. So why create ckb-analyzer?
+* Ckb itself exposes metrics. Then why create ckb-analyzer?
 
   Some metrics are not convenient to expose from ckb, like historical chain metrics and complex analyzing tasks. With ckb-analyzer, we can display historical chain information by extracting the historical blocks and do some complexity tasks outside ckb, which prevent adding too much complexity into ckb.
 
