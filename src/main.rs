@@ -1,5 +1,6 @@
 use crate::analyzer::{
     Analyzer, MainChainConfig, NetworkTopologyConfig, PoolTransactionConfig, ReorganizationConfig,
+    TailLogConfig,
 };
 pub use config::{init_config, Config};
 use crossbeam::channel::bounded;
@@ -75,6 +76,13 @@ async fn main() {
             ckb_subscribe_url: CONFIG.pool_transaction.ckb_subscription_url.clone(),
         };
         tokio::spawn(Analyzer::PoolTransaction(config).run(influx.clone(), query_sender.clone()));
+    }
+    if CONFIG.node_log.enabled {
+        let config = TailLogConfig {
+            filepath: CONFIG.node_log.filepath.clone(),
+            classify: CONFIG.node_log.classify.clone(),
+        };
+        tokio::spawn(Analyzer::TailLog(config).run(influx.clone(), query_sender.clone()));
     }
 
     for mut query in query_receiver {

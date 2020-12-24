@@ -36,6 +36,8 @@ jsonrpc-server-utils = { version = "15.1" }
 jsonrpc-pubsub = { version = "15.1" }
 jsonrpc-core-client = { version = "15.1" }
 jsonrpc-client-transports = { version = "15.1" }
+logwatcher = { version = "0.1.1" }
+regex = { version = "1" }
 
 [workspace]
 members = [

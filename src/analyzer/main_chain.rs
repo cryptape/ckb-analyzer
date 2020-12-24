@@ -34,7 +34,7 @@ pub struct MainChainConfig {
 pub struct MainChain {
     // config: MainChainConfig,
     query_sender: Sender<WriteQuery>,
-    last_number: BlockNumber,
+    start_number: BlockNumber,
     rpc: Jsonrpc,
     proposals_zones: HashMap<BlockNumber, HashSet<ProposalShortId>>,
 }
@@ -43,13 +43,13 @@ impl MainChain {
     pub fn new(
         config: MainChainConfig,
         query_sender: Sender<WriteQuery>,
-        last_number: BlockNumber,
+        start_number: BlockNumber,
     ) -> Self {
         let rpc = Jsonrpc::connect(config.ckb_rpc_url.as_str());
         Self {
             // config,
             query_sender,
-            last_number,
+            start_number,
             rpc,
             proposals_zones: Default::default(),
         }
@@ -61,7 +61,7 @@ impl MainChain {
     }
 
     async fn analyze_blocks(&mut self) {
-        let mut number = max(1, self.last_number + 1);
+        let mut number = max(1, self.start_number + 1);
         let mut tip = self.rpc.get_tip_block_number();
         let mut parent: BlockView = self
             .rpc

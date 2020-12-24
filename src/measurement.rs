@@ -138,3 +138,13 @@ pub struct PoolWaitingTransactionsTotal {
     pub time: Timestamp,
     pub transactions_total: u32,
 }
+
+#[derive(InfluxDbWriteable, Clone, Debug)]
+pub struct Log {
+    pub time: Timestamp,
+    pub marker: u32, // always be 1
+    #[tag]
+    pub category: String,
+    #[tag]
+    pub raw: String,
+}
