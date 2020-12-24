@@ -19,53 +19,37 @@ use crossbeam::channel::Sender;
 use influxdb::{Timestamp, WriteQuery};
 use logwatcher::{LogWatcher, LogWatcherAction};
 use regex::Regex;
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::Path;
 use std::thread::sleep;
 use std::time::Duration;
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct TailLogConfig {
-    pub filepath: String,
-    pub classify: HashMap<String, String>, // #{ name => regex }
-}
-
 pub struct TailLog {
-    classify: HashMap<String, Regex>, // #{ name => regex }
+    matches: HashMap<String, Regex>, // #{ name => regex }
     log_watcher: LogWatcher,
     query_sender: Sender<WriteQuery>,
 }
 
 impl TailLog {
-    pub fn new(config: TailLogConfig, query_sender: Sender<WriteQuery>) -> Self {
-        let filepath = PathBuf::from(&config.filepath);
-        let classify = config
-            .classify
-            .into_iter()
-            .map(|(category, regex)| {
-                (
-                    category,
-                    Regex::new(&regex).unwrap_or_else(|err| {
-                        panic!("invalid regex, str: \"{}\", err: {}", regex, err)
-                    }),
-                )
-            })
-            .collect();
+    pub fn new<P: AsRef<Path>>(
+        filepath: P,
+        matches: HashMap<String, Regex>,
+        query_sender: Sender<WriteQuery>,
+    ) -> Self {
         let log_watcher = loop {
-            match LogWatcher::register(&filepath) {
+            match LogWatcher::register(filepath.as_ref()) {
                 Ok(log_watcher) => break log_watcher,
                 Err(_err) => {
                     println!(
                         "[TailLog] failed to open \"{}\", retry in 5s",
-                        filepath.to_string_lossy()
+                        filepath.as_ref().to_string_lossy().to_string(),
                     );
                     sleep(Duration::from_secs(1));
                 }
             }
         };
         Self {
-            classify,
+            matches,
             log_watcher,
             query_sender,
         }
@@ -73,10 +57,10 @@ impl TailLog {
 
     pub fn run(&mut self) {
         println!("{} started ...", ::std::any::type_name::<Self>());
-        let classify = self.classify.clone();
+        let matches = self.matches.clone();
         let query_sender = self.query_sender.clone();
         self.log_watcher.watch(&mut move |line: String| {
-            for (category, regex) in classify.iter() {
+            for (category, regex) in matches.iter() {
                 if regex.is_match(line.as_str()) {
                     let query = measurement::Log {
                         time: log_time(&line),

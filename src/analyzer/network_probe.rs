@@ -21,7 +21,6 @@
 use crate::app_config::app_config;
 use crate::get_version::get_version;
 use crate::measurement::{self, IntoWriteQuery, WriteQuery};
-use crate::CONFIG;
 use chrono::Utc;
 use ckb_network::{
     bytes::Bytes, CKBProtocol, CKBProtocolContext, CKBProtocolHandler, DefaultExitHandler,
@@ -49,6 +48,8 @@ type PropagationHashes = Arc<Mutex<HashMap<Byte32, (Instant, HashSet<PeerIndex>)
 
 #[derive(Clone)]
 pub struct NetworkProbe {
+    ckb_network_name: String,
+    ckb_network_identifier: String,
     peers: Arc<Mutex<HashMap<PeerIndex, bool>>>,
     compact_blocks: PropagationHashes,
     transaction_hashes: PropagationHashes,
@@ -56,8 +57,14 @@ pub struct NetworkProbe {
 }
 
 impl NetworkProbe {
-    pub fn new(query_sender: Sender<WriteQuery>) -> Self {
+    pub fn new(
+        ckb_network_name: String,
+        ckb_network_identifier: String,
+        query_sender: Sender<WriteQuery>,
+    ) -> Self {
         Self {
+            ckb_network_name,
+            ckb_network_identifier,
             peers: Default::default(),
             compact_blocks: Default::default(),
             transaction_hashes: Default::default(),
@@ -67,7 +74,7 @@ impl NetworkProbe {
 
     pub async fn run(&mut self) {
         println!("{} started ...", ::std::any::type_name::<Self>());
-        let config = app_config().network;
+        let config = app_config(&self.ckb_network_name).network;
         let network_state = Arc::new(NetworkState::from_config(config).unwrap());
         let exit_handler = DefaultExitHandler::default();
         let version = get_version();
@@ -90,7 +97,7 @@ impl NetworkProbe {
             network_state,
             ckb_protocols,
             required_protocol_ids,
-            CONFIG.network.ckb_network_identifier.clone(),
+            self.ckb_network_identifier.clone(),
             version.to_string(),
             exit_handler.clone(),
         )

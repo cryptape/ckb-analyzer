@@ -68,13 +68,13 @@ pub struct PoolTransaction {
 
 impl PoolTransaction {
     pub fn new(
-        config: PoolTransactionConfig,
+        ckb_rpc_url: String,
+        ckb_subscribe_url: String,
         query_sender: Sender<WriteQuery>,
     ) -> (Self, Subscription) {
-        let jsonrpc = Jsonrpc::connect(&config.ckb_rpc_url);
+        let jsonrpc = Jsonrpc::connect(&ckb_rpc_url);
         let (tx_sender, tx_receiver) = jsonrpc_server_utils::tokio::sync::mpsc::channel(100);
-        let subscription =
-            Subscription::new(config.ckb_subscribe_url, Topic::NewTransaction, tx_sender);
+        let subscription = Subscription::new(ckb_subscribe_url, Topic::NewTransaction, tx_sender);
         (
             Self {
                 tx_receiver,

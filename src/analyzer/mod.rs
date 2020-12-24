@@ -2,43 +2,82 @@ use crossbeam::channel::Sender;
 use influxdb::{Client as Influx, WriteQuery};
 use serde::{Deserialize, Serialize};
 
-mod main_chain;
+mod canonical_chain;
 mod network_probe;
 mod network_topology;
 mod pool_transaction;
 mod reorganization;
 mod tail_log;
 
-pub use main_chain::{select_last_block_number_in_influxdb, MainChain, MainChainConfig};
+pub use canonical_chain::{select_last_block_number_in_influxdb, CanonicalChain};
 pub use network_probe::NetworkProbe;
-pub use network_topology::{NetworkTopology, NetworkTopologyConfig};
-pub use pool_transaction::{PoolTransaction, PoolTransactionConfig};
-pub use reorganization::{Reorganization, ReorganizationConfig};
-pub use tail_log::{TailLog, TailLogConfig};
+pub use network_topology::NetworkTopology;
+pub use pool_transaction::PoolTransaction;
+use regex::Regex;
+pub use reorganization::Reorganization;
+use std::collections::HashMap;
+pub use tail_log::TailLog;
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub enum Analyzer {
-    MainChain(MainChainConfig),
-    NetworkTopology(NetworkTopologyConfig),
-    Reorganization(ReorganizationConfig),
-    PoolTransaction(PoolTransactionConfig),
-    TailLog(TailLogConfig),
-    NetworkProbe,
+    MainChain {
+        ckb_rpc_url: String,
+    },
+    NetworkTopology {
+        ckb_rpc_urls: Vec<String>,
+    },
+    Reorganization {
+        ckb_rpc_url: String,
+        ckb_subscribe_url: String,
+    },
+    PoolTransaction {
+        ckb_rpc_url: String,
+        ckb_subscribe_url: String,
+    },
+    TailLog {
+        filepath: String,
+        matches: HashMap<String, String>, // FIXME Regex
+    },
+    NetworkProbe {
+        ckb_network_identifier: String,
+    },
 }
 
 impl Analyzer {
-    pub async fn run(self, influx: Influx, query_sender: Sender<WriteQuery>) {
+    pub async fn run(
+        self,
+        ckb_network_name: &str,
+        influx: Influx,
+        query_sender: Sender<WriteQuery>,
+    ) {
         match self {
-            Self::MainChain(config) => {
-                let last_number = select_last_block_number_in_influxdb(&influx).await;
-                MainChain::new(config, query_sender, last_number)
+            Self::MainChain { ckb_rpc_url } => {
+                let last_number =
+                    select_last_block_number_in_influxdb(&influx, ckb_network_name).await;
+                CanonicalChain::new(&ckb_rpc_url, query_sender, last_number)
                     .run()
                     .await
             }
-            Self::NetworkProbe => NetworkProbe::new(query_sender).run().await,
-            Self::NetworkTopology(config) => NetworkTopology::new(config).run().await,
-            Self::Reorganization(config) => {
-                let (reorganization, subscription) = Reorganization::new(config, query_sender);
+            Self::NetworkProbe {
+                ckb_network_identifier,
+            } => {
+                NetworkProbe::new(
+                    ckb_network_name.to_string(),
+                    ckb_network_identifier,
+                    query_sender,
+                )
+                .run()
+                .await
+            }
+            Self::NetworkTopology { ckb_rpc_urls } => {
+                NetworkTopology::new(ckb_rpc_urls).run().await
+            }
+            Self::Reorganization {
+                ckb_rpc_url,
+                ckb_subscribe_url,
+            } => {
+                let (reorganization, subscription) =
+                    Reorganization::new(ckb_rpc_url, ckb_subscribe_url, query_sender);
 
                 // IMPORTANT: Use tokio 1.0 to run subscription. Since jsonrpc has not support 2.0 yet
                 ::std::thread::spawn(move || {
@@ -52,9 +91,12 @@ impl Analyzer {
 
                 reorganization.run().await;
             }
-            Self::PoolTransaction(config) => {
+            Self::PoolTransaction {
+                ckb_rpc_url,
+                ckb_subscribe_url,
+            } => {
                 let (pool_transaction, subscription) =
-                    PoolTransaction::new(config, query_sender.clone());
+                    PoolTransaction::new(ckb_rpc_url, ckb_subscribe_url, query_sender.clone());
 
                 // IMPORTANT: Use tokio 1.0 to run subscription. Since jsonrpc has not support 2.0 yet
                 ::std::thread::spawn(move || {
@@ -62,8 +104,19 @@ impl Analyzer {
                 });
                 pool_transaction.run().await;
             }
-            Self::TailLog(config) => {
-                let mut tail_log = TailLog::new(config, query_sender);
+            Self::TailLog { filepath, matches } => {
+                let matches = matches
+                    .into_iter()
+                    .map(|(category, regex)| {
+                        (
+                            category,
+                            Regex::new(&regex).unwrap_or_else(|err| {
+                                panic!("invalid regex, str: \"{}\", err: {}", regex, err)
+                            }),
+                        )
+                    })
+                    .collect();
+                let mut tail_log = TailLog::new(filepath, matches, query_sender);
                 ::std::thread::spawn(move || tail_log.run());
             }
         }

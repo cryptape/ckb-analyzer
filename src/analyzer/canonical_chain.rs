@@ -11,7 +11,7 @@
 //! dashboards.
 
 use crate::measurement::{self, IntoWriteQuery};
-use crate::{CONFIG, LOG_LEVEL};
+use crate::LOG_LEVEL;
 use ckb_suite_rpc::Jsonrpc;
 use ckb_types::core::{BlockNumber, HeaderView};
 use ckb_types::core::{BlockView, EpochNumber};
@@ -19,35 +19,27 @@ use ckb_types::packed::{CellbaseWitness, ProposalShortId, Script};
 use ckb_types::prelude::*;
 use crossbeam::channel::Sender;
 use influxdb::{Client as Influx, ReadQuery, Timestamp, WriteQuery};
-use serde::{Deserialize, Serialize};
 use std::cmp::max;
 use std::collections::{HashMap, HashSet};
 use std::time::{Duration, Instant};
 
 pub const PROPOSAL_WINDOW: (u64, u64) = (2, 10);
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct MainChainConfig {
-    pub ckb_rpc_url: String,
-}
-
-pub struct MainChain {
-    // config: MainChainConfig,
+pub struct CanonicalChain {
     query_sender: Sender<WriteQuery>,
     start_number: BlockNumber,
     rpc: Jsonrpc,
     proposals_zones: HashMap<BlockNumber, HashSet<ProposalShortId>>,
 }
 
-impl MainChain {
+impl CanonicalChain {
     pub fn new(
-        config: MainChainConfig,
+        ckb_rpc_url: &str,
         query_sender: Sender<WriteQuery>,
         start_number: BlockNumber,
     ) -> Self {
-        let rpc = Jsonrpc::connect(config.ckb_rpc_url.as_str());
+        let rpc = Jsonrpc::connect(ckb_rpc_url);
         Self {
-            // config,
             query_sender,
             start_number,
             rpc,
@@ -261,11 +253,14 @@ fn extract_miner_lock(block: &BlockView) -> Script {
     cellbase_witness.lock()
 }
 
-pub async fn select_last_block_number_in_influxdb(influx: &Influx) -> BlockNumber {
+pub async fn select_last_block_number_in_influxdb(
+    influx: &Influx,
+    ckb_network_name: &str,
+) -> BlockNumber {
     let sql = format!(
         "SELECT last(number) FROM {query_name} WHERE network = '{network}'",
         query_name = "block",
-        network = CONFIG.network.ckb_network_name
+        network = ckb_network_name,
     );
     let query_last_number = ReadQuery::new(&sql);
     match influx.query(&query_last_number).await {

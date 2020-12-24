@@ -28,13 +28,6 @@ use influxdb::{Timestamp, WriteQuery};
 use jsonrpc_core::futures::Stream;
 use jsonrpc_core::serde_from_str;
 use jsonrpc_server_utils::tokio::prelude::*;
-use serde::{Deserialize, Serialize};
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ReorganizationConfig {
-    pub ckb_rpc_url: String,
-    pub ckb_subscribe_url: String,
-}
 
 pub struct Reorganization {
     header_receiver: jsonrpc_server_utils::tokio::sync::mpsc::Receiver<String>,
@@ -46,14 +39,14 @@ pub struct Reorganization {
 
 impl Reorganization {
     pub fn new(
-        config: ReorganizationConfig,
+        ckb_rpc_url: String,
+        ckb_subscribe_url: String,
         query_sender: Sender<WriteQuery>,
     ) -> (Self, Subscription) {
-        let jsonrpc = Jsonrpc::connect(&config.ckb_rpc_url);
+        let jsonrpc = Jsonrpc::connect(&ckb_rpc_url);
         let (header_sender, header_receiver) =
             jsonrpc_server_utils::tokio::sync::mpsc::channel(100);
-        let subscription =
-            Subscription::new(config.ckb_subscribe_url, Topic::NewTipHeader, header_sender);
+        let subscription = Subscription::new(ckb_subscribe_url, Topic::NewTipHeader, header_sender);
         (
             Self {
                 jsonrpc,

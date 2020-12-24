@@ -2,29 +2,22 @@
 
 use ckb_network::{multiaddr::MultiAddr, MultiaddrExt};
 use ckb_suite_rpc::Jsonrpc;
-use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::net::SocketAddr;
 use std::time::Duration;
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct NetworkTopologyConfig {
-    pub ckb_rpc_urls: Vec<String>,
-}
-
 pub struct NetworkTopology {
-    config: NetworkTopologyConfig,
+    ckb_rpc_urls: Vec<String>,
     rpcs: Vec<Jsonrpc>,
 }
 
 impl NetworkTopology {
-    pub fn new(config: NetworkTopologyConfig) -> Self {
-        let rpcs: Vec<_> = config
-            .ckb_rpc_urls
+    pub fn new(ckb_rpc_urls: Vec<String>) -> Self {
+        let rpcs: Vec<_> = ckb_rpc_urls
             .iter()
             .map(|url| Jsonrpc::connect(url.as_ref()))
             .collect();
-        Self { config, rpcs }
+        Self { rpcs, ckb_rpc_urls }
     }
 
     pub async fn run(&self) {
@@ -53,7 +46,6 @@ impl NetworkTopology {
         println!("graph Topology {{");
 
         let known_ips = self
-            .config
             .ckb_rpc_urls
             .iter()
             .map(|ckb_url| extract_ip(ckb_url.as_ref()))
