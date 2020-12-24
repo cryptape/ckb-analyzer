@@ -14,12 +14,6 @@ mod subscribe;
 
 lazy_static! {
     static ref LOG_LEVEL: String = var("LOG_LEVEL").unwrap_or_else(|_| "ERROR".to_string());
-    static ref CONFIG: Config = {
-        let config_path = var("CKB_ANALYZER_CONFIG").unwrap_or_else(|_| {
-            panic!("please specify config path via environment variable CKB_ANALYZER_CONFIG")
-        });
-        init_config(config_path)
-    };
     static ref HOSTNAME: String = var("HOSTNAME")
         .unwrap_or_else(|_| gethostname::gethostname().to_string_lossy().to_string());
     static ref INFLUXDB_USERNAME: String =
@@ -30,22 +24,26 @@ lazy_static! {
 
 #[tokio::main]
 async fn main() {
+    let config_path = var("CKB_ANALYZER_CONFIG").unwrap_or_else(|_| {
+        panic!("please specify config path via environment variable CKB_ANALYZER_CONFIG")
+    });
+    let config = init_config(config_path);
     let influx = if INFLUXDB_USERNAME.is_empty() {
         Client::new(
-            CONFIG.influxdb.url.as_str(),
-            CONFIG.influxdb.database.as_str(),
+            config.influxdb.url.as_str(),
+            config.influxdb.database.as_str(),
         )
     } else {
         Client::new(
-            CONFIG.influxdb.url.as_str(),
-            CONFIG.influxdb.database.as_str(),
+            config.influxdb.url.as_str(),
+            config.influxdb.database.as_str(),
         )
         .with_auth(INFLUXDB_USERNAME.as_str(), INFLUXDB_PASSWORD.as_str())
     };
     let (query_sender, query_receiver) = bounded(5000);
-    for analyzer in CONFIG.analyzers.iter() {
+    for analyzer in config.analyzers.iter() {
         tokio::spawn(analyzer.clone().run(
-            CONFIG.ckb_network_name.as_str(),
+            config.ckb_network_name.clone(),
             influx.clone(),
             query_sender.clone(),
         ));
@@ -54,7 +52,7 @@ async fn main() {
     for mut query in query_receiver {
         // Attach built-in tags
         query = query
-            .add_tag("network", CONFIG.ckb_network_name.clone())
+            .add_tag("network", config.ckb_network_name.clone())
             .add_tag("hostname", HOSTNAME.clone());
 
         // Writes asynchronously

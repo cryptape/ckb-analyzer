@@ -45,14 +45,14 @@ pub enum Analyzer {
 impl Analyzer {
     pub async fn run(
         self,
-        ckb_network_name: &str,
+        ckb_network_name: String,
         influx: Influx,
         query_sender: Sender<WriteQuery>,
     ) {
         match self {
             Self::MainChain { ckb_rpc_url } => {
                 let last_number =
-                    select_last_block_number_in_influxdb(&influx, ckb_network_name).await;
+                    select_last_block_number_in_influxdb(&influx, &ckb_network_name).await;
                 CanonicalChain::new(&ckb_rpc_url, query_sender, last_number)
                     .run()
                     .await
@@ -60,13 +60,9 @@ impl Analyzer {
             Self::NetworkProbe {
                 ckb_network_identifier,
             } => {
-                NetworkProbe::new(
-                    ckb_network_name.to_string(),
-                    ckb_network_identifier,
-                    query_sender,
-                )
-                .run()
-                .await
+                NetworkProbe::new(ckb_network_name, ckb_network_identifier, query_sender)
+                    .run()
+                    .await
             }
             Self::NetworkTopology { ckb_rpc_urls } => {
                 NetworkTopology::new(ckb_rpc_urls).run().await
