@@ -47,7 +47,7 @@ impl CanonicalChain {
     }
 
     pub async fn run(&mut self) {
-        println!("{} started ...", ::std::any::type_name::<Self>());
+        log::info!("{} started ...", ::std::any::type_name::<Self>());
         self.analyze_blocks().await
     }
 
@@ -256,7 +256,7 @@ pub async fn select_last_block_number_in_influxdb(
     let query_last_number = ReadQuery::new(&sql);
     match influx.query(&query_last_number).await {
         Err(err) => {
-            eprintln!("influxdb.query(\"{}\"), error: {}", sql, err);
+            log::error!("influxdb.query(\"{}\"), error: {}", sql, err);
             ::std::process::exit(1);
         }
         Ok(results) => {

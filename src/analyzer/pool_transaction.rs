@@ -88,7 +88,7 @@ impl PoolTransaction {
     }
 
     pub async fn run(mut self) {
-        println!("{} started ...", ::std::any::type_name::<Self>());
+        log::info!("{} started ...", ::std::any::type_name::<Self>());
 
         // Take out the tx_receiver to pass the Rust borrow rule
         let (_, mut dummy_receiver) = jsonrpc_server_utils::tokio::sync::mpsc::channel(100);

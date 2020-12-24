@@ -88,9 +88,10 @@ impl Subscription {
                 })
             },
         );
-        println!(
+        log::info!(
             "subscribe to \"{}\" with topic \"{:?}\"",
-            self.address, self.topic
+            self.address,
+            self.topic
         );
         duplex
             .join(subscription)

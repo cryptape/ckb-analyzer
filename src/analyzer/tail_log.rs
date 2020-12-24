@@ -40,7 +40,7 @@ impl TailLog {
             match LogWatcher::register(filepath.as_ref()) {
                 Ok(log_watcher) => break log_watcher,
                 Err(_err) => {
-                    println!(
+                    log::warn!(
                         "[TailLog] failed to open \"{}\", retry in 5s",
                         filepath.as_ref().to_string_lossy().to_string(),
                     );
@@ -56,7 +56,7 @@ impl TailLog {
     }
 
     pub fn run(&mut self) {
-        println!("{} started ...", ::std::any::type_name::<Self>());
+        log::info!("{} started ...", ::std::any::type_name::<Self>());
         let matches = self.matches.clone();
         let query_sender = self.query_sender.clone();
         self.log_watcher.watch(&mut move |line: String| {
@@ -85,7 +85,7 @@ fn log_time(line: &str) -> Timestamp {
     match DateTime::parse_from_str(&line[..datetime_length], "%Y-%m-%d %H:%M:%S%.3f %z") {
         Ok(datetime) => datetime.into(),
         Err(_) => {
-            eprintln!("failed to parse datetime, use local time");
+            log::error!("failed to parse datetime, use local time");
             Utc::now().into()
         }
     }

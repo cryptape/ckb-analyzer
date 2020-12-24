@@ -57,11 +57,11 @@ async fn main() {
             let influx_ = influx.clone();
             tokio::spawn(async move {
                 if let Err(err) = influx_.query(&query).await {
-                    eprintln!("influxdb.query, error: {}", err);
+                    log::error!("influxdb.query, error: {}", err);
                 }
             });
         } else if let Err(err) = influx.query(&query).await {
-            eprintln!("influxdb.query, error: {}", err);
+            log::error!("influxdb.query, error: {}", err);
         }
     }
 }

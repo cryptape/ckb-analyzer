@@ -21,7 +21,7 @@ impl NetworkTopology {
     }
 
     pub async fn run(&self) {
-        println!("{} started ...", ::std::any::type_name::<Self>());
+        log::info!("{} started ...", ::std::any::type_name::<Self>());
         loop {
             self.analyze().await;
             tokio::time::delay_for(Duration::from_secs(60 * 10)).await;
@@ -43,7 +43,7 @@ impl NetworkTopology {
             }
         }
 
-        println!("graph Topology {{");
+        log::info!("graph Topology {{");
 
         let known_ips = self
             .ckb_rpc_urls
@@ -67,7 +67,7 @@ impl NetworkTopology {
             });
             connections.iter().for_each(|(inbound, outbound)| {
                 if let Some(count) = counts.remove(inbound) {
-                    println!(
+                    log::info!(
                         "    {} [ label = \"{} *{}*\" ];",
                         dot2line(inbound),
                         inbound,
@@ -75,7 +75,7 @@ impl NetworkTopology {
                     );
                 }
                 if let Some(count) = counts.remove(outbound) {
-                    println!(
+                    log::info!(
                         "    {} [ label = \"{} *{}*\" ];",
                         dot2line(outbound),
                         outbound,
@@ -88,11 +88,11 @@ impl NetworkTopology {
         {
             connections.iter().for_each(|(inbound, outbound)| {
                 if known_ips.contains(inbound) && known_ips.contains(outbound) {
-                    println!("    {} -- {};", dot2line(inbound), dot2line(outbound));
+                    log::info!("    {} -- {};", dot2line(inbound), dot2line(outbound));
                 }
             });
         }
-        println!("}}");
+        log::info!("}}");
     }
 }
 
