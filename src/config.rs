@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Config {
     pub ckb_network_name: String,
     pub influxdb: InfluxdbConfig,
@@ -11,7 +11,7 @@ pub struct Config {
     pub analyzers: Vec<Analyzer>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct InfluxdbConfig {
     pub database: String,
     pub url: String,

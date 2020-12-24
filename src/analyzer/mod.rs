@@ -1,6 +1,14 @@
+pub use canonical_chain::{select_last_block_number_in_influxdb, CanonicalChain};
 use crossbeam::channel::Sender;
 use influxdb::{Client as Influx, WriteQuery};
+pub use network_probe::NetworkProbe;
+pub use network_topology::NetworkTopology;
+pub use pool_transaction::PoolTransaction;
+use regex::Regex;
+pub use reorganization::Reorganization;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+pub use tail_log::TailLog;
 
 mod canonical_chain;
 mod network_probe;
@@ -9,16 +17,7 @@ mod pool_transaction;
 mod reorganization;
 mod tail_log;
 
-pub use canonical_chain::{select_last_block_number_in_influxdb, CanonicalChain};
-pub use network_probe::NetworkProbe;
-pub use network_topology::NetworkTopology;
-pub use pool_transaction::PoolTransaction;
-use regex::Regex;
-pub use reorganization::Reorganization;
-use std::collections::HashMap;
-pub use tail_log::TailLog;
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum Analyzer {
     MainChain {
         ckb_rpc_url: String,
