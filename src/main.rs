@@ -1,7 +1,5 @@
-pub use config::{init_config, Config};
 use crossbeam::channel::bounded;
 use influxdb::Client;
-use lazy_static::lazy_static;
 use std::env::var;
 
 mod analyzer;
@@ -12,33 +10,29 @@ mod get_version;
 mod measurement;
 mod subscribe;
 
-lazy_static! {
-    static ref LOG_LEVEL: String = var("LOG_LEVEL").unwrap_or_else(|_| "ERROR".to_string());
-    static ref HOSTNAME: String = var("HOSTNAME")
-        .unwrap_or_else(|_| gethostname::gethostname().to_string_lossy().to_string());
-    static ref INFLUXDB_USERNAME: String =
-        var("INFLUXDB_USERNAME").unwrap_or_else(|_| "".to_string());
-    static ref INFLUXDB_PASSWORD: String =
-        var("INFLUXDB_PASSWORD").unwrap_or_else(|_| "".to_string());
-}
-
 #[tokio::main]
 async fn main() {
-    let config_path = var("CKB_ANALYZER_CONFIG").unwrap_or_else(|_| {
-        panic!("please specify config path via environment variable CKB_ANALYZER_CONFIG")
-    });
-    let config = init_config(config_path);
-    let influx = if INFLUXDB_USERNAME.is_empty() {
-        Client::new(
-            config.influxdb.url.as_str(),
-            config.influxdb.database.as_str(),
-        )
-    } else {
-        Client::new(
-            config.influxdb.url.as_str(),
-            config.influxdb.database.as_str(),
-        )
-        .with_auth(INFLUXDB_USERNAME.as_str(), INFLUXDB_PASSWORD.as_str())
+    let config = {
+        let config_path = var("CKB_ANALYZER_CONFIG").unwrap_or_else(|_| {
+            panic!("please specify config path via environment variable CKB_ANALYZER_CONFIG")
+        });
+        config::init_config(config_path)
+    };
+    let influx = {
+        let username = var("INFLUXDB_USERNAME").unwrap_or_else(|_| "".to_string());
+        let password = var("INFLUXDB_PASSWORD").unwrap_or_else(|_| "".to_string());
+        if username.is_empty() {
+            Client::new(
+                config.influxdb.url.as_str(),
+                config.influxdb.database.as_str(),
+            )
+        } else {
+            Client::new(
+                config.influxdb.url.as_str(),
+                config.influxdb.database.as_str(),
+            )
+            .with_auth(&username, &password)
+        }
     };
     let (query_sender, query_receiver) = bounded(5000);
     for analyzer in config.analyzers.iter() {
@@ -49,11 +43,13 @@ async fn main() {
         ));
     }
 
+    let hostname = var("HOSTNAME")
+        .unwrap_or_else(|_| gethostname::gethostname().to_string_lossy().to_string());
     for mut query in query_receiver {
         // Attach built-in tags
         query = query
             .add_tag("network", config.ckb_network_name.clone())
-            .add_tag("hostname", HOSTNAME.clone());
+            .add_tag("hostname", hostname.clone());
 
         // Writes asynchronously
         let asynchronize = true;

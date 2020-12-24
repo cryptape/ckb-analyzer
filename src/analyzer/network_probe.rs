@@ -272,9 +272,9 @@ impl CKBProtocolHandler for NetworkProbe {
         _version: &str,
     ) {
         if let Ok(mut peers) = self.peers.lock() {
-            if *peers.entry(peer_index).or_insert(true) && crate::LOG_LEVEL.as_str() != "ERROR" {
+            if *peers.entry(peer_index).or_insert(true) {
                 if let Some(peer) = nc.get_peer(peer_index) {
-                    println!("connect with #{}({:?})", peer_index, peer.connected_addr);
+                    log::info!("connect with #{}({:?})", peer_index, peer.connected_addr);
                 }
             }
         }
@@ -283,9 +283,9 @@ impl CKBProtocolHandler for NetworkProbe {
 
     fn disconnected(&mut self, nc: Arc<dyn CKBProtocolContext + Sync>, peer_index: PeerIndex) {
         if let Ok(mut peers) = self.peers.lock() {
-            if peers.remove(&peer_index).is_some() && crate::LOG_LEVEL.as_str() != "ERROR" {
+            if peers.remove(&peer_index).is_some() {
                 if let Some(peer) = nc.get_peer(peer_index) {
-                    println!("disconnect with #{}({:?})", peer_index, peer.connected_addr);
+                    log::info!("disconnect with #{}({:?})", peer_index, peer.connected_addr);
                 }
             }
         }

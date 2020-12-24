@@ -11,7 +11,6 @@
 //! dashboards.
 
 use crate::measurement::{self, IntoWriteQuery};
-use crate::LOG_LEVEL;
 use ckb_suite_rpc::Jsonrpc;
 use ckb_types::core::{BlockNumber, HeaderView};
 use ckb_types::core::{BlockView, EpochNumber};
@@ -108,13 +107,7 @@ impl CanonicalChain {
             miner_lock_args,
         }
         .into_write_query();
-        if LOG_LEVEL.as_str() != "ERROR" {
-            println!(
-                "[DEBUG] block #{}, timestamp: {}",
-                number,
-                block.timestamp(),
-            );
-        }
+        log::debug!("block #{}, timestamp: {}", number, block.timestamp(),);
         self.query_sender.send(query).unwrap();
     }
 
@@ -147,15 +140,13 @@ impl CanonicalChain {
             slower_than_cousin,
         }
         .into_write_query();
-        if LOG_LEVEL.as_str() != "ERROR" {
-            println!(
-                "[DEBUG] uncle #{}({:#x}), timestamp: {}, slower_than_cousin: {}",
-                uncle_number,
-                uncle.hash(),
-                uncle.timestamp(),
-                slower_than_cousin,
-            );
-        }
+        log::debug!(
+            "[DEBUG] uncle #{}({:#x}), timestamp: {}, slower_than_cousin: {}",
+            uncle_number,
+            uncle.hash(),
+            uncle.timestamp(),
+            slower_than_cousin,
+        );
         self.query_sender.send(query).unwrap();
     }
 

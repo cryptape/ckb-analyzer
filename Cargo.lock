@@ -516,7 +516,7 @@ dependencies = [
  "jsonrpc-server-utils",
  "jsonrpc-tcp-server",
  "jsonrpc-ws-server",
- "lazy_static",
+ "log 0.4.11",
  "logwatcher",
  "regex",
  "serde",

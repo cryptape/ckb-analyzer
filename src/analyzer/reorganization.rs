@@ -124,16 +124,14 @@ impl Reorganization {
         ancestor: &HeaderView,
     ) {
         let attached_length = new_tip.number() - ancestor.number();
-        if crate::LOG_LEVEL.as_str() != "ERROR" {
-            println!(
-                "Reorganize from #{}({:#x}) to #{}({:#x}), attached_length = {}",
-                old_tip.number(),
-                old_tip.hash(),
-                new_tip.number(),
-                new_tip.hash(),
-                attached_length
-            );
-        }
+        log::info!(
+            "Reorganize from #{}({:#x}) to #{}({:#x}), attached_length = {}",
+            old_tip.number(),
+            old_tip.hash(),
+            new_tip.number(),
+            new_tip.hash(),
+            attached_length
+        );
         let query = measurement::Reorganization {
             time: Timestamp::Milliseconds(ancestor.timestamp() as u128),
             attached_length: attached_length as u32,

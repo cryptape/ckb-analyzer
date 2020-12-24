@@ -21,7 +21,6 @@ influxdb = { version = "0.3.0", features = ["derive"] }
 tokio = { version = "0.2.22", features = ["full"] }
 crossbeam = { version = "0.8.0" }
 chrono = { version = "0.4.19" }
-lazy_static = { version = "1.4.0" }
 toml = { version = "0.5" }
 gethostname = { version = "0.2.1" }
 serde = { version = "1.0.117", features = [ "derive" ] }
@@ -38,6 +37,7 @@ jsonrpc-core-client = { version = "15.1" }
 jsonrpc-client-transports = { version = "15.1" }
 logwatcher = { version = "0.1.1" }
 regex = { version = "1" }
+log = { version = "0.4.11" }
 
 [workspace]
 members = [
