@@ -21,7 +21,6 @@ impl NetworkTopology {
     }
 
     pub async fn run(&self) {
-        log::info!("{} started ...", ::std::any::type_name::<Self>());
         loop {
             self.analyze().await;
             tokio::time::delay_for(Duration::from_secs(60 * 10)).await;

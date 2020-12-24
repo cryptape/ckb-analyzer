@@ -56,7 +56,6 @@ impl TailLog {
     }
 
     pub fn run(&mut self) {
-        log::info!("{} started ...", ::std::any::type_name::<Self>());
         let matches = self.matches.clone();
         let query_sender = self.query_sender.clone();
         self.log_watcher.watch(&mut move |line: String| {

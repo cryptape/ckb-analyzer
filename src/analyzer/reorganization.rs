@@ -60,8 +60,6 @@ impl Reorganization {
     }
 
     pub async fn run(mut self) {
-        log::info!("{} started ...", ::std::any::type_name::<Self>());
-
         // Take out the header_receiver to pass the Rust borrow rule
         let (_, mut dummy_receiver) = jsonrpc_server_utils::tokio::sync::mpsc::channel(100);
         ::std::mem::swap(&mut self.header_receiver, &mut dummy_receiver);

@@ -1,5 +1,6 @@
 use crate::analyzer::Analyzer;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 
@@ -7,8 +8,7 @@ use std::path::Path;
 pub struct Config {
     pub ckb_network_name: String,
     pub influxdb: InfluxdbConfig,
-    #[serde(default)]
-    pub analyzers: Vec<Analyzer>,
+    pub analyzers: HashMap<String, Analyzer>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

@@ -35,8 +35,9 @@ async fn main() {
         }
     };
     let (query_sender, query_receiver) = bounded(5000);
-    for analyzer in config.analyzers.iter() {
+    for (name, analyzer) in config.analyzers.iter() {
         tokio::spawn(analyzer.clone().run(
+            name.clone(),
             config.ckb_network_name.clone(),
             influx.clone(),
             query_sender.clone(),

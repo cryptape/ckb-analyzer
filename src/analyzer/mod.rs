@@ -19,7 +19,7 @@ mod tail_log;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum Analyzer {
-    MainChain {
+    CanonicalChain {
         ckb_rpc_url: String,
     },
     NetworkTopology {
@@ -45,12 +45,14 @@ pub enum Analyzer {
 impl Analyzer {
     pub async fn run(
         self,
+        analyzer_name: String,
         ckb_network_name: String,
         influx: Influx,
         query_sender: Sender<WriteQuery>,
     ) {
+        log::info!("{} starting ...", analyzer_name);
         match self {
-            Self::MainChain { ckb_rpc_url } => {
+            Self::CanonicalChain { ckb_rpc_url } => {
                 let last_number =
                     select_last_block_number_in_influxdb(&influx, &ckb_network_name).await;
                 CanonicalChain::new(&ckb_rpc_url, query_sender, last_number)

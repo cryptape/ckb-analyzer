@@ -47,7 +47,6 @@ impl CanonicalChain {
     }
 
     pub async fn run(&mut self) {
-        log::info!("{} started ...", ::std::any::type_name::<Self>());
         self.analyze_blocks().await
     }
 
