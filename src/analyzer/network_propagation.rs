@@ -36,12 +36,8 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use std::time::Instant;
 
-// TODO --sync-historical-uncles
 // TODO handle threads panic
-// TODO ckb_rpc_urls should not hardcode
-// TODO --item chain,network,topology|all
 // TODO logger
-// TODO create data/ dir before Network::init...
 // TODO install node-exporter on testnet machines
 
 type PropagationHashes = Arc<Mutex<HashMap<Byte32, (Instant, HashSet<PeerIndex>)>>>;
