@@ -1,14 +1,7 @@
-pub use canonical_chain::{select_last_block_number_in_influxdb, CanonicalChain};
 use crossbeam::channel::Sender;
 use influxdb::{Client as Influx, WriteQuery};
-pub use network_probe::NetworkProbe;
-pub use network_topology::NetworkTopology;
-pub use pool_transaction::PoolTransaction;
-use regex::Regex;
-pub use reorganization::Reorganization;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-pub use tail_log::TailLog;
 
 mod canonical_chain;
 mod network_probe;
@@ -16,6 +9,13 @@ mod network_topology;
 mod pool_transaction;
 mod reorganization;
 mod tail_log;
+
+pub use canonical_chain::{select_last_block_number_in_influxdb, CanonicalChain};
+pub use network_probe::NetworkProbe;
+pub use network_topology::NetworkTopology;
+pub use pool_transaction::PoolTransaction;
+pub use reorganization::Reorganization;
+pub use tail_log::{Regex, TailLog};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum Analyzer {
@@ -35,7 +35,7 @@ pub enum Analyzer {
     },
     TailLog {
         filepath: String,
-        matches: HashMap<String, String>, // FIXME Regex
+        patterns: HashMap<String, Regex>,
     },
     NetworkProbe {
         ckb_network_identifier: String,
@@ -101,19 +101,19 @@ impl Analyzer {
                 });
                 pool_transaction.run().await;
             }
-            Self::TailLog { filepath, matches } => {
-                let matches = matches
-                    .into_iter()
-                    .map(|(category, regex)| {
-                        (
-                            category,
-                            Regex::new(&regex).unwrap_or_else(|err| {
-                                panic!("invalid regex, str: \"{}\", err: {}", regex, err)
-                            }),
-                        )
-                    })
-                    .collect();
-                let mut tail_log = TailLog::new(filepath, matches, query_sender);
+            Self::TailLog { filepath, patterns } => {
+                // let patterns = patterns
+                //     .into_iter()
+                //     .map(|(category, regex)| {
+                //         (
+                //             category,
+                //             Regex::new(&regex).unwrap_or_else(|err| {
+                //                 panic!("invalid regex, str: \"{}\", err: {}", regex, err)
+                //             }),
+                //         )
+                //     })
+                //     .collect();
+                let mut tail_log = TailLog::new(filepath, patterns, query_sender);
                 ::std::thread::spawn(move || tail_log.run());
             }
         }

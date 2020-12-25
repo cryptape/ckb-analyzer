@@ -18,14 +18,37 @@ use chrono::{DateTime, Local, Utc};
 use crossbeam::channel::Sender;
 use influxdb::{Timestamp, WriteQuery};
 use logwatcher::{LogWatcher, LogWatcherAction};
-use regex::Regex;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::ops::Deref;
 use std::path::Path;
 use std::thread::sleep;
 use std::time::Duration;
 
+#[derive(Serialize, Deserialize, Clone)]
+pub struct Regex(#[serde(with = "serde_regex")] regex::Regex);
+
+impl Deref for Regex {
+    type Target = regex::Regex;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl ::std::fmt::Debug for Regex {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        ::std::fmt::Debug::fmt(&self.0, f)
+    }
+}
+
+impl ::std::fmt::Display for Regex {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        ::std::fmt::Display::fmt(&self.0, f)
+    }
+}
+
 pub struct TailLog {
-    matches: HashMap<String, Regex>, // #{ name => regex }
+    patterns: HashMap<String, Regex>, // #{ name => regex }
     log_watcher: LogWatcher,
     query_sender: Sender<WriteQuery>,
 }
@@ -33,7 +56,7 @@ pub struct TailLog {
 impl TailLog {
     pub fn new<P: AsRef<Path>>(
         filepath: P,
-        matches: HashMap<String, Regex>,
+        patterns: HashMap<String, Regex>,
         query_sender: Sender<WriteQuery>,
     ) -> Self {
         let log_watcher = loop {
@@ -49,17 +72,17 @@ impl TailLog {
             }
         };
         Self {
-            matches,
+            patterns,
             log_watcher,
             query_sender,
         }
     }
 
     pub fn run(&mut self) {
-        let matches = self.matches.clone();
+        let patterns = self.patterns.clone();
         let query_sender = self.query_sender.clone();
         self.log_watcher.watch(&mut move |line: String| {
-            for (category, regex) in matches.iter() {
+            for (category, regex) in patterns.iter() {
                 if regex.is_match(line.as_str()) {
                     let query = measurement::Log {
                         time: log_time(&line),
