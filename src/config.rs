@@ -1,4 +1,4 @@
-use crate::analyzer::Analyzer;
+use crate::role::Role;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
@@ -7,7 +7,7 @@ use std::path::Path;
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Config {
     pub ckb_network_name: String,
-    pub analyzers: HashMap<String, Analyzer>,
+    pub roles: HashMap<String, Role>,
     pub influxdb: InfluxdbConfig,
 }
 

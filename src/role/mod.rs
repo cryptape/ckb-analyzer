@@ -20,7 +20,7 @@ pub use reorganization::Reorganization;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(tag = "type", content = "args")]
-pub enum Analyzer {
+pub enum Role {
     CanonicalChain {
         ckb_rpc_url: String,
     },
@@ -45,15 +45,15 @@ pub enum Analyzer {
     },
 }
 
-impl Analyzer {
+impl Role {
     pub async fn run(
         self,
-        analyzer_name: String,
+        role_name: String,
         ckb_network_name: String,
         influx: Influx,
         query_sender: Sender<WriteQuery>,
     ) {
-        log::info!("{} starting ...", analyzer_name);
+        log::info!("{} starting ...", role_name);
         match self {
             Self::CanonicalChain { ckb_rpc_url } => {
                 let last_number =

@@ -96,7 +96,7 @@ impl NetworkPropagation {
             version.to_string(),
             exit_handler.clone(),
         )
-        .start(Some("ckb-analyzer::network"))
+        .start(Some("ckb-role::network"))
         .unwrap();
 
         exit_handler.wait_for_exit();

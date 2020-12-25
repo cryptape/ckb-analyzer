@@ -2,11 +2,11 @@ use crossbeam::channel::bounded;
 use influxdb::Client;
 use std::env::var;
 
-mod analyzer;
 mod config;
 mod dashboard;
 mod get_version;
 mod measurement;
+mod role;
 mod subscribe;
 
 #[tokio::main]
@@ -34,9 +34,9 @@ async fn main() {
         }
     };
     let (query_sender, query_receiver) = bounded(5000);
-    for (name, analyzer) in config.analyzers.iter() {
-        tokio::spawn(analyzer.clone().run(
-            name.clone(),
+    for (role_name, role) in config.roles.iter() {
+        tokio::spawn(role.clone().run(
+            role_name.clone(),
             config.ckb_network_name.clone(),
             influx.clone(),
             query_sender.clone(),
