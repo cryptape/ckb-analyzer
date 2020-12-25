@@ -3,7 +3,6 @@ use influxdb::Client;
 use std::env::var;
 
 mod analyzer;
-mod app_config;
 mod config;
 mod dashboard;
 mod get_version;

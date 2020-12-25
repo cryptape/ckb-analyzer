@@ -18,7 +18,6 @@
 //!
 //! Note that in a decentralized network, one can only deploy programs on its owned machines, but not the entire network. So of cause, no one can see the whole picture of a decentralized network.
 
-use crate::app_config::app_config;
 use crate::get_version::get_version;
 use crate::measurement::{self, IntoWriteQuery, WriteQuery};
 use chrono::Utc;
@@ -35,6 +34,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use std::time::Instant;
+use ckb_app_config::NetworkConfig;
 
 // TODO handle threads panic
 // TODO logger
@@ -44,7 +44,7 @@ type PropagationHashes = Arc<Mutex<HashMap<Byte32, (Instant, HashSet<PeerIndex>)
 
 #[derive(Clone)]
 pub struct NetworkPropagation {
-    ckb_network_name: String,
+    ckb_network_config: NetworkConfig,
     ckb_network_identifier: String,
     peers: Arc<Mutex<HashMap<PeerIndex, bool>>>,
     compact_blocks: PropagationHashes,
@@ -54,12 +54,12 @@ pub struct NetworkPropagation {
 
 impl NetworkPropagation {
     pub fn new(
-        ckb_network_name: String,
+        ckb_network_config: NetworkConfig,
         ckb_network_identifier: String,
         query_sender: Sender<WriteQuery>,
     ) -> Self {
         Self {
-            ckb_network_name,
+            ckb_network_config,
             ckb_network_identifier,
             peers: Default::default(),
             compact_blocks: Default::default(),
@@ -69,8 +69,7 @@ impl NetworkPropagation {
     }
 
     pub async fn run(&mut self) {
-        let config = app_config(&self.ckb_network_name).network;
-        let network_state = Arc::new(NetworkState::from_config(config).unwrap());
+        let network_state = Arc::new(NetworkState::from_config(self.ckb_network_config.clone()).unwrap());
         let exit_handler = DefaultExitHandler::default();
         let version = get_version();
         let protocols = vec![SupportProtocols::Sync, SupportProtocols::Relay];

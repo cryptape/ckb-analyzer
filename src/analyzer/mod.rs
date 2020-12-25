@@ -16,8 +16,10 @@ pub use network_topology::NetworkTopology;
 pub use pool_transaction::PoolTransaction;
 pub use reorganization::Reorganization;
 pub use log_watcher::{LogWatcher, Regex};
+use ckb_app_config::NetworkConfig;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(tag = "type", content = "args")]
 pub enum Analyzer {
     CanonicalChain {
         ckb_rpc_url: String,
@@ -38,6 +40,7 @@ pub enum Analyzer {
         patterns: HashMap<String, Regex>,
     },
     NetworkPropagation {
+        ckb_network_config: NetworkConfig,
         ckb_network_identifier: String,
     },
 }
@@ -60,9 +63,10 @@ impl Analyzer {
                     .await
             }
             Self::NetworkPropagation {
+                ckb_network_config,
                 ckb_network_identifier,
             } => {
-                NetworkPropagation::new(ckb_network_name, ckb_network_identifier, query_sender)
+                NetworkPropagation::new(ckb_network_config, ckb_network_identifier, query_sender)
                     .run()
                     .await
             }
