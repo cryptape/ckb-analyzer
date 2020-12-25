@@ -4,18 +4,18 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 mod canonical_chain;
-mod network_probe;
+mod network_propagation;
 mod network_topology;
 mod pool_transaction;
 mod reorganization;
-mod tail_log;
+mod log_watcher;
 
 pub use canonical_chain::{select_last_block_number_in_influxdb, CanonicalChain};
-pub use network_probe::NetworkProbe;
+pub use network_propagation::NetworkPropagation;
 pub use network_topology::NetworkTopology;
 pub use pool_transaction::PoolTransaction;
 pub use reorganization::Reorganization;
-pub use tail_log::{Regex, TailLog};
+pub use log_watcher::{LogWatcher, Regex};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum Analyzer {
@@ -33,11 +33,11 @@ pub enum Analyzer {
         ckb_rpc_url: String,
         ckb_subscribe_url: String,
     },
-    TailLog {
+    LogWatcher {
         filepath: String,
         patterns: HashMap<String, Regex>,
     },
-    NetworkProbe {
+    NetworkPropagation {
         ckb_network_identifier: String,
     },
 }
@@ -59,10 +59,10 @@ impl Analyzer {
                     .run()
                     .await
             }
-            Self::NetworkProbe {
+            Self::NetworkPropagation {
                 ckb_network_identifier,
             } => {
-                NetworkProbe::new(ckb_network_name, ckb_network_identifier, query_sender)
+                NetworkPropagation::new(ckb_network_name, ckb_network_identifier, query_sender)
                     .run()
                     .await
             }
@@ -101,20 +101,9 @@ impl Analyzer {
                 });
                 pool_transaction.run().await;
             }
-            Self::TailLog { filepath, patterns } => {
-                // let patterns = patterns
-                //     .into_iter()
-                //     .map(|(category, regex)| {
-                //         (
-                //             category,
-                //             Regex::new(&regex).unwrap_or_else(|err| {
-                //                 panic!("invalid regex, str: \"{}\", err: {}", regex, err)
-                //             }),
-                //         )
-                //     })
-                //     .collect();
-                let mut tail_log = TailLog::new(filepath, patterns, query_sender);
-                ::std::thread::spawn(move || tail_log.run());
+            Self::LogWatcher { filepath, patterns } => {
+                let mut log_watcher = LogWatcher::new(filepath, patterns, query_sender);
+                ::std::thread::spawn(move || log_watcher.run());
             }
         }
     }

@@ -47,7 +47,7 @@ use std::time::Instant;
 type PropagationHashes = Arc<Mutex<HashMap<Byte32, (Instant, HashSet<PeerIndex>)>>>;
 
 #[derive(Clone)]
-pub struct NetworkProbe {
+pub struct NetworkPropagation {
     ckb_network_name: String,
     ckb_network_identifier: String,
     peers: Arc<Mutex<HashMap<PeerIndex, bool>>>,
@@ -56,7 +56,7 @@ pub struct NetworkProbe {
     query_sender: Sender<WriteQuery>,
 }
 
-impl NetworkProbe {
+impl NetworkPropagation {
     pub fn new(
         ckb_network_name: String,
         ckb_network_identifier: String,
@@ -261,7 +261,7 @@ impl NetworkProbe {
     }
 }
 
-impl CKBProtocolHandler for NetworkProbe {
+impl CKBProtocolHandler for NetworkPropagation {
     fn init(&mut self, _nc: Arc<dyn CKBProtocolContext + Sync>) {}
 
     fn connected(

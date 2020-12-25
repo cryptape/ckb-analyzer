@@ -17,7 +17,6 @@ use crate::measurement::{self, IntoWriteQuery};
 use chrono::{DateTime, Local, Utc};
 use crossbeam::channel::Sender;
 use influxdb::{Timestamp, WriteQuery};
-use logwatcher::{LogWatcher, LogWatcherAction};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::ops::Deref;
@@ -47,20 +46,20 @@ impl ::std::fmt::Display for Regex {
     }
 }
 
-pub struct TailLog {
+pub struct LogWatcher {
+    log_watcher: logwatcher::LogWatcher,
     patterns: HashMap<String, Regex>, // #{ name => regex }
-    log_watcher: LogWatcher,
     query_sender: Sender<WriteQuery>,
 }
 
-impl TailLog {
+impl LogWatcher {
     pub fn new<P: AsRef<Path>>(
         filepath: P,
         patterns: HashMap<String, Regex>,
         query_sender: Sender<WriteQuery>,
     ) -> Self {
         let log_watcher = loop {
-            match LogWatcher::register(filepath.as_ref()) {
+            match logwatcher::LogWatcher::register(filepath.as_ref()) {
                 Ok(log_watcher) => break log_watcher,
                 Err(_err) => {
                     log::warn!(
@@ -94,7 +93,7 @@ impl TailLog {
                     query_sender.send(query).unwrap();
                 }
             }
-            LogWatcherAction::None
+            logwatcher::LogWatcherAction::None
         });
     }
 }
