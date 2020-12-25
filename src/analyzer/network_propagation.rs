@@ -21,6 +21,7 @@
 use crate::get_version::get_version;
 use crate::measurement::{self, IntoWriteQuery, WriteQuery};
 use chrono::Utc;
+use ckb_app_config::NetworkConfig;
 use ckb_network::{
     bytes::Bytes, CKBProtocol, CKBProtocolContext, CKBProtocolHandler, DefaultExitHandler,
     NetworkService, NetworkState, Peer, PeerIndex, SupportProtocols,
@@ -34,7 +35,6 @@ use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use std::time::Instant;
-use ckb_app_config::NetworkConfig;
 
 // TODO handle threads panic
 // TODO logger
@@ -69,7 +69,8 @@ impl NetworkPropagation {
     }
 
     pub async fn run(&mut self) {
-        let network_state = Arc::new(NetworkState::from_config(self.ckb_network_config.clone()).unwrap());
+        let network_state =
+            Arc::new(NetworkState::from_config(self.ckb_network_config.clone()).unwrap());
         let exit_handler = DefaultExitHandler::default();
         let version = get_version();
         let protocols = vec![SupportProtocols::Sync, SupportProtocols::Relay];

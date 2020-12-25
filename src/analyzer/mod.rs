@@ -4,19 +4,19 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 mod canonical_chain;
+mod log_watcher;
 mod network_propagation;
 mod network_topology;
 mod pool_transaction;
 mod reorganization;
-mod log_watcher;
 
 pub use canonical_chain::{select_last_block_number_in_influxdb, CanonicalChain};
+use ckb_app_config::NetworkConfig;
+pub use log_watcher::{LogWatcher, Regex};
 pub use network_propagation::NetworkPropagation;
 pub use network_topology::NetworkTopology;
 pub use pool_transaction::PoolTransaction;
 pub use reorganization::Reorganization;
-pub use log_watcher::{LogWatcher, Regex};
-use ckb_app_config::NetworkConfig;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(tag = "type", content = "args")]
@@ -40,8 +40,8 @@ pub enum Analyzer {
         patterns: HashMap<String, Regex>,
     },
     NetworkPropagation {
-        ckb_network_config: NetworkConfig,
         ckb_network_identifier: String,
+        ckb_network_config: NetworkConfig,
     },
 }
 
