@@ -1,8 +1,5 @@
 //! This module aims to the pool transactions
 //! This module produces the below measures:
-//!   - [AwaitTransaction](TODO link)
-//!   - [ProposeTransaction](TODO link)
-//!   - [CommitTransaction](TODO link)
 //!
 //! ### How it works?
 //!
@@ -37,32 +34,65 @@ pub struct PoolTransactionConfig {
     pub ckb_subscribe_url: String,
 }
 
-// Consider the dashboard should be like:
-//   - to tell a story about the duration of transactions waiting in pool.
-//   - to be a heatmap visualization, instantly display the distribution of transactions waiting duration.
+// Consider a dashboard that tells a story about transaction events.
 //
-// Consider the serie should be like:
+// List known transaction events here:
+//   - "pending", start pending in pool;
+//   - "pending_long", being pending for too long;
+//   - "propose", transit from pending to proposed, with the delay duration, proposed block number;
+//   - "propose_long", expire proposal window, with the delay duration;
+//   - "commit", transit from proposed to committed, with the delay duration, delay block count, proposed block number, committed block number;
+//   - "reject", reject by pool via subscribing "RejectTransaction"; it always contains explicit rejecting reason;
+//   - "remove", remove with known or unknown reason;
+//
+// The serie may be like below. Some of events are used to visualize in heatmap, some in table:
 // ```json
 // {
-//   "query_name": "pool_transaction",
-//   "time": if pool_event == "commit" then assign to committed_block.timestamp
-//           else if pool_event == "await" and await duration is too long then assign to now datetime
-//           else if pool_event == "disappear" and await duration is too long then assign to now datetime
-//   "pool_event": "commit" | "await" | "disappear",
-//   "waiting_duration": Duration,
-//   "transaction_hash": String,
+//   "query_name": "transaction_event",
+//
+//   "transaction_hash": h256,
+//
+//   "event": "pending"/"pending_long"/"propose"/"propose_long"/"commit"/"reject"/"remove",
+//
+//   "extra": message, default is empty;
+//         if event is "propose"/"commit", this field is corresponding block number and hash;
+//         if event is "reject"/"remove", this field is corresponding reason;
+//
+//   "time": time instant;
+//         if event is "pending", assign it `now`;
+//         if event is "pending_long", keeps this field the same as "pending";
+//         if event is "propose", assign it proposed block timestamp;
+//         if event is "propose_long", keeps this field the same as "propose";
+//         if event is "commit", assign it committed block timestamp;
+//         if event is "reject", assign it `now`;
+//         if event is "remove", assign it `now`;
+//
+//   "elapsed": duration;
+//         if event is "pending", assign it 0;
+//         if event is "pending_long", assign `now - pending.time`;
+//         if event is "propose", assign `proposed.time - pending.time`;
+//         if event is "propose_long", assign `now - proposed.time`;
+//         if event is "commit", assign `committed.time - proposed.time";
+//         if event is "reject", assign it 0;
+//         if event is "remove", assign it `now - pending.time`;
 // }
 // ```
-//
+
+// Handler maintains 2 transaction status: pending, proposed.
+
 // When receives a pool transaction notification, we put it into `self.pending`;
 // Periodically travels and check the pending transactions, moves out if one has been committed
 // and produce a serie with "pool_event" = "commit", or with "pool_event" = "await" if elapsed is too long, or with
 // "pool_event" == "disappear" if the transaction disappear (RPC get_transaction returns None);
 pub struct PoolTransaction {
-    tx_receiver: jsonrpc_server_utils::tokio::sync::mpsc::Receiver<String>,
+    waiting: HashMap<Byte32, DateTime<Utc>>,
+
+    // pending: HashMap<Byte32, Timestamp>,
+    // proposed: HashMap<Byte32, Timestamp>,
+
     jsonrpc: Jsonrpc,
+    tx_receiver: jsonrpc_server_utils::tokio::sync::mpsc::Receiver<String>,
     query_sender: Sender<WriteQuery>,
-    waiting: HashMap<Byte32, DateTime<Utc>>, // #{txhash => (tx, enter_timestamp)
     last_checking_at: Instant,
 }
 
