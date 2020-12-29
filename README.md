@@ -1,21 +1,11 @@
 # ckb-analyzer
 
-ckb-analyzer is an agent for collecting metrics from ckb, then writing the processed metrics info InfluxDB. We can visualize these metrics on Grafana or other visualization tools. Currently, we collect:
-
-- main chain metrics, mainly include epochs, blocks, and uncles
-- the real-time network metrics include block propagation, transaction propagation, and high latency records
-- the network topology
+ckb-analyzer is an agent for collecting metrics from ckb, then writing the processed metrics
+info InfluxDB. We can visualize these metrics on Grafana or other visualization tools.
 
 ckb-analyzer is still working in progress rapidly.
 
-### Dashboards
-
-Please reference our Grafana dashboard files at [`dashboards`](https://github.com/keroro520/ckb-analyzer/tree/main/dashboards)
-
-* MainChain: https://snapshot.raintank.io/dashboard/snapshot/O6cJmrxQTmdcOzmCqvGIGRhfrqH4ulHy
-* Network Prober: https://snapshot.raintank.io/dashboard/snapshot/5Yql0Y9q1EW20hHZjBzgXXbU1DSYuqaR
-
-### Install
+## Install
 
 Download from [releases](https://github.com/keroro520/ckb-analyzer/releases) or
 
@@ -23,7 +13,7 @@ Download from [releases](https://github.com/keroro520/ckb-analyzer/releases) or
 cargo install ckb-analyzer
 ```
 
-### Usage
+## Usage
 
 ckb-analyzer reads several environment variables:
 
@@ -36,16 +26,87 @@ ckb-analyzer reads several environment variables:
 Command example:
 
 ```shell
-CKB_ANALYZER_CONFIG=config/local.toml cargo run --release
+CKB_ANALYZER_CONFIG=config/test.toml ckb-analyzer
 ```
 
-### FAQ
+## Topics and measurements
 
-* Ckb itself exposes metrics. Then why create ckb-analyzer?
+* [ ] canonical chain
+  - [ ] chain growth
+  - [ ] block committed transactions and proposed transactions
+  - [ ] transactions per seconds
+  - [ ] block time interval
+  - [ ] epoch uncles count and uncles rate
+  - [ ] epoch duration and length
+  - [ ] epoch adjustment
 
-  Some metrics are not convenient to expose from ckb, like historical chain metrics and complex analyzing tasks. With ckb-analyzer, we can display historical chain information by extracting the historical blocks and do some complexity tasks outside ckb, which prevent adding too much complexity into ckb.
+* [ ] canonical chain reorganization
+  * [ ] traffic
+  * [ ] scale
+
+* [ ] node's uncle blocks (some may not be included in canonical chain uncles)
+  - [ ] traffic
+
+* [ ] miner
+  - [ ] the miner node of a specified block (ip or lock args)
+
+* [ ] transaction lifetime (mainly focus the traffic and state transition latency)
+  - [ ] pending
+  - [ ] pending too long
+  - [ ] propose
+  - [ ] propose too long
+  - [ ] commit
+  - [ ] remove (with reason, reject, conflict, and so forth)
+  - [ ] reorganize
+
+* [ ] processed cost
+  - [ ] verify block
+  - [ ] verify transaction
+
+* [ ] transaction and block propagation across the network
+  - [ ] the number of connected peers
+  - [ ] propagation elapsed
+  - [ ] high latency propagation
+
+* [ ] logged events
+  - [ ] error and warning events
+  - [ ] sufficient events, recognize via regex patterning; better structure these logs
+
+* [ ] persist recent transactions (debug suite)
+
+## Monitoring alerts
+
+* [ ] datasource issues
+  - [ ] no update for a long time
+
+* [ ] miner issues
+  - [ ] chain does not grow up for too long
+  - [ ] node receives too many uncle blocks
+
+* [ ] chain growth issues
+  - [ ] block time interval is shorter/longer then threshold
+  - [ ] a big epoch adjustment
+
+* [ ] transaction lifetime issues
+  - [ ] too many transactions at a certain state
+
+* [ ] logged issues
+
+## Dashboards
+
+Please reference our Grafana dashboard files at [`dashboards`](https://github.com/keroro520/ckb-analyzer/tree/main/dashboards)
+
+## FAQ
+
+* ckb itself exposes metrics. Then why create ckb-analyzer?
+
+  Some metrics are not convenient to expose from ckb, like historical chain metrics and complex
+  analyzing tasks. With ckb-analyzer, we can display historical chain information by extracting
+  the historical blocks and do some complexity tasks outside ckb, which prevent adding too much
+  complexity into ckb.
 
 * Why use InfluxDB?
 
   Pushing metrics actively via HTTP to InfluxDB is much useful!
 
+License: MIT
