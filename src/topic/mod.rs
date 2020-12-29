@@ -5,11 +5,11 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 mod canonical_chain;
-mod log_watcher;
+mod logs;
 mod network_propagation;
 mod network_topology;
 mod reorganization;
-mod transaction_tracer;
+mod transaction_lifetime;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(tag = "topic", content = "args")]
@@ -24,13 +24,13 @@ pub enum Topic {
         ckb_rpc_url: String,
         ckb_subscribe_url: String,
     },
-    TransactionTracer {
+    TransactionLifetime {
         ckb_rpc_url: String,
         ckb_subscribe_url: String,
     },
-    LogWatcher {
+    Logs {
         filepath: String,
-        patterns: HashMap<String, log_watcher::Regex>,
+        patterns: HashMap<String, logs::Regex>,
     },
     NetworkPropagation {
         ckb_network_identifier: String,
@@ -80,7 +80,7 @@ impl Topic {
                 ckb_rpc_url,
                 ckb_subscribe_url,
             } => {
-                let (reorganization, subscription) =
+                let (handler, subscription) =
                     reorganization::Handler::new(ckb_rpc_url, ckb_subscribe_url, query_sender);
 
                 // IMPORTANT: Use tokio 1.0 to run subscription. Since jsonrpc has not support 2.0 yet
@@ -93,14 +93,14 @@ impl Topic {
                 // tokio::spawn(async { subscription.run().await });
                 // tokio::time::delay_for(::std::time::Duration::from_secs(3)).await;
 
-                reorganization.run().await;
+                handler.run().await;
             }
 
-            Self::TransactionTracer {
+            Self::TransactionLifetime {
                 ckb_rpc_url,
                 ckb_subscribe_url,
             } => {
-                let (pool_transaction, subscription) = transaction_tracer::Handler::new(
+                let (handler, subscription) = transaction_lifetime::Handler::new(
                     ckb_rpc_url,
                     ckb_subscribe_url,
                     query_sender.clone(),
@@ -110,12 +110,12 @@ impl Topic {
                 ::std::thread::spawn(move || {
                     jsonrpc_server_utils::tokio::run(subscription.run());
                 });
-                pool_transaction.run().await;
+                handler.run().await;
             }
 
-            Self::LogWatcher { filepath, patterns } => {
-                let mut log_watcher = log_watcher::Handler::new(filepath, patterns, query_sender);
-                ::std::thread::spawn(move || log_watcher.run());
+            Self::Logs { filepath, patterns } => {
+                let mut handler = logs::Handler::new(filepath, patterns, query_sender);
+                ::std::thread::spawn(move || handler.run());
             }
         }
     }
