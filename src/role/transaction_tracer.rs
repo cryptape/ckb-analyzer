@@ -1,18 +1,9 @@
-//! This module aims to the pool transactions
-//! This module produces the below measures:
-//!
-//! ### How it works?
-//!
-//! We dont care about chain reorganization at present, which means it will not observe orphan transactions.
-//!
-//! ### Why measure it?
-//!
-//! Know the transaction traffic and estimate the mean waiting time for a pending transaction become from pending to committed.
-
 use crate::measurement::{self, IntoWriteQuery};
 use crate::subscribe::{Subscription, Topic};
 use chrono::{DateTime, Utc};
+use ckb_suite_rpc::ckb_jsonrpc_types::PoolTransactionEntry;
 use ckb_suite_rpc::Jsonrpc;
+use ckb_types::core::TransactionView;
 use ckb_types::packed::Byte32;
 use ckb_types::prelude::*;
 use crossbeam::channel::Sender;
@@ -20,7 +11,6 @@ use influxdb::{Timestamp, WriteQuery};
 use jsonrpc_core::futures::Stream;
 use jsonrpc_core::serde_from_str;
 use jsonrpc_server_utils::tokio::prelude::*;
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::Instant;
 
@@ -28,11 +18,16 @@ use std::time::Instant;
 // TODO unify the `time` and `waiting_duration` definition for vary pool events
 // TODO filter duplicated notifications. i am not sure that ckb handle duplicated
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct PoolTransactionConfig {
-    pub ckb_rpc_url: String,
-    pub ckb_subscribe_url: String,
-}
+/// This module aims to the pool transactions
+/// This module produces the below measures:
+///
+/// ### How it works?
+///
+/// We dont care about chain reorganization at present, which means it will not observe orphan transactions.
+///
+/// ### Why measure it?
+///
+/// Know the transaction traffic and estimate the mean waiting time for a pending transaction become from pending to committed.
 
 // Consider a dashboard that tells a story about transaction events.
 //
@@ -48,7 +43,7 @@ pub struct PoolTransactionConfig {
 // The serie may be like below. Some of events are used to visualize in heatmap, some in table:
 // ```json
 // {
-//   "query_name": "transaction_event",
+//   "query_name": "transaction_state",
 //
 //   "transaction_hash": h256,
 //
@@ -78,39 +73,51 @@ pub struct PoolTransactionConfig {
 // }
 // ```
 
-// Handler maintains 2 transaction status: pending, proposed.
+// ## Implementation note
 
+// Maintain: handler maintains 2 transaction status: pending, proposed.
+//
+// information source: subscription of NewTransaction, subscription of NewBlock, subscription of RejectTransaction;
+//
 // When receives a pool transaction notification, we put it into `self.pending`;
 // Periodically travels and check the pending transactions, moves out if one has been committed
 // and produce a serie with "pool_event" = "commit", or with "pool_event" = "await" if elapsed is too long, or with
 // "pool_event" == "disappear" if the transaction disappear (RPC get_transaction returns None);
-pub struct PoolTransaction {
-    waiting: HashMap<Byte32, DateTime<Utc>>,
+//
+// We can retrieve all pool transactions via RPC `get_raw_tx_pool` at the start.
+//
+// TODO Use ticker to trigger checking
 
-    // pending: HashMap<Byte32, Timestamp>,
-    // proposed: HashMap<Byte32, Timestamp>,
+pub struct TransactionTracer {
+    waiting: HashMap<Byte32, DateTime<Utc>>,
+    pending: HashMap<Byte32, Timestamp>,
+    proposed: HashMap<Byte32, Timestamp>,
 
     jsonrpc: Jsonrpc,
-    tx_receiver: jsonrpc_server_utils::tokio::sync::mpsc::Receiver<String>,
+    new_tx_subscriber: jsonrpc_server_utils::tokio::sync::mpsc::Receiver<String>,
     query_sender: Sender<WriteQuery>,
     last_checking_at: Instant,
 }
 
-impl PoolTransaction {
+impl TransactionTracer {
     pub fn new(
         ckb_rpc_url: String,
         ckb_subscribe_url: String,
         query_sender: Sender<WriteQuery>,
     ) -> (Self, Subscription) {
         let jsonrpc = Jsonrpc::connect(&ckb_rpc_url);
-        let (tx_sender, tx_receiver) = jsonrpc_server_utils::tokio::sync::mpsc::channel(100);
-        let subscription = Subscription::new(ckb_subscribe_url, Topic::NewTransaction, tx_sender);
+        let (new_tx_notifier, new_tx_subscriber) =
+            jsonrpc_server_utils::tokio::sync::mpsc::channel(100);
+        let subscription =
+            Subscription::new(ckb_subscribe_url, Topic::NewTransaction, new_tx_notifier);
         (
             Self {
-                tx_receiver,
+                new_tx_subscriber,
                 jsonrpc,
                 query_sender,
                 waiting: Default::default(),
+                pending: Default::default(),
+                proposed: Default::default(),
                 last_checking_at: Instant::now(),
             },
             subscription,
@@ -118,23 +125,21 @@ impl PoolTransaction {
     }
 
     pub async fn run(mut self) {
-        // Take out the tx_receiver to pass the Rust borrow rule
-        let (_, mut dummy_receiver) = jsonrpc_server_utils::tokio::sync::mpsc::channel(100);
-        ::std::mem::swap(&mut self.tx_receiver, &mut dummy_receiver);
-        let tx_receiver = dummy_receiver;
-
-        tx_receiver
+        // Take out the tx_receiver to pass Rust borrow rule
+        let new_tx_subscriber = {
+            let (_, mut dummy) = jsonrpc_server_utils::tokio::sync::mpsc::channel(100);
+            ::std::mem::swap(&mut self.new_tx_subscriber, &mut dummy);
+            dummy
+        };
+        new_tx_subscriber
             .for_each(|message| {
-                let transaction: ckb_suite_rpc::ckb_jsonrpc_types::PoolTransactionEntry =
-                    serde_from_str(&message).unwrap_or_else(|err| {
-                        panic!("serde_from_str(\"{}\"), error: {:?}", message, err)
-                    });
-                let transaction: ckb_types::packed::Transaction =
-                    transaction.transaction.inner.into();
-                let transaction = transaction.into_view();
-                self.waiting.insert(transaction.hash(), Utc::now());
+                let transaction = serde_from_str::<PoolTransactionEntry>(&message)
+                    .map(|pt| Into::<ckb_types::packed::Transaction>::into(pt.transaction.inner))
+                    .map(|tx| tx.into_view())
+                    .unwrap();
+                self.receive_new(&transaction);
+
                 if self.last_checking_at.elapsed() >= ::std::time::Duration::from_secs(1 * 60) {
-                    // TODO ticker checking trigger
                     self.last_checking_at = Instant::now();
                     self.report_waiting_total();
                     self.travel();
@@ -142,7 +147,15 @@ impl PoolTransaction {
                 Ok(())
             })
             .wait()
-            .unwrap_or_else(|err| panic!("receiver error {:?}", err));
+            .unwrap();
+    }
+
+    fn receive_new(&mut self, transaction: &TransactionView) {
+        // RPC `get_transaction` to acquire the transaction status,
+        // if it is none status, discard and produce a serie with "event" = "remove", "extra" = "unknown reason";
+        // if it is pending status, insert into self.pending;
+        // if it is proposed status, insert into self.proposed;
+        // if it is committed status, discard;
     }
 
     fn travel(&mut self) {
@@ -196,7 +209,7 @@ impl PoolTransaction {
     }
 
     fn report_commit(&self, _txhash: &Byte32, entering_timestamp: u64, committed_timestamp: u64) {
-        let query = measurement::PoolTransaction {
+        let query = measurement::TransactionState {
             time: Timestamp::Milliseconds(committed_timestamp as u128),
             waiting_duration: committed_timestamp.saturating_sub(entering_timestamp),
             pool_event: "commit".to_string(),
@@ -207,7 +220,7 @@ impl PoolTransaction {
     }
 
     fn report_await(&self, _txhash: &Byte32, instant: DateTime<Utc>) {
-        let query = measurement::PoolTransaction {
+        let query = measurement::TransactionState {
             time: instant.into(),
             waiting_duration: (Utc::now().timestamp_millis() - instant.timestamp_millis()) as u64,
             pool_event: "await".to_string(),
@@ -218,7 +231,7 @@ impl PoolTransaction {
     }
 
     fn report_disappear(&self, _txhash: &Byte32, instant: DateTime<Utc>) {
-        let query = measurement::PoolTransaction {
+        let query = measurement::TransactionState {
             time: instant.into(),
             waiting_duration: (Utc::now().timestamp_millis() - instant.timestamp_millis()) as u64,
             pool_event: "disappear".to_string(),

@@ -7,16 +7,16 @@ mod canonical_chain;
 mod log_watcher;
 mod network_propagation;
 mod network_topology;
-mod pool_transaction;
 mod reorganization;
+mod transaction_tracer;
 
 pub use canonical_chain::{select_last_block_number_in_influxdb, CanonicalChain};
 use ckb_app_config::NetworkConfig;
 pub use log_watcher::{LogWatcher, Regex};
 pub use network_propagation::NetworkPropagation;
 pub use network_topology::NetworkTopology;
-pub use pool_transaction::PoolTransaction;
 pub use reorganization::Reorganization;
+pub use transaction_tracer::TransactionTracer;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(tag = "type", content = "args")]
@@ -31,7 +31,7 @@ pub enum Role {
         ckb_rpc_url: String,
         ckb_subscribe_url: String,
     },
-    PoolTransaction {
+    TransactionTracer {
         ckb_rpc_url: String,
         ckb_subscribe_url: String,
     },
@@ -92,12 +92,12 @@ impl Role {
 
                 reorganization.run().await;
             }
-            Self::PoolTransaction {
+            Self::TransactionTracer {
                 ckb_rpc_url,
                 ckb_subscribe_url,
             } => {
                 let (pool_transaction, subscription) =
-                    PoolTransaction::new(ckb_rpc_url, ckb_subscribe_url, query_sender.clone());
+                    TransactionTracer::new(ckb_rpc_url, ckb_subscribe_url, query_sender.clone());
 
                 // IMPORTANT: Use tokio 1.0 to run subscription. Since jsonrpc has not support 2.0 yet
                 ::std::thread::spawn(move || {

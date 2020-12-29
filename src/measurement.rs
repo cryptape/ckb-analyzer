@@ -122,7 +122,7 @@ pub struct Reorganization {
 }
 
 #[derive(InfluxDbWriteable, Clone, Debug)]
-pub struct PoolTransaction {
+pub struct TransactionState {
     // timestamp of entering in transaction pool
     pub time: Timestamp,
 
