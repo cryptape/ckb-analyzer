@@ -6,13 +6,13 @@ use std::collections::{HashMap, HashSet};
 use std::net::SocketAddr;
 use std::time::Duration;
 
-pub struct NetworkTopology {
+pub(crate) struct Handler {
     ckb_rpc_urls: Vec<String>,
     rpcs: Vec<Jsonrpc>,
 }
 
-impl NetworkTopology {
-    pub fn new(ckb_rpc_urls: Vec<String>) -> Self {
+impl Handler {
+    pub(crate) fn new(ckb_rpc_urls: Vec<String>) -> Self {
         let rpcs: Vec<_> = ckb_rpc_urls
             .iter()
             .map(|url| Jsonrpc::connect(url.as_ref()))
@@ -20,14 +20,14 @@ impl NetworkTopology {
         Self { rpcs, ckb_rpc_urls }
     }
 
-    pub async fn run(&self) {
+    pub(crate) async fn run(&self) {
         loop {
             self.analyze().await;
             tokio::time::delay_for(Duration::from_secs(60 * 10)).await;
         }
     }
 
-    pub async fn analyze(&self) {
+    pub(crate) async fn analyze(&self) {
         let mut connections = HashSet::new();
         for rpc in self.rpcs.iter() {
             let local = rpc.local_node_info();

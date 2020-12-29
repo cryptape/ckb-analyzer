@@ -70,7 +70,11 @@
 //!   - [ ] error and warning events
 //!   - [ ] sufficient events, recognize via regex patterning; better structure these logs
 //!
+//! # Debug suites
+//!
 //! * [ ] persist recent transactions (debug suite)
+//!
+//! * [ ] reproduce context
 //!
 //! # Monitoring alerts
 //!
@@ -115,8 +119,8 @@ mod config;
 mod dashboard;
 mod get_version;
 mod measurement;
-mod role;
 mod subscribe;
+mod topic;
 
 #[tokio::main]
 async fn main() {
@@ -143,9 +147,9 @@ async fn main() {
         }
     };
     let (query_sender, query_receiver) = bounded(5000);
-    for (role_name, role) in config.roles.iter() {
-        tokio::spawn(role.clone().run(
-            role_name.clone(),
+    for (topic_name, topic) in config.topics.iter() {
+        tokio::spawn(topic.clone().run(
+            topic_name.clone(),
             config.ckb_network_name.clone(),
             influx.clone(),
             query_sender.clone(),

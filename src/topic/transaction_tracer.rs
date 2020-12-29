@@ -88,7 +88,7 @@ use std::time::Instant;
 //
 // TODO Use ticker to trigger checking
 
-pub struct TransactionTracer {
+pub(crate) struct Handler {
     waiting: HashMap<Byte32, DateTime<Utc>>,
     pending: HashMap<Byte32, Timestamp>,
     proposed: HashMap<Byte32, Timestamp>,
@@ -99,8 +99,8 @@ pub struct TransactionTracer {
     last_checking_at: Instant,
 }
 
-impl TransactionTracer {
-    pub fn new(
+impl Handler {
+    pub(crate) fn new(
         ckb_rpc_url: String,
         ckb_subscribe_url: String,
         query_sender: Sender<WriteQuery>,
@@ -124,7 +124,7 @@ impl TransactionTracer {
         )
     }
 
-    pub async fn run(mut self) {
+    pub(crate) async fn run(mut self) {
         // Take out the tx_receiver to pass Rust borrow rule
         let new_tx_subscriber = {
             let (_, mut dummy) = jsonrpc_server_utils::tokio::sync::mpsc::channel(100);

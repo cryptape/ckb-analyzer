@@ -24,14 +24,14 @@ use std::time::{Duration, Instant};
 
 pub const PROPOSAL_WINDOW: (u64, u64) = (2, 10);
 
-pub struct CanonicalChain {
+pub struct Handler {
     query_sender: Sender<WriteQuery>,
     start_number: BlockNumber,
     rpc: Jsonrpc,
     proposals_zones: HashMap<BlockNumber, HashSet<ProposalShortId>>,
 }
 
-impl CanonicalChain {
+impl Handler {
     pub fn new(
         ckb_rpc_url: &str,
         query_sender: Sender<WriteQuery>,
@@ -243,7 +243,7 @@ fn extract_miner_lock(block: &BlockView) -> Script {
     cellbase_witness.lock()
 }
 
-pub async fn select_last_block_number_in_influxdb(
+pub(crate) async fn select_last_block_number_in_influxdb(
     influx: &Influx,
     ckb_network_name: &str,
 ) -> BlockNumber {

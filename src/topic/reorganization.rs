@@ -29,7 +29,7 @@ use jsonrpc_core::futures::Stream;
 use jsonrpc_core::serde_from_str;
 use jsonrpc_server_utils::tokio::prelude::*;
 
-pub struct Reorganization {
+pub(crate) struct Handler {
     header_receiver: jsonrpc_server_utils::tokio::sync::mpsc::Receiver<String>,
     query_sender: Sender<WriteQuery>,
     jsonrpc: Jsonrpc,
@@ -37,8 +37,8 @@ pub struct Reorganization {
     main_tip_hash: Byte32,
 }
 
-impl Reorganization {
-    pub fn new(
+impl Handler {
+    pub(crate) fn new(
         ckb_rpc_url: String,
         ckb_subscribe_url: String,
         query_sender: Sender<WriteQuery>,
@@ -59,7 +59,7 @@ impl Reorganization {
         )
     }
 
-    pub async fn run(mut self) {
+    pub(crate) async fn run(mut self) {
         // Take out the header_receiver to pass the Rust borrow rule
         let (_, mut dummy_receiver) = jsonrpc_server_utils::tokio::sync::mpsc::channel(100);
         ::std::mem::swap(&mut self.header_receiver, &mut dummy_receiver);

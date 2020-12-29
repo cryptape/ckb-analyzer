@@ -43,7 +43,7 @@ use std::time::Instant;
 type PropagationHashes = Arc<Mutex<HashMap<Byte32, (Instant, HashSet<PeerIndex>)>>>;
 
 #[derive(Clone)]
-pub struct NetworkPropagation {
+pub(crate) struct Handler {
     ckb_network_config: NetworkConfig,
     ckb_network_identifier: String,
     peers: Arc<Mutex<HashMap<PeerIndex, bool>>>,
@@ -52,8 +52,8 @@ pub struct NetworkPropagation {
     query_sender: Sender<WriteQuery>,
 }
 
-impl NetworkPropagation {
-    pub fn new(
+impl Handler {
+    pub(crate) fn new(
         ckb_network_config: NetworkConfig,
         ckb_network_identifier: String,
         query_sender: Sender<WriteQuery>,
@@ -68,7 +68,7 @@ impl NetworkPropagation {
         }
     }
 
-    pub async fn run(&mut self) {
+    pub(crate) async fn run(&mut self) {
         let network_state =
             Arc::new(NetworkState::from_config(self.ckb_network_config.clone()).unwrap());
         let exit_handler = DefaultExitHandler::default();
@@ -96,7 +96,7 @@ impl NetworkPropagation {
             version.to_string(),
             exit_handler.clone(),
         )
-        .start(Some("ckb-role::network"))
+        .start(Some("ckb-topic::network"))
         .unwrap();
 
         exit_handler.wait_for_exit();
@@ -257,7 +257,7 @@ impl NetworkPropagation {
     }
 }
 
-impl CKBProtocolHandler for NetworkPropagation {
+impl CKBProtocolHandler for Handler {
     fn init(&mut self, _nc: Arc<dyn CKBProtocolContext + Sync>) {}
 
     fn connected(

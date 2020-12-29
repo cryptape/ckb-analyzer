@@ -46,14 +46,14 @@ impl ::std::fmt::Display for Regex {
     }
 }
 
-pub struct LogWatcher {
+pub(crate) struct Handler {
     log_watcher: logwatcher::LogWatcher,
     patterns: HashMap<String, Regex>, // #{ name => regex }
     query_sender: Sender<WriteQuery>,
 }
 
-impl LogWatcher {
-    pub fn new<P: AsRef<Path>>(
+impl Handler {
+    pub(crate) fn new<P: AsRef<Path>>(
         filepath: P,
         patterns: HashMap<String, Regex>,
         query_sender: Sender<WriteQuery>,
@@ -77,7 +77,7 @@ impl LogWatcher {
         }
     }
 
-    pub fn run(&mut self) {
+    pub(crate) fn run(&mut self) {
         let patterns = self.patterns.clone();
         let query_sender = self.query_sender.clone();
         self.log_watcher.watch(&mut move |line: String| {
