@@ -39,6 +39,7 @@ logwatcher = { version = "0.1.1" }
 regex = { version = "1" }
 log = { version = "0.4.11" }
 serde_regex = { version = "1.1.0" }
+simple_logger = { version = "1.11.0", default-features = false }
 
 [workspace]
 members = [

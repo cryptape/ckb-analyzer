@@ -124,6 +124,7 @@ mod topic;
 
 #[tokio::main]
 async fn main() {
+    simple_logger::SimpleLogger::from_env().init().unwrap();
     let config = {
         let config_path = var("CKB_ANALYZER_CONFIG").unwrap_or_else(|_| {
             panic!("please specify config path via environment variable CKB_ANALYZER_CONFIG")
