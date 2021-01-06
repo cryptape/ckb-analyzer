@@ -167,8 +167,8 @@ async fn main() {
             .add_tag("hostname", hostname.clone());
 
         // Writes asynchronously
-        let asynchronize = true;
-        if asynchronize {
+        let async_ = true;
+        if async_ {
             let influx_ = influx.clone();
             tokio::spawn(async move {
                 if let Err(err) = influx_.query(&query).await {

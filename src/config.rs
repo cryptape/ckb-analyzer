@@ -20,9 +20,5 @@ pub struct InfluxdbConfig {
 pub fn init_config<P: AsRef<Path>>(filepath: P) -> Config {
     let bytes =
         fs::read_to_string(filepath).unwrap_or_else(|err| panic!("fs::read error: {:?}", err));
-    let config =
-        toml::from_str(&bytes).unwrap_or_else(|err| panic!("toml::from_str error: {:?}", err));
-    let deserialized = toml::to_string_pretty(&config).unwrap();
-    log::trace!("deserialize config: {}", deserialized);
-    config
+    toml::from_str(&bytes).unwrap_or_else(|err| panic!("toml::from_str error: {:?}", err))
 }

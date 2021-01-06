@@ -69,6 +69,7 @@ impl Handler {
         let mut log_watcher = LogWatcher::new(&self.filepath).await;
         log_watcher
             .watch(&mut |line: String| {
+                log::info!("line: {}", line);
                 for (category, regex) in self.patterns.iter() {
                     if regex.is_match(line.as_str()) {
                         let query = measurement::Log {

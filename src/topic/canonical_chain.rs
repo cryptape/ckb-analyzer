@@ -106,7 +106,7 @@ impl Handler {
             miner_lock_args,
         }
         .into_write_query();
-        log::debug!("block #{}, timestamp: {}", number, block.timestamp(),);
+        log::info!("block #{}, timestamp: {}", number, block.timestamp(),);
         self.query_sender.send(query).unwrap();
     }
 
@@ -139,7 +139,7 @@ impl Handler {
             slower_than_cousin,
         }
         .into_write_query();
-        log::debug!(
+        log::info!(
             "[DEBUG] uncle #{}({:#x}), timestamp: {}, slower_than_cousin: {}",
             uncle_number,
             uncle.hash(),
