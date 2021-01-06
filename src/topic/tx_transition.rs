@@ -133,7 +133,7 @@ impl Handler {
         )
     }
 
-    pub(crate) async fn run(mut self) {
+    pub(crate) fn run(mut self) {
         // Take out the subscriber to pass Rust borrow rule
         let new_tx_subscriber = {
             let (_, mut dummy) = jsonrpc_server_utils::tokio::sync::mpsc::channel(100);
@@ -173,6 +173,7 @@ impl Handler {
                 self.last_checking_at = Instant::now();
             }
         }
+        log::info!("exit TxTransition");
     }
 
     //   As for transaction in self.pending,

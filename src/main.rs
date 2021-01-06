@@ -161,6 +161,8 @@ async fn main() {
     let hostname = var("HOSTNAME")
         .unwrap_or_else(|_| gethostname::gethostname().to_string_lossy().to_string());
     for mut query in query_receiver {
+        log::info!("report query {:?}", query);
+
         // Attach built-in tags
         query = query
             .add_tag("network", config.ckb_network_name.clone())
