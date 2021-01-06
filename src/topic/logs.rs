@@ -14,6 +14,7 @@
 //! events which helps us understand the program state, detect abnormal events, and so on.
 
 use crate::measurement::{self, IntoWriteQuery};
+use crate::util::LogWatcher;
 use chrono::{DateTime, Local, Utc};
 use crossbeam::channel::Sender;
 use influxdb::{Timestamp, WriteQuery};
@@ -21,8 +22,6 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::ops::Deref;
 use std::path::Path;
-use std::thread::sleep;
-use std::time::Duration;
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Regex(#[serde(with = "serde_regex")] regex::Regex);
@@ -47,54 +46,43 @@ impl ::std::fmt::Display for Regex {
 }
 
 pub(crate) struct Handler {
-    log_watcher: logwatcher::LogWatcher,
+    filepath: String,
     patterns: HashMap<String, Regex>, // #{ name => regex }
     query_sender: Sender<WriteQuery>,
 }
 
 impl Handler {
-    pub(crate) fn new<P: AsRef<Path>>(
+    pub(crate) async fn new<P: AsRef<Path>>(
         filepath: P,
         patterns: HashMap<String, Regex>,
         query_sender: Sender<WriteQuery>,
     ) -> Self {
-        let log_watcher = loop {
-            match logwatcher::LogWatcher::register(filepath.as_ref()) {
-                Ok(log_watcher) => break log_watcher,
-                Err(_err) => {
-                    log::warn!(
-                        "[TailLog] failed to open \"{}\", retry in 5s",
-                        filepath.as_ref().to_string_lossy().to_string(),
-                    );
-                    sleep(Duration::from_secs(1));
-                }
-            }
-        };
+        let filepath = filepath.as_ref().to_string_lossy().to_string();
         Self {
+            filepath,
             patterns,
-            log_watcher,
             query_sender,
         }
     }
 
-    pub(crate) fn run(&mut self) {
-        let patterns = self.patterns.clone();
-        let query_sender = self.query_sender.clone();
-        self.log_watcher.watch(&mut move |line: String| {
-            for (category, regex) in patterns.iter() {
-                if regex.is_match(line.as_str()) {
-                    let query = measurement::Log {
-                        time: log_time(&line),
-                        marker: 1,
-                        category: category.clone(),
-                        raw: line.clone(),
+    pub(crate) async fn run(&mut self) {
+        let mut log_watcher = LogWatcher::new(&self.filepath).await;
+        log_watcher
+            .watch(&mut |line: String| {
+                for (category, regex) in self.patterns.iter() {
+                    if regex.is_match(line.as_str()) {
+                        let query = measurement::Log {
+                            time: log_time(&line),
+                            marker: 1,
+                            category: category.clone(),
+                            raw: line.clone(),
+                        }
+                        .into_write_query();
+                        self.query_sender.send(query).unwrap();
                     }
-                    .into_write_query();
-                    query_sender.send(query).unwrap();
                 }
-            }
-            logwatcher::LogWatcherAction::None
-        });
+            })
+            .await;
     }
 }
 

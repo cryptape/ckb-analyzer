@@ -114,8 +114,8 @@ impl Topic {
             }
 
             Self::Logs { filepath, patterns } => {
-                let mut handler = logs::Handler::new(filepath, patterns, query_sender);
-                ::std::thread::spawn(move || handler.run());
+                let mut handler = logs::Handler::new(filepath, patterns, query_sender).await;
+                handler.run().await;
             }
         }
     }

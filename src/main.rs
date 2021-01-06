@@ -121,6 +121,7 @@ mod get_version;
 mod measurement;
 mod subscribe;
 mod topic;
+mod util;
 
 #[tokio::main]
 async fn main() {
