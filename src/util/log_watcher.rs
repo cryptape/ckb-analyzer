@@ -1,9 +1,13 @@
 use std::fs::Metadata;
-use std::os::macos::fs::MetadataExt;
 use std::path::Path;
 use tokio::fs::File;
 use tokio::io::{AsyncBufReadExt, BufReader, SeekFrom};
 use tokio::time::{delay_for, Duration};
+
+#[cfg(target_os = "linux")]
+use std::os::linux::fs::MetadataExt;
+#[cfg(target_os = "macos")]
+use std::os::macos::fs::MetadataExt;
 
 /// `LogWatcher` is a Rust Stream which behaviours like `tail`.
 ///
