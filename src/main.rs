@@ -114,6 +114,8 @@
 use crossbeam::channel::bounded;
 use influxdb::Client;
 use std::env::var;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
 
 mod config;
 mod dashboard;
@@ -160,6 +162,7 @@ async fn main() {
 
     let hostname = var("HOSTNAME")
         .unwrap_or_else(|_| gethostname::gethostname().to_string_lossy().to_string());
+    let counter = Arc::new(AtomicU64::new(0));
     for mut query in query_receiver {
         log::info!("report query {:?}", query);
 
@@ -171,11 +174,16 @@ async fn main() {
         // Writes asynchronously
         let async_ = true;
         if async_ {
+            while counter.load(Ordering::Relaxed) >= 20 {}
+            counter.fetch_add(1, Ordering::Relaxed);
+            let counter_ = Arc::clone(&counter);
+
             let influx_ = influx.clone();
             tokio::spawn(async move {
                 if let Err(err) = influx_.query(&query).await {
                     log::error!("influxdb.query, error: {}", err);
                 }
+                counter_.fetch_sub(1, Ordering::Relaxed);
             });
         } else if let Err(err) = influx.query(&query).await {
             log::error!("influxdb.query, error: {}", err);
