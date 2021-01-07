@@ -30,17 +30,17 @@
 //! # Topics and measurements
 //!
 //! * [ ] canonical chain
-//!   - [ ] chain growth
-//!   - [ ] block committed transactions and proposed transactions
-//!   - [ ] transactions per seconds
-//!   - [ ] block time interval
-//!   - [ ] epoch uncles count and uncles rate
-//!   - [ ] epoch duration and length
+//!   - [x] chain growth
+//!   - [x] block committed transactions and proposed transactions
+//!   - [x] transactions per seconds
+//!   - [x] block time interval
+//!   - [x] epoch uncles count and uncles rate
+//!   - [x] epoch duration and length
 //!   - [ ] epoch adjustment
 //!
-//! * [ ] canonical chain reorganization
-//!   * [ ] traffic
-//!   * [ ] scale
+//! * [x] canonical chain reorganization
+//!   * [x] traffic
+//!   * [x] scale
 //!
 //! * [ ] node's uncle blocks (some may not be included in canonical chain uncles)
 //!   - [ ] traffic
@@ -49,26 +49,26 @@
 //!   - [ ] the miner node of a specified block (ip or lock args)
 //!
 //! * [ ] transaction transition (mainly focus the transaction traffic and state transition latency)
-//!   - [ ] pending
-//!   - [ ] pending too long
-//!   - [ ] propose
-//!   - [ ] propose too long
-//!   - [ ] commit
-//!   - [ ] remove (with reason, reject, conflict, and so forth)
+//!   - [x] pending
+//!   - [x] pending too long
+//!   - [x] propose
+//!   - [x] propose too long
+//!   - [x] commit
+//!   - [x] remove (with reason, reject, conflict, and so forth)
 //!   - [ ] reorganize
 //!
-//! * [ ] processed cost
-//!   - [ ] verify block
-//!   - [ ] verify transaction
+//! * [x] processed cost (via ckb internal metrics service)
+//!   - [x] verify block
+//!   - [x] verify transaction
 //!
-//! * [ ] transaction and block propagation across the network
-//!   - [ ] the number of connected peers
-//!   - [ ] propagation elapsed
-//!   - [ ] high latency propagation
+//! * [x] transaction and block propagation across the network
+//!   - [x] the number of connected peers
+//!   - [x] propagation elapsed
+//!   - [x] high latency propagation
 //!
-//! * [ ] logged events
-//!   - [ ] error and warning events
-//!   - [ ] sufficient events, recognize via regex patterning; better structure these logs
+//! * [x] logged events
+//!   - [x] error and warning events
+//!   - [x] sufficient events, recognize via regex patterning; better structure these logs
 //!
 //! # Debug suites
 //!

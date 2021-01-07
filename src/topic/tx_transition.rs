@@ -38,7 +38,7 @@ use std::time::Instant;
 /// The serie may be like below. Some of events are used to visualize in heatmap, some in table:
 /// ```json
 /// {
-///   "query_name": "tx_transition",
+///   "query_name": "tx-transition",
 ///
 ///   "txhash": h256,
 ///
@@ -93,6 +93,7 @@ use std::time::Instant;
 /// * TODO
 ///   - Retrieve all pool transactions via RPC `get_raw_tx_pool` at the start.
 ///   - Fix the issue that it takes too long to travel all the pending/proposed transactions.
+///   - Enable subscription at ckb
 
 const WAITING_THRESHOLD_MILLIS: u64 = ::std::time::Duration::from_secs(5 * 60).as_millis() as u64;
 

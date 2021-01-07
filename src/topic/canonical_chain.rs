@@ -10,6 +10,8 @@
 //! We can do much things based on the main chain data. Please reference more detail from the
 //! dashboards.
 
+// TODO Only one node run for canonical chain
+
 use crate::measurement::{self, IntoWriteQuery};
 use ckb_suite_rpc::Jsonrpc;
 use ckb_types::core::{BlockNumber, HeaderView};
