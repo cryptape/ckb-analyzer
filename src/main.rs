@@ -174,7 +174,7 @@ async fn main() {
         // Writes asynchronously
         let async_ = true;
         if async_ {
-            while counter.load(Ordering::Relaxed) >= 20 {}
+            while counter.load(Ordering::Relaxed) >= 100 {}
             counter.fetch_add(1, Ordering::Relaxed);
             let counter_ = Arc::clone(&counter);
 
