@@ -442,13 +442,11 @@ impl ::std::fmt::Display for TxEvent {
 fn elapsed_millis(instant: Timestamp) -> u64 {
     let instant: DateTime<Utc> = instant.into();
     let now = Utc::now();
-    (now.timestamp_millis() as u64)
-        .saturating_sub(instant.timestamp_millis() as u64)
+    (now.timestamp_millis() as u64).saturating_sub(instant.timestamp_millis() as u64)
 }
 
 fn diff_millis(minuend: Timestamp, minus: Timestamp) -> u64 {
     let minuend: DateTime<Utc> = minuend.into();
     let minus: DateTime<Utc> = minus.into();
-    (minuend.timestamp_millis() as u64)
-        .saturating_sub(minus.timestamp_millis() as u64)
+    (minuend.timestamp_millis() as u64).saturating_sub(minus.timestamp_millis() as u64)
 }

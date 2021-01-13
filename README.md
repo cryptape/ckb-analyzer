@@ -32,7 +32,6 @@ CKB_ANALYZER_CONFIG=config/test.toml ckb-analyzer
 ## Topics and measurements
 
 * [ ] canonical chain
-  - [x] chain growth
   - [x] block committed transactions and proposed transactions
   - [x] transactions per seconds
   - [x] block time interval
@@ -43,6 +42,8 @@ CKB_ANALYZER_CONFIG=config/test.toml ckb-analyzer
 * [x] canonical chain reorganization
   * [x] traffic
   * [x] scale
+
+* [ ] node's canonical chain growth
 
 * [ ] node's uncle blocks (some may not be included in canonical chain uncles)
   - [ ] traffic
@@ -58,6 +59,9 @@ CKB_ANALYZER_CONFIG=config/test.toml ckb-analyzer
   - [x] commit
   - [x] remove (with reason, reject, conflict, and so forth)
   - [ ] reorganize
+
+* [ ] node's tx-pool state
+  - [ ] pending/proposed pool size/cycles
 
 * [x] processed cost (via ckb internal metrics service)
   - [x] verify block

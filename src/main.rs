@@ -30,7 +30,6 @@
 //! # Topics and measurements
 //!
 //! * [ ] canonical chain
-//!   - [x] chain growth
 //!   - [x] block committed transactions and proposed transactions
 //!   - [x] transactions per seconds
 //!   - [x] block time interval
@@ -41,6 +40,8 @@
 //! * [x] canonical chain reorganization
 //!   * [x] traffic
 //!   * [x] scale
+//!
+//! * [ ] node's canonical chain growth
 //!
 //! * [ ] node's uncle blocks (some may not be included in canonical chain uncles)
 //!   - [ ] traffic
@@ -56,6 +57,9 @@
 //!   - [x] commit
 //!   - [x] remove (with reason, reject, conflict, and so forth)
 //!   - [ ] reorganize
+//!
+//! * [ ] node's tx-pool state
+//!   - [ ] pending/proposed pool size/cycles
 //!
 //! * [x] processed cost (via ckb internal metrics service)
 //!   - [x] verify block
@@ -164,7 +168,7 @@ async fn main() {
         .unwrap_or_else(|_| gethostname::gethostname().to_string_lossy().to_string());
     let counter = Arc::new(AtomicU64::new(0));
     for mut query in query_receiver {
-        log::info!("report query {:?}", query);
+        log::info!("{:?}", query);
 
         // Attach built-in tags
         query = query
@@ -174,7 +178,9 @@ async fn main() {
         // Writes asynchronously
         let async_ = true;
         if async_ {
-            while counter.load(Ordering::Relaxed) >= 100 {}
+            while counter.load(Ordering::Relaxed) >= 100 {
+                tokio::time::delay_for(tokio::time::Duration::from_secs(1)).await;
+            }
             counter.fetch_add(1, Ordering::Relaxed);
             let counter_ = Arc::clone(&counter);
 
