@@ -4,7 +4,7 @@ use influxdb::{Client as Influx, WriteQuery};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-mod canonical_chain;
+mod canonical_chain_state;
 mod logs;
 mod network_propagation;
 mod network_topology;
@@ -49,12 +49,12 @@ impl Topic {
         log::info!("{} starting ...", topic_name);
         match self {
             Self::CanonicalChain { ckb_rpc_url } => {
-                let last_number = canonical_chain::select_last_block_number_in_influxdb(
+                let last_number = canonical_chain_state::select_last_block_number_in_influxdb(
                     &influx,
                     &ckb_network_name,
                 )
                 .await;
-                canonical_chain::Handler::new(&ckb_rpc_url, query_sender, last_number)
+                canonical_chain_state::Handler::new(&ckb_rpc_url, query_sender, last_number)
                     .run()
                     .await
             }
