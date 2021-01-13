@@ -110,7 +110,8 @@ impl Topic {
                 ::std::thread::spawn(move || {
                     jsonrpc_server_utils::tokio::run(subscription.run());
                 });
-                ::std::thread::spawn(move || handler.run());
+                // ::std::thread::spawn(move || handler.run());
+                handler.run().await;
             }
 
             Self::Logs { filepath, patterns } => {

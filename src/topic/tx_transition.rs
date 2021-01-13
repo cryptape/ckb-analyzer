@@ -63,8 +63,8 @@ use std::time::Instant;
 /// ```
 ///
 /// * maintaining fields:
-///   - pending
-///   - proposed
+///   - pending: #{txhash => pending timestamp}
+///   - proposed: #{txhash => pending timestamp}
 ///
 /// * Information source:
 ///   - Subscription of NewTransaction
@@ -135,47 +135,79 @@ impl Handler {
         )
     }
 
-    pub(crate) fn run(mut self) {
+    async fn recv_new_transaction(&mut self, txhash: Byte32) {
+        // Discard the newly subscribed transaction for unknown, proposed or committed status
+        if self.get_tx_status(&txhash).is_pending() && self.pending.contains_key(&txhash) {
+            let now = Utc::now().into();
+            self.report_pending(&txhash, now);
+            self.pending.insert(txhash, now);
+        }
+    }
+
+    pub(crate) async fn run(mut self) {
         // Take out the subscriber to pass Rust borrow rule
         let new_tx_subscriber = {
             let (_, mut dummy) = jsonrpc_server_utils::tokio::sync::mpsc::channel(100);
             ::std::mem::swap(&mut self.new_tx_subscriber, &mut dummy);
             dummy
         };
+
+        // Just transform tokio 1.0 channel to crossbeam channel
         let (forward_sender, forward_receiver) = bounded(1000);
         forward(new_tx_subscriber, forward_sender);
+
         loop {
-            match forward_receiver.recv_timeout(::std::time::Duration::from_secs(60)) {
+            match forward_receiver.recv_timeout(::std::time::Duration::from_secs(1)) {
                 Ok((Topic::NewTransaction, message)) => {
-                    let tx = serde_from_str::<PoolTransactionEntry>(&message)
-                        .map(|pt| {
-                            Into::<ckb_types::packed::Transaction>::into(pt.transaction.inner)
-                        })
-                        .map(|tx| tx.into_view())
-                        .unwrap();
-                    if self.get_tx_status(&tx.hash()).is_pending() {
-                        #[allow(clippy::map_entry)]
-                        if !self.pending.contains_key(&tx.hash()) {
-                            let now = Utc::now().into();
-                            self.pending.insert(tx.hash(), now);
-                            self.report_pending(&tx.hash(), now);
-                        }
-                    } else {
-                        // Discard the newly subscribed transaction for unknown, proposed or committed status
-                    }
+                    let tx = serde_from_str::<PoolTransactionEntry>(&message).unwrap();
+                    let txhash = tx.transaction.hash.pack();
+                    self.recv_new_transaction(txhash).await;
                 }
                 Ok((_topic, _message)) => unimplemented!(),
-                Err(crossbeam::channel::RecvTimeoutError::Timeout) => continue,
-                Err(crossbeam::channel::RecvTimeoutError::Disconnected) => break,
+                Err(crossbeam::channel::RecvTimeoutError::Timeout) => {
+                    tokio::time::delay_for(tokio::time::Duration::from_secs(1)).await;
+                }
+                Err(crossbeam::channel::RecvTimeoutError::Disconnected) => return,
             }
 
+            // TODO 分批检查，或者更高效的方式
             if self.last_checking_at.elapsed() >= ::std::time::Duration::from_secs(60) {
-                self.check_pending();
-                self.check_proposed();
+                self.check_pending().await;
+                self.check_proposed().await;
                 self.last_checking_at = Instant::now();
             }
         }
-        log::info!("exit TxTransition");
+    }
+
+    // Returns (removed, proposed)
+    async fn check_pending_tx(
+        &self,
+        txhash: &Byte32,
+        pending_timestamp: Timestamp,
+    ) -> (bool, bool) {
+        match self.get_tx_status(txhash) {
+            TxStatus::Unknown => {
+                self.report_remove(txhash, pending_timestamp);
+                (true, false)
+            }
+            TxStatus::Pending => {
+                if elapsed_millis(pending_timestamp) < WAITING_THRESHOLD_MILLIS {
+                    (false, false)
+                } else {
+                    self.report_pending_long(txhash, pending_timestamp);
+                    (true, false)
+                }
+            }
+            TxStatus::Proposed => {
+                if !self.proposed.contains_key(&txhash) {
+                    self.report_propose(txhash, pending_timestamp);
+                    (true, true)
+                } else {
+                    (true, false)
+                }
+            }
+            TxStatus::Committed(_block_hash) => (true, false),
+        }
     }
 
     //   As for transaction in self.pending,
@@ -185,39 +217,62 @@ impl Handler {
     //       "pending_long" event;
     //     - if its current status is proposed, move into self.proposed and report "propose" event;
     //     - if its current status is committed, remove out;
-    fn check_pending(&mut self) {
+    async fn check_pending(&mut self) {
         let mut to_remove = Vec::new();
         for (txhash, pending_timestamp) in self.pending.iter() {
-            match self.get_tx_status(txhash) {
-                TxStatus::Unknown => {
-                    to_remove.push(txhash.clone());
-                    self.report_remove(txhash, *pending_timestamp);
-                }
-                TxStatus::Pending => {
-                    if elapsed_millis(*pending_timestamp) < WAITING_THRESHOLD_MILLIS {
-                        // discard
-                    } else {
-                        to_remove.push(txhash.clone());
-                        self.report_pending_long(txhash, *pending_timestamp);
-                    }
-                }
-                TxStatus::Proposed => {
-                    to_remove.push(txhash.clone());
-
-                    let now = Utc::now().into();
-                    if !self.proposed.contains_key(&txhash) {
-                        self.proposed.insert(txhash.clone(), now);
-                        self.report_propose(txhash, *pending_timestamp, now);
-                    }
-                }
-                TxStatus::Committed(_block_hash) => {
-                    to_remove.push(txhash.clone());
-                }
+            let (removed, proposed) = self.check_pending_tx(txhash, *pending_timestamp).await;
+            if removed {
+                to_remove.push(txhash.clone());
+            }
+            if proposed {
+                self.proposed.insert(txhash.clone(), *pending_timestamp);
             }
         }
 
         for txhash in to_remove.iter() {
             self.pending.remove(txhash);
+        }
+    }
+
+    // Returns (removed, re-pending)
+    async fn check_proposed_tx(
+        &self,
+        txhash: &Byte32,
+        pending_timestamp: Timestamp,
+    ) -> (bool, bool) {
+        match self.get_tx_status(txhash) {
+            TxStatus::Unknown => {
+                self.report_remove(txhash, pending_timestamp);
+                (true, false)
+            }
+            TxStatus::Pending => {
+                // Move back to self.pending.
+                // Although reusing proposed timestamp is not good, it is not bad as well
+                if !self.pending.contains_key(txhash) {
+                    (true, true)
+                } else {
+                    (false, false)
+                }
+            }
+            TxStatus::Proposed => {
+                if elapsed_millis(pending_timestamp) < WAITING_THRESHOLD_MILLIS {
+                    // discard
+                    (false, false)
+                } else {
+                    self.report_propose_long(txhash, pending_timestamp);
+                    (true, false)
+                }
+            }
+            TxStatus::Committed(block_hash) => {
+                if let Some(committed_timestamp) = self.get_block_timestamp(block_hash) {
+                    self.report_commit(txhash, pending_timestamp, committed_timestamp);
+                    (true, false)
+                } else {
+                    log::error!("get_block_timestamp with committed tx returns unknown; discard");
+                    // discard
+                    (false, false)
+                }
+            }
         }
     }
 
@@ -228,41 +283,15 @@ impl Handler {
     //     - if its current status is proposed and elapses beyond threshold, remove out and report
     //       "propose_long" event;
     //     - if its current status is committed, remove out and report "commit" event;
-    fn check_proposed(&mut self) {
+    async fn check_proposed(&mut self) {
         let mut to_remove = Vec::new();
-        for (txhash, proposed_timestamp) in self.proposed.iter() {
-            match self.get_tx_status(txhash) {
-                TxStatus::Unknown => {
-                    to_remove.push(txhash.clone());
-                    self.report_remove(txhash, *proposed_timestamp);
-                }
-                TxStatus::Pending => {
-                    to_remove.push(txhash.clone());
-                    // Move back to self.pending.
-                    // Although reusing proposed timestamp is not good, it is not bad as well
-                    if !self.pending.contains_key(txhash) {
-                        self.pending.insert(txhash.clone(), *proposed_timestamp);
-                    }
-                }
-                TxStatus::Proposed => {
-                    if elapsed_millis(*proposed_timestamp) < WAITING_THRESHOLD_MILLIS {
-                        // discard
-                    } else {
-                        to_remove.push(txhash.clone());
-                        self.report_propose_long(txhash, *proposed_timestamp);
-                    }
-                }
-                TxStatus::Committed(block_hash) => {
-                    if let Some(committed_timestamp) = self.get_block_timestamp(block_hash) {
-                        to_remove.push(txhash.clone());
-                        self.report_commit(txhash, *proposed_timestamp, committed_timestamp);
-                    } else {
-                        log::error!(
-                            "get_block_timestamp with committed tx returns unknown; discard"
-                        );
-                        // discard
-                    }
-                }
+        for (txhash, pending_timestamp) in self.proposed.iter() {
+            let (removed, repending) = self.check_proposed_tx(&txhash, *pending_timestamp).await;
+            if removed {
+                to_remove.push(txhash.clone());
+            }
+            if repending {
+                self.pending.insert(txhash.clone(), *pending_timestamp);
             }
         }
 
@@ -282,15 +311,12 @@ impl Handler {
         self.query_sender.send(query).unwrap();
     }
 
-    fn report_propose(
-        &self,
-        txhash: &Byte32,
-        pending_timestamp: Timestamp,
-        proposed_timestamp: Timestamp,
-    ) {
+    fn report_propose(&self, txhash: &Byte32, pending_timestamp: Timestamp) {
+        // NOTE: We re-use the pending timestamp in self.proposed. Then assign elapsed with `now - pending timestamp`
+        let now = Utc::now().into();
         let query = measurement::TxTransition {
-            time: proposed_timestamp,
-            elapsed: diff_millis(proposed_timestamp, pending_timestamp),
+            time: now,
+            elapsed: diff_millis(now, pending_timestamp),
             event: TxEvent::Propose.to_string(),
             txhash: format!("{:?}", txhash),
         }
