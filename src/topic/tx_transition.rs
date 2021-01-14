@@ -153,28 +153,29 @@ impl Handler {
         };
 
         // Just transform tokio 1.0 channel to crossbeam channel
+        // I don't know how to transform into tokio 2.0 channel
         let (forward_sender, forward_receiver) = bounded(1000);
         forward(new_tx_subscriber, forward_sender);
 
         loop {
-            match forward_receiver.recv_timeout(::std::time::Duration::from_secs(1)) {
+            match forward_receiver.try_recv() {
                 Ok((Topic::NewTransaction, message)) => {
                     let tx = serde_from_str::<PoolTransactionEntry>(&message).unwrap();
                     let txhash = tx.transaction.hash.pack();
                     self.recv_new_transaction(txhash).await;
                 }
                 Ok((_topic, _message)) => unimplemented!(),
-                Err(crossbeam::channel::RecvTimeoutError::Timeout) => {
-                    tokio::time::delay_for(tokio::time::Duration::from_secs(1)).await;
+                Err(crossbeam::channel::TryRecvError::Empty) => {
+                    // TODO 分批检查，或者更高效的方式
+                    if self.last_checking_at.elapsed() >= ::std::time::Duration::from_secs(60) {
+                        self.check_pending().await;
+                        self.check_proposed().await;
+                        self.last_checking_at = Instant::now();
+                    } else {
+                        tokio::time::delay_for(tokio::time::Duration::from_secs(1)).await;
+                    }
                 }
-                Err(crossbeam::channel::RecvTimeoutError::Disconnected) => return,
-            }
-
-            // TODO 分批检查，或者更高效的方式
-            if self.last_checking_at.elapsed() >= ::std::time::Duration::from_secs(60) {
-                self.check_pending().await;
-                self.check_proposed().await;
-                self.last_checking_at = Instant::now();
+                Err(crossbeam::channel::TryRecvError::Disconnected) => return,
             }
         }
     }

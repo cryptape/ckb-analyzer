@@ -30,16 +30,7 @@ impl Handler {
     pub(crate) async fn analyze(&self) {
         let mut connections = HashSet::new();
         for rpc in self.rpcs.iter() {
-            let local = rpc.local_node_info();
-            let local_ip = extract_ip(&local.addresses[0].address);
-            for remote in rpc.get_peers() {
-                let remote_ip = extract_ip(&remote.addresses[0].address);
-                if local_ip > remote_ip {
-                    connections.insert((local_ip.clone(), remote_ip));
-                } else {
-                    connections.insert((remote_ip, local_ip.clone()));
-                }
-            }
+            self.get_connections(rpc, &mut connections).await;
         }
 
         log::info!("graph Topology {{");
@@ -92,6 +83,19 @@ impl Handler {
             });
         }
         log::info!("}}");
+    }
+
+    async fn get_connections(&self, rpc: &Jsonrpc, connections: &mut HashSet<(String, String)>) {
+        let local = rpc.local_node_info();
+        let local_ip = extract_ip(&local.addresses[0].address);
+        for remote in rpc.get_peers() {
+            let remote_ip = extract_ip(&remote.addresses[0].address);
+            if local_ip > remote_ip {
+                connections.insert((local_ip.clone(), remote_ip));
+            } else {
+                connections.insert((remote_ip, local_ip.clone()));
+            }
+        }
     }
 }
 
