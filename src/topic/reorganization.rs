@@ -20,17 +20,15 @@
 
 use crate::measurement::{self, IntoWriteQuery};
 use crate::subscribe::{Subscription, Topic};
-use ckb_suite_rpc::Jsonrpc;
+use ckb_suite_rpc::{ckb_jsonrpc_types::HeaderView as JsonHeader, Jsonrpc};
 use ckb_types::core::{BlockNumber, HeaderView};
 use ckb_types::packed::Byte32;
 use crossbeam::channel::Sender;
 use influxdb::{Timestamp, WriteQuery};
-use jsonrpc_core::futures::Stream;
 use jsonrpc_core::serde_from_str;
-use jsonrpc_server_utils::tokio::prelude::*;
 
 pub(crate) struct Handler {
-    header_receiver: jsonrpc_server_utils::tokio::sync::mpsc::Receiver<String>,
+    subscriber: crossbeam::channel::Receiver<(Topic, String)>,
     query_sender: Sender<WriteQuery>,
     jsonrpc: Jsonrpc,
     main_tip_number: BlockNumber,
@@ -44,13 +42,11 @@ impl Handler {
         query_sender: Sender<WriteQuery>,
     ) -> (Self, Subscription) {
         let jsonrpc = Jsonrpc::connect(&ckb_rpc_url);
-        let (header_sender, header_receiver) =
-            jsonrpc_server_utils::tokio::sync::mpsc::channel(100);
-        let subscription = Subscription::new(ckb_subscribe_url, Topic::NewTipHeader, header_sender);
+        let (subscription, subscriber) = Subscription::new(ckb_subscribe_url, Topic::NewTipHeader);
         (
             Self {
                 jsonrpc,
-                header_receiver,
+                subscriber,
                 query_sender,
                 main_tip_number: 0,
                 main_tip_hash: Default::default(),
@@ -59,63 +55,67 @@ impl Handler {
         )
     }
 
-    pub(crate) async fn run(mut self) {
-        // Take out the header_receiver to pass the Rust borrow rule
-        let (_, mut dummy_receiver) = jsonrpc_server_utils::tokio::sync::mpsc::channel(100);
-        ::std::mem::swap(&mut self.header_receiver, &mut dummy_receiver);
-        let header_receiver = dummy_receiver;
-
-        header_receiver
-            .for_each(|message| {
-                let header: ckb_suite_rpc::ckb_jsonrpc_types::HeaderView = serde_from_str(&message)
-                    .unwrap_or_else(|err| {
-                        panic!("serde_from_str(\"{}\"), error: {:?}", message, err)
-                    });
-                let header: HeaderView = header.into();
-                self.handle(&header);
-                Ok(())
-            })
-            .wait()
-            .unwrap_or_else(|err| panic!("receiver error {:?}", err));
+    async fn try_recv_subscription(
+        &self,
+    ) -> Result<(Topic, String), crossbeam::channel::TryRecvError> {
+        self.subscriber.try_recv()
     }
 
-    fn handle(&mut self, header: &HeaderView) {
+    pub(crate) async fn run(mut self) {
+        loop {
+            match self.try_recv_subscription().await {
+                Ok((topic, message)) => {
+                    assert_eq!(Topic::NewTipHeader, topic);
+                    let header: JsonHeader = serde_from_str(&message).unwrap();
+                    let header: HeaderView = header.into();
+                    self.handle(&header).await;
+                }
+                Err(crossbeam::channel::TryRecvError::Disconnected) => return,
+                Err(crossbeam::channel::TryRecvError::Empty) => {
+                    tokio::time::delay_for(tokio::time::Duration::from_secs(1)).await
+                }
+            }
+        }
+    }
+
+    async fn handle(&mut self, header: &HeaderView) {
         if self.main_tip_hash == header.parent_hash() || self.main_tip_number == 0 {
             self.main_tip_hash = header.hash();
             self.main_tip_number = header.number();
         } else {
             let new_tip = header;
-            let old_tip = self.get_header(self.main_tip_hash.clone());
-            let ancestor = self.locate_ancestor(&old_tip, new_tip);
-            self.report_reorganization(new_tip, &old_tip, &ancestor);
+            let old_tip = self.get_header(self.main_tip_hash.clone()).await;
+            let ancestor = self.locate_ancestor(&old_tip, new_tip).await;
+            self.report_reorganization(new_tip, &old_tip, &ancestor)
+                .await;
 
             self.main_tip_hash = header.hash();
             self.main_tip_number = header.number();
         }
     }
 
-    fn locate_ancestor(&mut self, old_tip: &HeaderView, new_tip: &HeaderView) -> HeaderView {
+    async fn locate_ancestor(&mut self, old_tip: &HeaderView, new_tip: &HeaderView) -> HeaderView {
         let mut old_tip = old_tip.clone();
         let mut new_tip = new_tip.clone();
         #[allow(clippy::comparison_chain)]
         if old_tip.number() > new_tip.number() {
             for _ in 0..old_tip.number() - new_tip.number() {
-                old_tip = self.get_header(old_tip.parent_hash());
+                old_tip = self.get_header(old_tip.parent_hash()).await;
             }
         } else if old_tip.number() < new_tip.number() {
             for _ in 0..new_tip.number() - old_tip.number() {
-                new_tip = self.get_header(new_tip.parent_hash());
+                new_tip = self.get_header(new_tip.parent_hash()).await;
             }
         }
         assert_eq!(old_tip.number(), new_tip.number());
         while old_tip.hash() != new_tip.hash() {
-            old_tip = self.get_header(old_tip.parent_hash());
-            new_tip = self.get_header(new_tip.parent_hash());
+            old_tip = self.get_header(old_tip.parent_hash()).await;
+            new_tip = self.get_header(new_tip.parent_hash()).await;
         }
         old_tip
     }
 
-    fn report_reorganization(
+    async fn report_reorganization(
         &mut self,
         new_tip: &HeaderView,
         old_tip: &HeaderView,
@@ -144,7 +144,7 @@ impl Handler {
         self.query_sender.send(query).unwrap();
     }
 
-    fn get_header(&mut self, block_hash: Byte32) -> HeaderView {
+    async fn get_header(&mut self, block_hash: Byte32) -> HeaderView {
         if let Some(header) = self.jsonrpc.get_header(block_hash.clone()) {
             return header.into();
         }

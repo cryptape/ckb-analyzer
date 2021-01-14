@@ -1,3 +1,4 @@
+use crate::util::forward_tokio1_channel::forward_tokio1_channel;
 use jsonrpc_client_transports::RpcError;
 use jsonrpc_core::{futures::prelude::*, Result};
 use jsonrpc_core_client::{
@@ -6,9 +7,7 @@ use jsonrpc_core_client::{
 };
 use jsonrpc_derive::rpc;
 use jsonrpc_pubsub::{typed::Subscriber, SubscriptionId};
-use jsonrpc_server_utils::{
-    codecs::StreamCodec, tokio::codec::Decoder, tokio::net::TcpStream, tokio::sync::mpsc::Sender,
-};
+use jsonrpc_server_utils::{codecs::StreamCodec, tokio::codec::Decoder, tokio::net::TcpStream};
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 
@@ -41,23 +40,34 @@ pub trait SubscriptionRpc {
 
 #[derive(Debug, Clone)]
 pub struct Subscription {
-    pub address: SocketAddr,
-    pub topic: Topic,
-    pub sender: Sender<String>,
+    address: SocketAddr,
+    topic: Topic,
+    publisher: jsonrpc_server_utils::tokio::sync::mpsc::Sender<(Topic, String)>,
 }
 
 impl Subscription {
-    pub fn new(ckb_subscription_url: String, topic: Topic, sender: Sender<String>) -> Self {
+    pub fn new(
+        ckb_subscription_url: String,
+        topic: Topic,
+    ) -> (Self, crossbeam::channel::Receiver<(Topic, String)>) {
+        let (publisher, subscriber) = {
+            let (publisher, subscriber) = jsonrpc_server_utils::tokio::sync::mpsc::channel(100);
+            let subscriber = forward_tokio1_channel(subscriber);
+            (publisher, subscriber)
+        };
         let address = ckb_subscription_url
             .parse::<SocketAddr>()
             .unwrap_or_else(|err| {
                 panic!("failed to parse {}, error: {:?}", ckb_subscription_url, err)
             });
-        Self {
-            address,
-            topic,
-            sender,
-        }
+        (
+            Self {
+                address,
+                topic,
+                publisher,
+            },
+            subscriber,
+        )
     }
 
     // IMPORTANT: This task use `jsonrpc_server_utils::tokio`, which version is 0.1.x. It is
@@ -82,13 +92,14 @@ impl Subscription {
         // Construct rpc client which sends messages(requests) to server, and subscribe `NewTipBlock`
         // from server. We get a typed stream of subscription.
         let requester = gen_client::Client::from(sender_channel);
-        let sender = self.sender.clone();
-        let subscription = requester.subscribe(self.topic).and_then(
-            |subscriber: TypedSubscriptionStream<String>| {
+        let publisher = self.publisher.clone();
+        let topic = self.topic;
+        let subscription = requester.subscribe(topic).and_then(
+            move |subscriber: TypedSubscriptionStream<String>| {
                 subscriber.for_each(move |message| {
-                    sender
+                    publisher
                         .clone()
-                        .send(message)
+                        .send((topic, message))
                         .wait()
                         .unwrap_or_else(|err| panic!("channel error: {:?}", err));
                     Ok(())

@@ -6,10 +6,9 @@ use ckb_suite_rpc::{
     Jsonrpc,
 };
 use ckb_types::{packed::Byte32, prelude::*};
-use crossbeam::channel::{bounded, Sender};
+use crossbeam::channel::Sender;
 use influxdb::{Timestamp, WriteQuery};
-use jsonrpc_core::{futures::Stream, serde_from_str};
-use jsonrpc_server_utils::tokio::prelude::*;
+use jsonrpc_core::serde_from_str;
 use std::collections::HashMap;
 use std::time::Instant;
 
@@ -102,7 +101,7 @@ pub(crate) struct Handler {
     pending: HashMap<Byte32, Timestamp>,
     proposed: HashMap<Byte32, Timestamp>,
 
-    new_tx_subscriber: jsonrpc_server_utils::tokio::sync::mpsc::Receiver<String>,
+    subscriber: crossbeam::channel::Receiver<(Topic, String)>,
 
     jsonrpc: Jsonrpc,
     query_sender: Sender<WriteQuery>,
@@ -115,23 +114,19 @@ impl Handler {
         ckb_subscribe_url: String,
         query_sender: Sender<WriteQuery>,
     ) -> (Self, Subscription) {
-        let subscribe = |topic| {
-            let (notifier, subscriber) = jsonrpc_server_utils::tokio::sync::mpsc::channel(100);
-            let subscription = Subscription::new(ckb_subscribe_url.clone(), topic, notifier);
-            (subscriber, subscription)
-        };
-        let (new_tx_subscriber, new_tx_subscription) = subscribe(Topic::NewTransaction);
+        let (subscription, subscriber) =
+            Subscription::new(ckb_subscribe_url.clone(), Topic::NewTransaction);
         let jsonrpc = Jsonrpc::connect(&ckb_rpc_url);
         (
             Self {
                 jsonrpc,
                 query_sender,
-                new_tx_subscriber,
+                subscriber,
                 pending: Default::default(),
                 proposed: Default::default(),
                 last_checking_at: Instant::now(),
             },
-            new_tx_subscription,
+            subscription,
         )
     }
 
@@ -144,27 +139,22 @@ impl Handler {
         }
     }
 
+    async fn try_recv_subscription(
+        &self,
+    ) -> Result<(Topic, String), crossbeam::channel::TryRecvError> {
+        self.subscriber.try_recv()
+    }
+
     pub(crate) async fn run(mut self) {
-        // Take out the subscriber to pass Rust borrow rule
-        let new_tx_subscriber = {
-            let (_, mut dummy) = jsonrpc_server_utils::tokio::sync::mpsc::channel(100);
-            ::std::mem::swap(&mut self.new_tx_subscriber, &mut dummy);
-            dummy
-        };
-
-        // Just transform tokio 1.0 channel to crossbeam channel
-        // I don't know how to transform into tokio 2.0 channel
-        let (forward_sender, forward_receiver) = bounded(1000);
-        forward(new_tx_subscriber, forward_sender);
-
         loop {
-            match forward_receiver.try_recv() {
-                Ok((Topic::NewTransaction, message)) => {
+            match self.try_recv_subscription().await {
+                Ok((topic, message)) => {
+                    assert_eq!(Topic::NewTransaction, topic);
                     let tx = serde_from_str::<PoolTransactionEntry>(&message).unwrap();
                     let txhash = tx.transaction.hash.pack();
                     self.recv_new_transaction(txhash).await;
                 }
-                Ok((_topic, _message)) => unimplemented!(),
+                Err(crossbeam::channel::TryRecvError::Disconnected) => return,
                 Err(crossbeam::channel::TryRecvError::Empty) => {
                     // TODO 分批检查，或者更高效的方式
                     if self.last_checking_at.elapsed() >= ::std::time::Duration::from_secs(60) {
@@ -175,7 +165,6 @@ impl Handler {
                         tokio::time::delay_for(tokio::time::Duration::from_secs(1)).await;
                     }
                 }
-                Err(crossbeam::channel::TryRecvError::Disconnected) => return,
             }
         }
     }
@@ -396,23 +385,6 @@ impl Handler {
         }
         None
     }
-}
-
-fn forward(
-    new_tx_subscriber: jsonrpc_server_utils::tokio::sync::mpsc::Receiver<String>,
-    forward_sender: Sender<(Topic, String)>,
-) {
-    ::std::thread::spawn(move || {
-        new_tx_subscriber
-            .for_each(|message| {
-                forward_sender
-                    .send((Topic::NewTransaction, message))
-                    .unwrap();
-                Ok(())
-            })
-            .wait()
-            .unwrap();
-    });
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
