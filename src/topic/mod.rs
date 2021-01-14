@@ -63,13 +63,15 @@ impl Topic {
                 ckb_network_config,
                 ckb_network_identifier,
             } => {
-                network_propagation::Handler::new(
-                    ckb_network_config,
-                    ckb_network_identifier,
-                    query_sender,
-                )
-                .run()
-                .await
+                // WARNING: As network service is synchronous, DON'T use async runtime.
+                ::std::thread::spawn(move || {
+                    network_propagation::Handler::new(
+                        ckb_network_config,
+                        ckb_network_identifier,
+                        query_sender,
+                    )
+                    .run()
+                });
             }
 
             Self::NetworkTopology { ckb_rpc_urls } => {

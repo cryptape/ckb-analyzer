@@ -68,7 +68,7 @@ impl Handler {
         }
     }
 
-    pub(crate) async fn run(&mut self) {
+    pub(crate) fn run(&mut self) {
         let network_state =
             Arc::new(NetworkState::from_config(self.ckb_network_config.clone()).unwrap());
         let exit_handler = DefaultExitHandler::default();
