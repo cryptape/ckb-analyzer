@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 mod canonical_chain_state;
-mod logs;
+mod pattern_logs;
 mod network_propagation;
 mod network_topology;
 mod reorganization;
@@ -14,7 +14,7 @@ mod tx_transition;
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(tag = "topic", content = "args")]
 pub enum Topic {
-    CanonicalChain {
+    CanonicalChainState {
         ckb_rpc_url: String,
     },
     Reorganization {
@@ -25,9 +25,9 @@ pub enum Topic {
         ckb_rpc_url: String,
         ckb_subscribe_url: String,
     },
-    Logs {
+    PatternLogs {
         filepath: String,
-        patterns: HashMap<String, logs::Regex>,
+        patterns: HashMap<String, pattern_logs::Regex>,
     },
     NetworkPropagation {
         ckb_network_identifier: String,
@@ -48,7 +48,7 @@ impl Topic {
     ) {
         log::info!("{} starting ...", topic_name);
         match self {
-            Self::CanonicalChain { ckb_rpc_url } => {
+            Self::CanonicalChainState { ckb_rpc_url } => {
                 let last_number = canonical_chain_state::select_last_block_number_in_influxdb(
                     &influx,
                     &ckb_network_name,
@@ -118,8 +118,8 @@ impl Topic {
                 handler.run().await;
             }
 
-            Self::Logs { filepath, patterns } => {
-                let mut handler = logs::Handler::new(filepath, patterns, query_sender).await;
+            Self::PatternLogs { filepath, patterns } => {
+                let mut handler = pattern_logs::Handler::new(filepath, patterns, query_sender).await;
                 handler.run().await;
             }
         }

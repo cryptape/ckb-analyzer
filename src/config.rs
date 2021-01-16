@@ -5,6 +5,17 @@ use std::fs;
 use std::path::Path;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum Foo  {
+    Logs {
+        path: String,
+        pattern: String,
+    },
+    Logs2 {
+        path: String,
+        pattern: String,
+    }
+}
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Config {
     pub ckb_network_name: String,
     pub topics: HashMap<String, Topic>,
