@@ -1,7 +1,7 @@
 use ckb_jsonrpc_types::{
     Block, BlockNumber, BlockTemplate, BlockView, CellOutputWithOutPoint, CellWithStatus,
-    ChainInfo, DryRunResult, EpochNumber, EpochView, HeaderView, LocalNode, OutPoint, PeerState,
-    RemoteNode, Transaction, TransactionWithStatus, TxPoolInfo, Uint64, Version,
+    ChainInfo, Consensus, DryRunResult, EpochNumber, EpochView, HeaderView, LocalNode, OutPoint,
+    PeerState, RemoteNode, Transaction, TransactionWithStatus, TxPoolInfo, Uint64, Version,
 };
 use ckb_types::{
     core::{
@@ -457,6 +457,20 @@ impl Jsonrpc {
                 )
             })
     }
+
+    pub fn get_consensus(&self) -> Consensus {
+        self.inner
+            .lock()
+            .get_consensus()
+            .call()
+            .unwrap_or_else(|err| {
+                panic!(
+                    "Jsonrpc::get_consensus(\"{}\"), error: {:?}",
+                    self.uri(),
+                    err
+                )
+            })
+    }
 }
 
 jsonrpc_client!(pub struct Inner {
@@ -498,4 +512,5 @@ jsonrpc_client!(pub struct Inner {
     pub fn add_node(&mut self, peer_id: String, address: String) -> RpcRequest<()>;
     pub fn remove_node(&mut self, peer_id: String) -> RpcRequest<()>;
     pub fn process_block_without_verify(&mut self, _data: Block) -> RpcRequest<Option<H256>>;
+    pub fn get_consensus(&mut self) -> RpcRequest<Consensus>;
 });
