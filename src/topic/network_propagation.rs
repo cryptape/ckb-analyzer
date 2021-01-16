@@ -18,10 +18,8 @@
 //!
 //! Note that in a decentralized network, one can only deploy programs on its owned machines, but not the entire network. So of cause, no one can see the whole picture of a decentralized network.
 
-use crate::get_version::get_version;
 use crate::measurement::{self, IntoWriteQuery, WriteQuery};
-use crate::util::find_available_port::find_available_port;
-use crate::util::get_network_identifier::get_network_identifier;
+use crate::util::{find_available_port, get_network_identifier, get_version};
 use chrono::Utc;
 use ckb_app_config::NetworkConfig;
 use ckb_network::{

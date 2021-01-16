@@ -120,7 +120,7 @@ use crate::topic::{
     CanonicalChainState, NetworkPropagation, NetworkTopology, PatternLogs, Reorganization,
     TxTransition,
 };
-use crate::util::select_last_block_number_in_influxdb::select_last_block_number_in_influxdb;
+use crate::util::select_last_block_number_in_influxdb;
 use crossbeam::channel::bounded;
 use influxdb::Client as Influx;
 use std::env::var;
@@ -129,7 +129,6 @@ use std::sync::Arc;
 
 mod config;
 mod dashboard;
-mod get_version;
 mod measurement;
 mod subscribe;
 mod topic;
@@ -142,6 +141,7 @@ fn main() {
 
 async fn run(async_handle: ckb_async_runtime::Handle) {
     init_logger();
+    log::info!("ckb-analyzer starting");
     let config = init_config();
     let influx = init_influx(&config);
     let (query_sender, query_receiver) = bounded(5000);
@@ -153,9 +153,9 @@ async fn run(async_handle: ckb_async_runtime::Handle) {
             Topic::CanonicalChainState => {
                 let last_number =
                     select_last_block_number_in_influxdb(&influx, &config.network).await;
-                CanonicalChainState::new(&node.rpc_url(), query_sender.clone(), last_number)
-                    .run()
-                    .await
+                let mut handler =
+                    CanonicalChainState::new(&node.rpc_url(), query_sender.clone(), last_number);
+                tokio::spawn(async move { handler.run().await });
             }
             Topic::Reorganization => {
                 let (handler, subscription) = Reorganization::new(
@@ -175,7 +175,7 @@ async fn run(async_handle: ckb_async_runtime::Handle) {
                 // tokio::spawn(async { subscription.run().await });
                 // tokio::time::delay_for(::std::time::Duration::from_secs(3)).await;
 
-                handler.run().await;
+                tokio::spawn(async move { handler.run().await });
             }
             Topic::TxTransition => {
                 let (handler, subscription) = TxTransition::new(
@@ -190,7 +190,7 @@ async fn run(async_handle: ckb_async_runtime::Handle) {
                 // });
                 jsonrpc_server_utils::tokio::spawn(subscription.run());
 
-                handler.run().await;
+                tokio::spawn(async move { handler.run().await });
             }
             Topic::NetworkPropagation => {
                 // WARNING: As network service is synchronous, DON'T use async runtime.
@@ -204,11 +204,12 @@ async fn run(async_handle: ckb_async_runtime::Handle) {
             }
             Topic::NetworkTopology => {
                 // TODO
-                NetworkTopology::new(vec![]).run().await
+                let handler = NetworkTopology::new(vec![]);
+                tokio::spawn(async move { handler.run().await });
             }
             Topic::PatternLogs => {
                 let mut handler = PatternLogs::new(&node.data_dir, query_sender.clone()).await;
-                handler.run().await;
+                tokio::spawn(async move { handler.run().await });
             }
         }
     }
