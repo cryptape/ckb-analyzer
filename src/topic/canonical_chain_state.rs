@@ -19,21 +19,21 @@ use ckb_types::core::{BlockView, EpochNumber};
 use ckb_types::packed::{CellbaseWitness, ProposalShortId, Script};
 use ckb_types::prelude::*;
 use crossbeam::channel::Sender;
-use influxdb::{Client as Influx, ReadQuery, Timestamp, WriteQuery};
+use influxdb::{Timestamp, WriteQuery};
 use std::cmp::max;
 use std::collections::{HashMap, HashSet};
 use std::time::{Duration, Instant};
 
 pub const PROPOSAL_WINDOW: (u64, u64) = (2, 10);
 
-pub struct Handler {
+pub struct CanonicalChainState {
     query_sender: Sender<WriteQuery>,
     start_number: BlockNumber,
     rpc: Jsonrpc,
     proposals_zones: HashMap<BlockNumber, HashSet<ProposalShortId>>,
 }
 
-impl Handler {
+impl CanonicalChainState {
     pub fn new(
         ckb_rpc_url: &str,
         query_sender: Sender<WriteQuery>,
@@ -243,36 +243,4 @@ fn extract_miner_lock(block: &BlockView) -> Script {
     let witness = cellbase.witnesses().get(0).unwrap().raw_data();
     let cellbase_witness = CellbaseWitness::from_slice(witness.as_ref()).unwrap();
     cellbase_witness.lock()
-}
-
-pub(crate) async fn select_last_block_number_in_influxdb(
-    influx: &Influx,
-    ckb_network_name: &str,
-) -> BlockNumber {
-    let sql = format!(
-        "SELECT last(number) FROM {query_name} WHERE network = '{network}'",
-        query_name = "block",
-        network = ckb_network_name,
-    );
-    let query_last_number = ReadQuery::new(&sql);
-    match influx.query(&query_last_number).await {
-        Err(err) => {
-            log::error!("influxdb.query(\"{}\"), error: {}", sql, err);
-            ::std::process::exit(1);
-        }
-        Ok(results) => {
-            let json: HashMap<String, serde_json::Value> = serde_json::from_str(&results).unwrap();
-            let results = json.get("results").unwrap().as_array().unwrap();
-            let result = results.get(0).unwrap().as_object().unwrap();
-            if let Some(series) = result.get("series") {
-                let series = series.as_array().unwrap();
-                let serie = series.get(0).unwrap().as_object().unwrap();
-                let values = serie.get("values").unwrap().as_array().unwrap();
-                let value = values.get(0).unwrap().as_array().unwrap();
-                value.get(1).unwrap().as_u64().unwrap()
-            } else {
-                1
-            }
-        }
-    }
 }

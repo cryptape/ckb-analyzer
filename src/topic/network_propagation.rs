@@ -47,7 +47,7 @@ use tentacle_multiaddr::Multiaddr;
 type PropagationHashes = Arc<Mutex<HashMap<Byte32, (Instant, HashSet<PeerIndex>)>>>;
 
 #[derive(Clone)]
-pub(crate) struct Handler {
+pub(crate) struct NetworkPropagation {
     ckb_network_config: NetworkConfig,
     ckb_rpc_url: String,
     peers: Arc<Mutex<HashMap<PeerIndex, bool>>>,
@@ -56,7 +56,7 @@ pub(crate) struct Handler {
     query_sender: Sender<WriteQuery>,
 }
 
-impl Handler {
+impl NetworkPropagation {
     pub(crate) fn new(
         ckb_rpc_url: String,
         bootnodes: Vec<Multiaddr>,
@@ -263,7 +263,7 @@ impl Handler {
     }
 }
 
-impl CKBProtocolHandler for Handler {
+impl CKBProtocolHandler for NetworkPropagation {
     fn init(&mut self, _nc: Arc<dyn CKBProtocolContext + Sync>) {}
 
     fn connected(

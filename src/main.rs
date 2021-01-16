@@ -115,7 +115,12 @@
 //!
 //!   Pushing metrics actively via HTTP to InfluxDB is much useful!
 
-use crate::config::{Config, InfluxdbConfig};
+use crate::config::{Config, Topic};
+use crate::topic::{
+    CanonicalChainState, NetworkPropagation, NetworkTopology, PatternLogs, Reorganization,
+    TxTransition,
+};
+use crate::util::select_last_block_number_in_influxdb::select_last_block_number_in_influxdb;
 use crossbeam::channel::bounded;
 use influxdb::Client as Influx;
 use std::env::var;
@@ -138,18 +143,74 @@ fn main() {
 async fn run(async_handle: ckb_async_runtime::Handle) {
     init_logger();
     let config = init_config();
-    let influx = init_influx(&config.influxdb);
+    let influx = init_influx(&config);
     let (query_sender, query_receiver) = bounded(5000);
+    let node = config.node.clone();
 
-    for (topic_name, topic) in config.topics.iter() {
-        let task = topic.to_owned().run(
-            topic_name.to_owned(),
-            config.ckb_network_name.to_owned(),
-            influx.to_owned(),
-            query_sender.to_owned(),
-            async_handle.clone(),
-        );
-        tokio::spawn(task);
+    for topic in config.topics.iter() {
+        log::info!("Start topic {:?}", topic);
+        match topic {
+            Topic::CanonicalChainState => {
+                let last_number =
+                    select_last_block_number_in_influxdb(&influx, &config.network).await;
+                CanonicalChainState::new(&node.rpc_url(), query_sender.clone(), last_number)
+                    .run()
+                    .await
+            }
+            Topic::Reorganization => {
+                let (handler, subscription) = Reorganization::new(
+                    node.rpc_url(),
+                    node.subscription_url(),
+                    query_sender.clone(),
+                );
+
+                // WARNING: Use tokio 1.0 to run subscription. Since jsonrpc has not support 2.0 yet
+                // ::std::thread::spawn(move || {
+                //     jsonrpc_server_utils::tokio::run(subscription.run());
+                // });
+                jsonrpc_server_utils::tokio::spawn(subscription.run());
+
+                // // PROBLEM: With delaying a while, both tasks subscription and reorganization will run;
+                // // But without delaying, only the task reorganization will run.
+                // tokio::spawn(async { subscription.run().await });
+                // tokio::time::delay_for(::std::time::Duration::from_secs(3)).await;
+
+                handler.run().await;
+            }
+            Topic::TxTransition => {
+                let (handler, subscription) = TxTransition::new(
+                    node.rpc_url(),
+                    node.subscription_url(),
+                    query_sender.clone(),
+                );
+
+                // WARNING: Use tokio 1.0 to run subscription. Since jsonrpc has not support 2.0 yet
+                // ::std::thread::spawn(move || {
+                //     jsonrpc_server_utils::tokio::run(subscription.run());
+                // });
+                jsonrpc_server_utils::tokio::spawn(subscription.run());
+
+                handler.run().await;
+            }
+            Topic::NetworkPropagation => {
+                // WARNING: As network service is synchronous, DON'T use async runtime.
+                let mut handler = NetworkPropagation::new(
+                    node.rpc_url(),
+                    node.bootnodes.clone(),
+                    query_sender.clone(),
+                );
+                let async_handle_ = async_handle.clone();
+                ::std::thread::spawn(move || handler.run(async_handle_));
+            }
+            Topic::NetworkTopology => {
+                // TODO
+                NetworkTopology::new(vec![]).run().await
+            }
+            Topic::PatternLogs => {
+                let mut handler = PatternLogs::new(&node.data_dir, query_sender.clone()).await;
+                handler.run().await;
+            }
+        }
     }
 
     let hostname = var("HOSTNAME")
@@ -158,7 +219,7 @@ async fn run(async_handle: ckb_async_runtime::Handle) {
     for mut query in query_receiver {
         // Attach built-in tags
         query = query
-            .add_tag("network", config.ckb_network_name.clone())
+            .add_tag("network", config.network.clone())
             .add_tag("hostname", hostname.clone());
 
         // Writes asynchronously
@@ -191,13 +252,13 @@ fn init_config() -> Config {
     toml::from_str(&bytes).unwrap_or_else(|err| panic!("toml::from_str error: {:?}", err))
 }
 
-fn init_influx(config: &InfluxdbConfig) -> Influx {
+fn init_influx(config: &Config) -> Influx {
     let username = var("INFLUXDB_USERNAME").unwrap_or_else(|_| "".to_string());
     let password = var("INFLUXDB_PASSWORD").unwrap_or_else(|_| "".to_string());
     let without_auth = username.is_empty();
     if without_auth {
-        Influx::new(&config.url, &config.database)
+        Influx::new(&config.influxdb.url, &config.influxdb.database)
     } else {
-        Influx::new(&config.url, &config.database).with_auth(&username, &password)
+        Influx::new(&config.influxdb.url, &config.influxdb.database).with_auth(&username, &password)
     }
 }
