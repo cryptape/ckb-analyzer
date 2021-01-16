@@ -1,6 +1,6 @@
 [package]
 name = "ckb-suite-rpc"
-version = "0.38.0"
+version = "0.39.1"
 license = "MIT"
 authors = ["Nervos Core Dev <dev@nervos.org>"]
 edition = "2018"
@@ -8,9 +8,9 @@ description = "ckb rpc client implementation"
 homepage = "https://github.com/nervosnetwork/ckb"
 
 [dependencies]
-ckb-jsonrpc-types = { version = "0.38.0" }
-ckb-types = { version = "0.38.0" }
-ckb-util = { version = "0.38.0" }
+ckb-jsonrpc-types = { version = "0.39.1" }
+ckb-types = { version = "0.39.1" }
+ckb-util = { version = "0.39.1" }
 hyper = "0.11.27"
 jsonrpc-client-core = "0.5.0"
 jsonrpc-client-http = "0.5.0"
