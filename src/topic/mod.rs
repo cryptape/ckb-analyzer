@@ -5,9 +5,9 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 mod canonical_chain_state;
-mod pattern_logs;
 mod network_propagation;
 mod network_topology;
+mod pattern_logs;
 mod reorganization;
 mod tx_transition;
 
@@ -45,6 +45,7 @@ impl Topic {
         ckb_network_name: String,
         influx: Influx,
         query_sender: Sender<WriteQuery>,
+        async_handle: ckb_async_runtime::Handle,
     ) {
         log::info!("{} starting ...", topic_name);
         match self {
@@ -70,7 +71,7 @@ impl Topic {
                         ckb_network_identifier,
                         query_sender,
                     )
-                    .run()
+                    .run(async_handle)
                 });
             }
 
@@ -119,7 +120,8 @@ impl Topic {
             }
 
             Self::PatternLogs { filepath, patterns } => {
-                let mut handler = pattern_logs::Handler::new(filepath, patterns, query_sender).await;
+                let mut handler =
+                    pattern_logs::Handler::new(filepath, patterns, query_sender).await;
                 handler.run().await;
             }
         }

@@ -68,7 +68,7 @@ impl Handler {
         }
     }
 
-    pub(crate) fn run(&mut self) {
+    pub(crate) fn run(&mut self, async_handle: ckb_async_runtime::Handle) {
         let network_state =
             Arc::new(NetworkState::from_config(self.ckb_network_config.clone()).unwrap());
         let exit_handler = DefaultExitHandler::default();
@@ -96,7 +96,7 @@ impl Handler {
             version.to_string(),
             exit_handler.clone(),
         )
-        .start(Some("ckb-topic::network"))
+        .start(&async_handle)
         .unwrap();
 
         exit_handler.wait_for_exit();

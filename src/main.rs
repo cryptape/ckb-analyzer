@@ -115,8 +115,9 @@
 //!
 //!   Pushing metrics actively via HTTP to InfluxDB is much useful!
 
+use crate::config::{Config, InfluxdbConfig};
 use crossbeam::channel::bounded;
-use influxdb::Client;
+use influxdb::Client as Influx;
 use std::env::var;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
@@ -129,70 +130,74 @@ mod subscribe;
 mod topic;
 mod util;
 
-#[tokio::main]
-async fn main() {
-    simple_logger::SimpleLogger::from_env().init().unwrap();
-    let config = {
-        let config_path = var("CKB_ANALYZER_CONFIG").unwrap_or_else(|_| {
-            panic!("please specify config path via environment variable CKB_ANALYZER_CONFIG")
-        });
-        config::init_config(config_path)
-    };
-    let influx = {
-        let username = var("INFLUXDB_USERNAME").unwrap_or_else(|_| "".to_string());
-        let password = var("INFLUXDB_PASSWORD").unwrap_or_else(|_| "".to_string());
-        if username.is_empty() {
-            Client::new(
-                config.influxdb.url.as_str(),
-                config.influxdb.database.as_str(),
-            )
-        } else {
-            Client::new(
-                config.influxdb.url.as_str(),
-                config.influxdb.database.as_str(),
-            )
-            .with_auth(&username, &password)
-        }
-    };
+fn main() {
+    let (async_handle, _stop_handler) = ckb_async_runtime::new_global_runtime();
+    async_handle.block_on(run(async_handle.clone()));
+}
+
+async fn run(async_handle: ckb_async_runtime::Handle) {
+    init_logger();
+    let config = init_config();
+    let influx = init_influx(&config.influxdb);
     let (query_sender, query_receiver) = bounded(5000);
+
     for (topic_name, topic) in config.topics.iter() {
-        tokio::spawn(topic.clone().run(
-            topic_name.clone(),
-            config.ckb_network_name.clone(),
-            influx.clone(),
-            query_sender.clone(),
-        ));
+        let task = topic.to_owned().run(
+            topic_name.to_owned(),
+            config.ckb_network_name.to_owned(),
+            influx.to_owned(),
+            query_sender.to_owned(),
+            async_handle.clone(),
+        );
+        tokio::spawn(task);
     }
 
     let hostname = var("HOSTNAME")
         .unwrap_or_else(|_| gethostname::gethostname().to_string_lossy().to_string());
-    let counter = Arc::new(AtomicU64::new(0));
+    let rate_limiter = Arc::new(AtomicU64::new(0));
     for mut query in query_receiver {
-        log::info!("{:?}", query);
-
         // Attach built-in tags
         query = query
             .add_tag("network", config.ckb_network_name.clone())
             .add_tag("hostname", hostname.clone());
 
         // Writes asynchronously
-        let async_ = true;
-        if async_ {
-            while counter.load(Ordering::Relaxed) >= 100 {
-                tokio::time::delay_for(tokio::time::Duration::from_secs(1)).await;
-            }
-            counter.fetch_add(1, Ordering::Relaxed);
-            let counter_ = Arc::clone(&counter);
-
-            let influx_ = influx.clone();
-            tokio::spawn(async move {
-                if let Err(err) = influx_.query(&query).await {
-                    log::error!("influxdb.query, error: {}", err);
-                }
-                counter_.fetch_sub(1, Ordering::Relaxed);
-            });
-        } else if let Err(err) = influx.query(&query).await {
-            log::error!("influxdb.query, error: {}", err);
+        log::info!("{:?}", query);
+        while rate_limiter.load(Ordering::Relaxed) >= 100 {
+            tokio::time::delay_for(tokio::time::Duration::from_secs(1)).await;
         }
+        let rate_limiter_ = Arc::clone(&rate_limiter);
+        let influx_ = influx.clone();
+        tokio::spawn(async move {
+            rate_limiter_.fetch_add(1, Ordering::Relaxed);
+            if let Err(err) = influx_.query(&query).await {
+                log::error!("influxdb.query, error: {}", err);
+            }
+            rate_limiter_.fetch_sub(1, Ordering::Relaxed);
+        });
+    }
+}
+
+fn init_logger() {
+    simple_logger::SimpleLogger::from_env().init().unwrap();
+}
+
+fn init_config() -> Config {
+    let config_path = var("CKB_ANALYZER_CONFIG").unwrap_or_else(|_| {
+        panic!("please specify config path via environment variable CKB_ANALYZER_CONFIG")
+    });
+    let bytes = ::std::fs::read_to_string(config_path)
+        .unwrap_or_else(|err| panic!("fs::read error: {:?}", err));
+    toml::from_str(&bytes).unwrap_or_else(|err| panic!("toml::from_str error: {:?}", err))
+}
+
+fn init_influx(config: &InfluxdbConfig) -> Influx {
+    let username = var("INFLUXDB_USERNAME").unwrap_or_else(|_| "".to_string());
+    let password = var("INFLUXDB_PASSWORD").unwrap_or_else(|_| "".to_string());
+    let without_auth = username.is_empty();
+    if without_auth {
+        Influx::new(&config.url, &config.database)
+    } else {
+        Influx::new(&config.url, &config.database).with_auth(&username, &password)
     }
 }
