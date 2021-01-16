@@ -155,7 +155,7 @@ async fn run(async_handle: ckb_async_runtime::Handle) {
                     select_last_block_number_in_influxdb(&influx, &config.network).await;
                 let mut handler =
                     CanonicalChainState::new(&node.rpc_url(), query_sender.clone(), last_number);
-                tokio::spawn(async move { handler.run().await });
+                async_handle.spawn(async move { handler.run().await });
             }
             Topic::Reorganization => {
                 let (handler, subscription) = Reorganization::new(
@@ -172,10 +172,10 @@ async fn run(async_handle: ckb_async_runtime::Handle) {
 
                 // // PROBLEM: With delaying a while, both tasks subscription and reorganization will run;
                 // // But without delaying, only the task reorganization will run.
-                // tokio::spawn(async { subscription.run().await });
+                // async_handle.spawn(async { subscription.run().await });
                 // tokio::time::delay_for(::std::time::Duration::from_secs(3)).await;
 
-                tokio::spawn(async move { handler.run().await });
+                async_handle.spawn(async move { handler.run().await });
             }
             Topic::TxTransition => {
                 let (handler, subscription) = TxTransition::new(
@@ -190,7 +190,7 @@ async fn run(async_handle: ckb_async_runtime::Handle) {
                 // });
                 jsonrpc_server_utils::tokio::spawn(subscription.run());
 
-                tokio::spawn(async move { handler.run().await });
+                async_handle.spawn(async move { handler.run().await });
             }
             Topic::NetworkPropagation => {
                 // WARNING: As network service is synchronous, DON'T use async runtime.
@@ -205,11 +205,11 @@ async fn run(async_handle: ckb_async_runtime::Handle) {
             Topic::NetworkTopology => {
                 // TODO
                 let handler = NetworkTopology::new(vec![]);
-                tokio::spawn(async move { handler.run().await });
+                async_handle.spawn(async move { handler.run().await });
             }
             Topic::PatternLogs => {
                 let mut handler = PatternLogs::new(&node.data_dir, query_sender.clone()).await;
-                tokio::spawn(async move { handler.run().await });
+                async_handle.spawn(async move { handler.run().await });
             }
         }
     }
@@ -230,7 +230,7 @@ async fn run(async_handle: ckb_async_runtime::Handle) {
         }
         let rate_limiter_ = Arc::clone(&rate_limiter);
         let influx_ = influx.clone();
-        tokio::spawn(async move {
+        async_handle.spawn(async move {
             rate_limiter_.fetch_add(1, Ordering::Relaxed);
             if let Err(err) = influx_.query(&query).await {
                 log::error!("influxdb.query, error: {}", err);
