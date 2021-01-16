@@ -563,6 +563,7 @@ dependencies = [
  "serde_regex",
  "serde_yaml",
  "simple_logger",
+ "tentacle-multiaddr",
  "tokio 0.2.23",
  "toml",
  "tynm",

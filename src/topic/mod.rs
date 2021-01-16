@@ -1,8 +1,8 @@
-use ckb_app_config::NetworkConfig;
 use crossbeam::channel::Sender;
 use influxdb::{Client as Influx, WriteQuery};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use tentacle_multiaddr::Multiaddr;
 
 mod canonical_chain_state;
 mod network_propagation;
@@ -30,8 +30,8 @@ pub enum Topic {
         patterns: HashMap<String, pattern_logs::Regex>,
     },
     NetworkPropagation {
-        ckb_network_identifier: String,
-        ckb_network_config: NetworkConfig,
+        ckb_rpc_url: String,
+        bootnodes: Vec<Multiaddr>,
     },
     NetworkTopology {
         ckb_rpc_urls: Vec<String>,
@@ -61,17 +61,13 @@ impl Topic {
             }
 
             Self::NetworkPropagation {
-                ckb_network_config,
-                ckb_network_identifier,
+                ckb_rpc_url,
+                bootnodes,
             } => {
                 // WARNING: As network service is synchronous, DON'T use async runtime.
                 ::std::thread::spawn(move || {
-                    network_propagation::Handler::new(
-                        ckb_network_config,
-                        ckb_network_identifier,
-                        query_sender,
-                    )
-                    .run(async_handle)
+                    network_propagation::Handler::new(ckb_rpc_url, bootnodes, query_sender)
+                        .run(async_handle)
                 });
             }
 

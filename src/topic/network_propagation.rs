@@ -20,6 +20,8 @@
 
 use crate::get_version::get_version;
 use crate::measurement::{self, IntoWriteQuery, WriteQuery};
+use crate::util::find_available_port::find_available_port;
+use crate::util::get_network_identifier::get_network_identifier;
 use chrono::Utc;
 use ckb_app_config::NetworkConfig;
 use ckb_network::{
@@ -32,9 +34,11 @@ use ckb_types::packed::{
 use ckb_types::prelude::*;
 use crossbeam::channel::Sender;
 use std::collections::{HashMap, HashSet};
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use std::time::Instant;
+use tentacle_multiaddr::Multiaddr;
 
 // TODO handle threads panic
 // TODO logger
@@ -45,7 +49,7 @@ type PropagationHashes = Arc<Mutex<HashMap<Byte32, (Instant, HashSet<PeerIndex>)
 #[derive(Clone)]
 pub(crate) struct Handler {
     ckb_network_config: NetworkConfig,
-    ckb_network_identifier: String,
+    ckb_rpc_url: String,
     peers: Arc<Mutex<HashMap<PeerIndex, bool>>>,
     compact_blocks: PropagationHashes,
     transaction_hashes: PropagationHashes,
@@ -54,13 +58,14 @@ pub(crate) struct Handler {
 
 impl Handler {
     pub(crate) fn new(
-        ckb_network_config: NetworkConfig,
-        ckb_network_identifier: String,
+        ckb_rpc_url: String,
+        bootnodes: Vec<Multiaddr>,
         query_sender: Sender<WriteQuery>,
     ) -> Self {
+        let ckb_network_config = build_network_config(bootnodes);
         Self {
             ckb_network_config,
-            ckb_network_identifier,
+            ckb_rpc_url,
             peers: Default::default(),
             compact_blocks: Default::default(),
             transaction_hashes: Default::default(),
@@ -88,11 +93,12 @@ impl Handler {
                 )
             })
             .collect();
+        let network_identifier = get_network_identifier(&self.ckb_rpc_url);
         let _network_controller = NetworkService::new(
             network_state,
             ckb_protocols,
             required_protocol_ids,
-            self.ckb_network_identifier.clone(),
+            network_identifier,
             version.to_string(),
             exit_handler.clone(),
         )
@@ -299,4 +305,18 @@ impl CKBProtocolHandler for Handler {
             self.received_sync(nc, peer_index, data);
         }
     }
+}
+
+fn build_network_config(bootnodes: Vec<Multiaddr>) -> NetworkConfig {
+    let port = find_available_port();
+    let mut config = NetworkConfig::default();
+    config.bootnodes = bootnodes;
+    config.path = PathBuf::from("network");
+    config.listen_addresses = vec![format!("/ip4/0.0.0.0/tcp/{}", port).parse().unwrap()];
+    config.max_peers = 5000;
+    config.max_outbound_peers = 5000;
+    config.ping_interval_secs = 120;
+    config.ping_timeout_secs = 1200;
+    config.connect_outbound_interval_secs = 15;
+    config
 }
