@@ -164,11 +164,12 @@ async fn run(async_handle: ckb_async_runtime::Handle) {
                     query_sender.clone(),
                 );
 
-                // WARNING: Use tokio 1.0 to run subscription. Since jsonrpc has not support 2.0 yet
-                // ::std::thread::spawn(move || {
-                //     jsonrpc_server_utils::tokio::run(subscription.run());
-                // });
-                jsonrpc_server_utils::tokio::spawn(subscription.run());
+                // // WARNING: Use tokio 1.0 to run subscription. Since jsonrpc has not support 2.0 yet
+                ::std::thread::spawn(move || {
+                    jsonrpc_server_utils::tokio::run(subscription.run());
+                });
+
+                // jsonrpc_server_utils::tokio::spawn(subscription.run());
 
                 // // PROBLEM: With delaying a while, both tasks subscription and reorganization will run;
                 // // But without delaying, only the task reorganization will run.
@@ -185,10 +186,11 @@ async fn run(async_handle: ckb_async_runtime::Handle) {
                 );
 
                 // WARNING: Use tokio 1.0 to run subscription. Since jsonrpc has not support 2.0 yet
-                // ::std::thread::spawn(move || {
-                //     jsonrpc_server_utils::tokio::run(subscription.run());
-                // });
-                jsonrpc_server_utils::tokio::spawn(subscription.run());
+                // jsonrpc_server_utils::tokio::spawn(subscription.run());
+
+                ::std::thread::spawn(move || {
+                    jsonrpc_server_utils::tokio::run(subscription.run());
+                });
 
                 async_handle.spawn(async move { handler.run().await });
             }
