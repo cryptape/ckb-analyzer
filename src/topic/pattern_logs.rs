@@ -30,7 +30,7 @@ pub(crate) struct PatternLogs {
 
 impl PatternLogs {
     pub(crate) async fn new<P: AsRef<Path>>(data_dir: P, query_sender: Sender<WriteQuery>) -> Self {
-        let filepath = data_dir.as_ref().join("run.log");
+        let filepath = data_dir.as_ref().join("logs").join("run.log");
         let patterns = {
             let mut patterns = HashMap::new();
             patterns.insert("error".to_string(), Regex::new("ERROR").unwrap());
