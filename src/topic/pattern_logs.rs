@@ -18,46 +18,25 @@ use crate::util::LogWatcher;
 use chrono::{DateTime, Local, Utc};
 use crossbeam::channel::Sender;
 use influxdb::{Timestamp, WriteQuery};
-use serde::{Deserialize, Serialize};
+use regex::Regex;
 use std::collections::HashMap;
-use std::ops::Deref;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
-#[derive(Serialize, Deserialize, Clone)]
-pub struct Regex(#[serde(with = "serde_regex")] regex::Regex);
-
-impl Deref for Regex {
-    type Target = regex::Regex;
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl ::std::fmt::Debug for Regex {
-    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
-        ::std::fmt::Debug::fmt(&self.0, f)
-    }
-}
-
-impl ::std::fmt::Display for Regex {
-    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
-        ::std::fmt::Display::fmt(&self.0, f)
-    }
-}
-
-pub(crate) struct Handler {
-    filepath: String,
-    patterns: HashMap<String, Regex>, // #{ name => regex }
+pub(crate) struct PatternLogs {
+    filepath: PathBuf,
+    patterns: HashMap<String, Regex>,
     query_sender: Sender<WriteQuery>,
 }
 
-impl Handler {
-    pub(crate) async fn new<P: AsRef<Path>>(
-        filepath: P,
-        patterns: HashMap<String, Regex>,
-        query_sender: Sender<WriteQuery>,
-    ) -> Self {
-        let filepath = filepath.as_ref().to_string_lossy().to_string();
+impl PatternLogs {
+    pub(crate) async fn new<P: AsRef<Path>>(data_dir: P, query_sender: Sender<WriteQuery>) -> Self {
+        let filepath = data_dir.as_ref().join("logs").join("run.log");
+        let patterns = {
+            let mut patterns = HashMap::new();
+            patterns.insert("error".to_string(), Regex::new("ERROR").unwrap());
+            patterns.insert("warn".to_string(), Regex::new("WARN").unwrap());
+            patterns
+        };
         Self {
             filepath,
             patterns,

@@ -1,4 +1,4 @@
-use crate::util::forward_tokio1_channel::forward_tokio1_channel;
+use crate::util::forward_tokio1_channel;
 use jsonrpc_client_transports::RpcError;
 use jsonrpc_core::{futures::prelude::*, Result};
 use jsonrpc_core_client::{

@@ -6,12 +6,12 @@ use std::collections::{HashMap, HashSet};
 use std::net::SocketAddr;
 use std::time::Duration;
 
-pub(crate) struct Handler {
+pub(crate) struct NetworkTopology {
     ckb_rpc_urls: Vec<String>,
     rpcs: Vec<Jsonrpc>,
 }
 
-impl Handler {
+impl NetworkTopology {
     pub(crate) fn new(ckb_rpc_urls: Vec<String>) -> Self {
         let rpcs: Vec<_> = ckb_rpc_urls
             .iter()

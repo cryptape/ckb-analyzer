@@ -115,84 +115,153 @@
 //!
 //!   Pushing metrics actively via HTTP to InfluxDB is much useful!
 
+use crate::config::{Config, Topic};
+use crate::topic::{
+    CanonicalChainState, NetworkPropagation, NetworkTopology, PatternLogs, Reorganization,
+    TxTransition,
+};
+use crate::util::select_last_block_number_in_influxdb;
 use crossbeam::channel::bounded;
-use influxdb::Client;
+use influxdb::Client as Influx;
 use std::env::var;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 
 mod config;
 mod dashboard;
-mod get_version;
 mod measurement;
 mod subscribe;
 mod topic;
 mod util;
 
-#[tokio::main]
-async fn main() {
-    simple_logger::SimpleLogger::from_env().init().unwrap();
-    let config = {
-        let config_path = var("CKB_ANALYZER_CONFIG").unwrap_or_else(|_| {
-            panic!("please specify config path via environment variable CKB_ANALYZER_CONFIG")
-        });
-        config::init_config(config_path)
-    };
-    let influx = {
-        let username = var("INFLUXDB_USERNAME").unwrap_or_else(|_| "".to_string());
-        let password = var("INFLUXDB_PASSWORD").unwrap_or_else(|_| "".to_string());
-        if username.is_empty() {
-            Client::new(
-                config.influxdb.url.as_str(),
-                config.influxdb.database.as_str(),
-            )
-        } else {
-            Client::new(
-                config.influxdb.url.as_str(),
-                config.influxdb.database.as_str(),
-            )
-            .with_auth(&username, &password)
-        }
-    };
+fn main() {
+    let (async_handle, _stop_handler) = ckb_async_runtime::new_global_runtime();
+    async_handle.block_on(run(async_handle.clone()));
+}
+
+async fn run(async_handle: ckb_async_runtime::Handle) {
+    init_logger();
+    log::info!("ckb-analyzer starting");
+    let config = init_config();
+    let influx = init_influx(&config);
     let (query_sender, query_receiver) = bounded(5000);
-    for (topic_name, topic) in config.topics.iter() {
-        tokio::spawn(topic.clone().run(
-            topic_name.clone(),
-            config.ckb_network_name.clone(),
-            influx.clone(),
-            query_sender.clone(),
-        ));
+    let node = config.node.clone();
+
+    for topic in config.topics.iter() {
+        log::info!("Start topic {:?}", topic);
+        match topic {
+            Topic::CanonicalChainState => {
+                let last_number =
+                    select_last_block_number_in_influxdb(&influx, &config.network).await;
+                let mut handler =
+                    CanonicalChainState::new(&node.rpc_url(), query_sender.clone(), last_number);
+                async_handle.spawn(async move { handler.run().await });
+            }
+            Topic::Reorganization => {
+                let (handler, subscription) = Reorganization::new(
+                    node.rpc_url(),
+                    node.subscription_url(),
+                    query_sender.clone(),
+                );
+
+                // // WARNING: Use tokio 1.0 to run subscription. Since jsonrpc has not support 2.0 yet
+                ::std::thread::spawn(move || {
+                    jsonrpc_server_utils::tokio::run(subscription.run());
+                });
+
+                // jsonrpc_server_utils::tokio::spawn(subscription.run());
+
+                // // PROBLEM: With delaying a while, both tasks subscription and reorganization will run;
+                // // But without delaying, only the task reorganization will run.
+                // async_handle.spawn(async { subscription.run().await });
+                // tokio::time::delay_for(::std::time::Duration::from_secs(3)).await;
+
+                async_handle.spawn(async move { handler.run().await });
+            }
+            Topic::TxTransition => {
+                let (handler, subscription) = TxTransition::new(
+                    node.rpc_url(),
+                    node.subscription_url(),
+                    query_sender.clone(),
+                );
+
+                // WARNING: Use tokio 1.0 to run subscription. Since jsonrpc has not support 2.0 yet
+                // jsonrpc_server_utils::tokio::spawn(subscription.run());
+
+                ::std::thread::spawn(move || {
+                    jsonrpc_server_utils::tokio::run(subscription.run());
+                });
+
+                async_handle.spawn(async move { handler.run().await });
+            }
+            Topic::NetworkPropagation => {
+                // WARNING: As network service is synchronous, DON'T use async runtime.
+                let mut handler = NetworkPropagation::new(
+                    node.rpc_url(),
+                    node.bootnodes.clone(),
+                    query_sender.clone(),
+                );
+                let async_handle_ = async_handle.clone();
+                ::std::thread::spawn(move || handler.run(async_handle_));
+            }
+            Topic::NetworkTopology => {
+                // TODO
+                let handler = NetworkTopology::new(vec![]);
+                async_handle.spawn(async move { handler.run().await });
+            }
+            Topic::PatternLogs => {
+                let mut handler = PatternLogs::new(&node.data_dir, query_sender.clone()).await;
+                async_handle.spawn(async move { handler.run().await });
+            }
+        }
     }
 
     let hostname = var("HOSTNAME")
         .unwrap_or_else(|_| gethostname::gethostname().to_string_lossy().to_string());
-    let counter = Arc::new(AtomicU64::new(0));
+    let rate_limiter = Arc::new(AtomicU64::new(0));
     for mut query in query_receiver {
-        log::info!("{:?}", query);
-
         // Attach built-in tags
         query = query
-            .add_tag("network", config.ckb_network_name.clone())
+            .add_tag("network", config.network.clone())
             .add_tag("hostname", hostname.clone());
 
         // Writes asynchronously
-        let async_ = true;
-        if async_ {
-            while counter.load(Ordering::Relaxed) >= 100 {
-                tokio::time::delay_for(tokio::time::Duration::from_secs(1)).await;
-            }
-            counter.fetch_add(1, Ordering::Relaxed);
-            let counter_ = Arc::clone(&counter);
-
-            let influx_ = influx.clone();
-            tokio::spawn(async move {
-                if let Err(err) = influx_.query(&query).await {
-                    log::error!("influxdb.query, error: {}", err);
-                }
-                counter_.fetch_sub(1, Ordering::Relaxed);
-            });
-        } else if let Err(err) = influx.query(&query).await {
-            log::error!("influxdb.query, error: {}", err);
+        log::info!("{:?}", query);
+        while rate_limiter.load(Ordering::Relaxed) >= 100 {
+            tokio::time::delay_for(tokio::time::Duration::from_secs(1)).await;
         }
+        let rate_limiter_ = Arc::clone(&rate_limiter);
+        let influx_ = influx.clone();
+        async_handle.spawn(async move {
+            rate_limiter_.fetch_add(1, Ordering::Relaxed);
+            if let Err(err) = influx_.query(&query).await {
+                log::error!("influxdb.query, error: {}", err);
+            }
+            rate_limiter_.fetch_sub(1, Ordering::Relaxed);
+        });
+    }
+}
+
+fn init_logger() {
+    simple_logger::SimpleLogger::from_env().init().unwrap();
+}
+
+fn init_config() -> Config {
+    let config_path = var("CKB_ANALYZER_CONFIG").unwrap_or_else(|_| {
+        panic!("please specify config path via environment variable CKB_ANALYZER_CONFIG")
+    });
+    let bytes = ::std::fs::read_to_string(config_path)
+        .unwrap_or_else(|err| panic!("fs::read error: {:?}", err));
+    toml::from_str(&bytes).unwrap_or_else(|err| panic!("toml::from_str error: {:?}", err))
+}
+
+fn init_influx(config: &Config) -> Influx {
+    let username = var("INFLUXDB_USERNAME").unwrap_or_else(|_| "".to_string());
+    let password = var("INFLUXDB_PASSWORD").unwrap_or_else(|_| "".to_string());
+    let without_auth = username.is_empty();
+    if without_auth {
+        Influx::new(&config.influxdb.url, &config.influxdb.database)
+    } else {
+        Influx::new(&config.influxdb.url, &config.influxdb.database).with_auth(&username, &password)
     }
 }

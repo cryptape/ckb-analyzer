@@ -27,7 +27,7 @@ use crossbeam::channel::Sender;
 use influxdb::{Timestamp, WriteQuery};
 use jsonrpc_core::serde_from_str;
 
-pub(crate) struct Handler {
+pub(crate) struct Reorganization {
     subscriber: crossbeam::channel::Receiver<(Topic, String)>,
     query_sender: Sender<WriteQuery>,
     jsonrpc: Jsonrpc,
@@ -35,7 +35,7 @@ pub(crate) struct Handler {
     main_tip_hash: Byte32,
 }
 
-impl Handler {
+impl Reorganization {
     pub(crate) fn new(
         ckb_rpc_url: String,
         ckb_subscribe_url: String,

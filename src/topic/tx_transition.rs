@@ -96,7 +96,7 @@ use std::time::Instant;
 
 const WAITING_THRESHOLD_MILLIS: u64 = ::std::time::Duration::from_secs(5 * 60).as_millis() as u64;
 
-pub(crate) struct Handler {
+pub(crate) struct TxTransition {
     // waiting: HashMap<Byte32, DateTime<Utc>>,
     pending: HashMap<Byte32, Timestamp>,
     proposed: HashMap<Byte32, Timestamp>,
@@ -108,7 +108,7 @@ pub(crate) struct Handler {
     last_checking_at: Instant,
 }
 
-impl Handler {
+impl TxTransition {
     pub(crate) fn new(
         ckb_rpc_url: String,
         ckb_subscribe_url: String,
