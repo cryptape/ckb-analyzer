@@ -132,7 +132,7 @@ impl TxTransition {
 
     async fn recv_new_transaction(&mut self, txhash: Byte32) {
         // Discard the newly subscribed transaction for unknown, proposed or committed status
-        if self.get_tx_status(&txhash).is_pending() && self.pending.contains_key(&txhash) {
+        if self.get_tx_status(&txhash).is_pending() && !self.pending.contains_key(&txhash) {
             let now = Utc::now().into();
             self.report_pending(&txhash, now);
             self.pending.insert(txhash, now);
