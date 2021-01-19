@@ -39,6 +39,10 @@ CKB_ANALYZER_CONFIG=config/test.toml ckb-analyzer
   - [x] epoch duration and length
   - [ ] epoch adjustment
 
+* [ ] network distribution
+  * [ ] tip distribution accross the network
+  * [ ] version distribution accross the network
+
 * [x] canonical chain reorganization
   * [x] traffic
   * [x] scale
@@ -86,6 +90,8 @@ CKB_ANALYZER_CONFIG=config/test.toml ckb-analyzer
 
 * [ ] datasource issues
   - [ ] no update for a long time
+
+* [ ] network fork, there are nodes with different block hash on the same block number
 
 * [ ] miner issues
   - [ ] chain does not grow up for too long

@@ -37,6 +37,10 @@
 //!   - [x] epoch duration and length
 //!   - [ ] epoch adjustment
 //!
+//! * [ ] network distribution
+//!   * [ ] tip distribution accross the network
+//!   * [ ] version distribution accross the network
+//!
 //! * [x] canonical chain reorganization
 //!   * [x] traffic
 //!   * [x] scale
@@ -84,6 +88,8 @@
 //!
 //! * [ ] datasource issues
 //!   - [ ] no update for a long time
+//!
+//! * [ ] network fork, there are nodes with different block hash on the same block number
 //!
 //! * [ ] miner issues
 //!   - [ ] chain does not grow up for too long
@@ -148,6 +154,7 @@ async fn run(async_handle: ckb_async_runtime::Handle) {
     let node = config.node.clone();
 
     for topic in config.topics.iter() {
+        let topic = *topic;
         log::info!("Start topic {:?}", topic);
         match topic {
             Topic::CanonicalChainState => {
@@ -155,7 +162,10 @@ async fn run(async_handle: ckb_async_runtime::Handle) {
                     select_last_block_number_in_influxdb(&influx, &config.network).await;
                 let mut handler =
                     CanonicalChainState::new(&node.rpc_url(), query_sender.clone(), last_number);
-                async_handle.spawn(async move { handler.run().await });
+                async_handle.spawn(async move {
+                    handler.run().await;
+                    log::info!("End topic {:?}", topic);
+                });
             }
             Topic::Reorganization => {
                 let (handler, subscription) = Reorganization::new(
@@ -176,7 +186,10 @@ async fn run(async_handle: ckb_async_runtime::Handle) {
                 // async_handle.spawn(async { subscription.run().await });
                 // tokio::time::delay_for(::std::time::Duration::from_secs(3)).await;
 
-                async_handle.spawn(async move { handler.run().await });
+                async_handle.spawn(async move {
+                    handler.run().await;
+                    log::info!("End topic {:?}", topic);
+                });
             }
             Topic::TxTransition => {
                 let (handler, subscription) = TxTransition::new(
@@ -192,7 +205,10 @@ async fn run(async_handle: ckb_async_runtime::Handle) {
                     jsonrpc_server_utils::tokio::run(subscription.run());
                 });
 
-                async_handle.spawn(async move { handler.run().await });
+                async_handle.spawn(async move {
+                    handler.run().await;
+                    log::info!("End topic {:?}", topic);
+                });
             }
             Topic::NetworkPropagation => {
                 // WARNING: As network service is synchronous, DON'T use async runtime.
@@ -207,11 +223,17 @@ async fn run(async_handle: ckb_async_runtime::Handle) {
             Topic::NetworkTopology => {
                 // TODO
                 let handler = NetworkTopology::new(vec![]);
-                async_handle.spawn(async move { handler.run().await });
+                async_handle.spawn(async move {
+                    handler.run().await;
+                    log::info!("End topic {:?}", topic);
+                });
             }
             Topic::PatternLogs => {
                 let mut handler = PatternLogs::new(&node.data_dir, query_sender.clone()).await;
-                async_handle.spawn(async move { handler.run().await });
+                async_handle.spawn(async move {
+                    handler.run().await;
+                    log::info!("End topic {:?}", topic);
+                });
             }
         }
     }
