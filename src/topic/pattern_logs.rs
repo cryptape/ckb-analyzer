@@ -33,8 +33,7 @@ impl PatternLogs {
         let filepath = data_dir.as_ref().join("logs").join("run.log");
         let patterns = {
             let mut patterns = HashMap::new();
-            patterns.insert("error".to_string(), Regex::new("ERROR").unwrap());
-            patterns.insert("warn".to_string(), Regex::new("WARN").unwrap());
+            patterns.insert("error".to_string(), Regex::new(" ERROR ").unwrap());
             patterns
         };
         Self {
