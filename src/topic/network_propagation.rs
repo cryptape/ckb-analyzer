@@ -41,6 +41,7 @@ use tentacle_multiaddr::Multiaddr;
 // TODO handle threads panic
 // TODO logger
 // TODO install node-exporter on testnet machines
+// TODO maintain `nc`, so that not maintain `peers`
 
 type PropagationHashes = Arc<Mutex<HashMap<Byte32, (Instant, HashSet<PeerIndex>)>>>;
 
@@ -48,7 +49,7 @@ type PropagationHashes = Arc<Mutex<HashMap<Byte32, (Instant, HashSet<PeerIndex>)
 pub(crate) struct NetworkPropagation {
     ckb_network_config: NetworkConfig,
     ckb_rpc_url: String,
-    peers: Arc<Mutex<HashMap<PeerIndex, bool>>>,
+    peers: Arc<Mutex<HashMap<PeerIndex, Peer>>>,
     compact_blocks: PropagationHashes,
     transaction_hashes: PropagationHashes,
     query_sender: Sender<WriteQuery>,
@@ -168,8 +169,8 @@ impl NetworkPropagation {
         };
         if newly_inserted {
             if let Some(peer) = nc.get_peer(peer_index) {
-                self.send_high_latency_query(first_received, &peer);
-                self.send_propagation_query("compact_block", peers_received, first_received)
+                self.report_high_latency_propagation(first_received, &peer);
+                self.report_propagation("compact_block", peers_received, first_received)
             }
         }
     }
@@ -189,7 +190,7 @@ impl NetworkPropagation {
             (peers.len() as u32, *first_received, newly_inserted)
         };
         if newly_inserted {
-            self.send_propagation_query("transaction_hash", peers_received, first_received)
+            self.report_propagation("transaction_hash", peers_received, first_received)
         }
     }
 
@@ -201,7 +202,7 @@ impl NetworkPropagation {
     ) {
     }
 
-    fn send_high_latency_query(&self, first_received: Instant, peer: &Peer) {
+    fn report_high_latency_propagation(&self, first_received: Instant, peer: &Peer) {
         let time_interval = first_received.elapsed();
         if time_interval < Duration::from_secs(8) {
             return;
@@ -216,12 +217,8 @@ impl NetworkPropagation {
         self.query_sender.send(query).unwrap();
     }
 
-    fn send_propagation_query<M>(
-        &self,
-        message_type: M,
-        peers_received: u32,
-        first_received: Instant,
-    ) where
+    fn report_propagation<M>(&self, message_type: M, peers_received: u32, first_received: Instant)
+    where
         M: ToString,
     {
         let peers_total = self.peers.lock().unwrap().len();
@@ -250,17 +247,36 @@ impl NetworkPropagation {
         }
     }
 
-    fn send_peers_total_query(&mut self) {
-        self.last_report_total_peers = Instant::now();
+    fn report_peers(&mut self) {
         if let Ok(guard) = self.peers.lock() {
             let peers_total = guard.len() as u32;
+            let now = Utc::now().into();
             let query = measurement::Peers {
-                time: Utc::now().into(),
+                time: now,
                 peers_total,
             }
             .into_write_query();
             self.query_sender.send(query).unwrap();
+
+            let mut node_versions = HashMap::new();
+            for peer in guard.values() {
+                if let Some(ref identify_info) = peer.identify_info {
+                    let node_version = identify_info.client_version.clone();
+                    let peers_count = node_versions.entry(node_version).or_insert(0);
+                    *peers_count += 1;
+                }
+            }
+            for (node_version, peers_count) in node_versions {
+                let query = measurement::NodeVersion {
+                    time: now,
+                    node_version,
+                    peers_count,
+                }
+                .into_write_query();
+                self.query_sender.send(query).unwrap();
+            }
         }
+        self.last_report_total_peers = Instant::now();
     }
 }
 
@@ -274,13 +290,14 @@ impl CKBProtocolHandler for NetworkPropagation {
         _version: &str,
     ) {
         if let Ok(mut peers) = self.peers.lock() {
-            if *peers.entry(peer_index).or_insert(true) {
-                if let Some(peer) = nc.get_peer(peer_index) {
+            if let Some(peer) = nc.get_peer(peer_index) {
+                if !peers.contains_key(&peer_index) {
+                    peers.insert(peer_index, peer.clone());
                     log::info!("connect with #{}({:?})", peer_index, peer.connected_addr);
                 }
             }
         }
-        self.send_peers_total_query();
+        self.report_peers();
     }
 
     fn disconnected(&mut self, nc: Arc<dyn CKBProtocolContext + Sync>, peer_index: PeerIndex) {
@@ -291,7 +308,7 @@ impl CKBProtocolHandler for NetworkPropagation {
                 }
             }
         }
-        self.send_peers_total_query();
+        self.report_peers();
     }
 
     fn received(
@@ -306,7 +323,7 @@ impl CKBProtocolHandler for NetworkPropagation {
             self.received_sync(nc, peer_index, data);
         }
         if self.last_report_total_peers.elapsed() > Duration::from_secs(5 * 60) {
-            self.send_peers_total_query();
+            self.report_peers();
         }
     }
 }

@@ -105,6 +105,14 @@ pub struct Peers {
 }
 
 #[derive(InfluxDbWriteable, Clone, Debug)]
+pub struct NodeVersion {
+    pub time: Timestamp,
+    pub peers_count: u32,
+    #[tag]
+    pub node_version: String,
+}
+
+#[derive(InfluxDbWriteable, Clone, Debug)]
 pub struct Reorganization {
     // timestamp of fixed point of forks
     pub time: Timestamp,
