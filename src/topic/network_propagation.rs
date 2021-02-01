@@ -52,6 +52,7 @@ pub(crate) struct NetworkPropagation {
     compact_blocks: PropagationHashes,
     transaction_hashes: PropagationHashes,
     query_sender: Sender<WriteQuery>,
+    last_report_total_peers: Instant,
 }
 
 impl NetworkPropagation {
@@ -68,6 +69,7 @@ impl NetworkPropagation {
             compact_blocks: Default::default(),
             transaction_hashes: Default::default(),
             query_sender,
+            last_report_total_peers: Instant::now(),
         }
     }
 
@@ -248,7 +250,8 @@ impl NetworkPropagation {
         }
     }
 
-    fn send_peers_total_query(&self) {
+    fn send_peers_total_query(&mut self) {
+        self.last_report_total_peers = Instant::now();
         if let Ok(guard) = self.peers.lock() {
             let peers_total = guard.len() as u32;
             let query = measurement::Peers {
@@ -301,6 +304,9 @@ impl CKBProtocolHandler for NetworkPropagation {
             self.received_relay(nc, peer_index, data);
         } else if nc.protocol_id() == SupportProtocols::Sync.protocol_id() {
             self.received_sync(nc, peer_index, data);
+        }
+        if self.last_report_total_peers.elapsed() > Duration::from_secs(5 * 60) {
+            self.send_peers_total_query();
         }
     }
 }
