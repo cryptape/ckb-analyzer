@@ -258,6 +258,7 @@ impl NetworkPropagation {
             .into_write_query();
             self.query_sender.send(query).unwrap();
 
+            // Node Version Distribution
             let mut node_versions = HashMap::new();
             for peer in guard.values() {
                 if let Some(ref identify_info) = peer.identify_info {
@@ -271,6 +272,18 @@ impl NetworkPropagation {
                     time: now,
                     node_version,
                     peers_count,
+                }
+                .into_write_query();
+                self.query_sender.send(query).unwrap();
+            }
+
+            // Connection Durations
+            for peer in guard.values() {
+                let connection_duration = peer.connected_time.elapsed();
+                let query = measurement::NodeConnectionDuration {
+                    time: now,
+                    connection_duration: connection_duration.as_millis() as u64,
+                    peer_id: peer.peer_id.to_base58(),
                 }
                 .into_write_query();
                 self.query_sender.send(query).unwrap();

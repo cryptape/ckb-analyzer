@@ -113,6 +113,14 @@ pub struct NodeVersion {
 }
 
 #[derive(InfluxDbWriteable, Clone, Debug)]
+pub struct NodeConnectionDuration {
+    pub time: Timestamp,
+    pub connection_duration: u64,
+    #[tag]
+    pub peer_id: String,
+}
+
+#[derive(InfluxDbWriteable, Clone, Debug)]
 pub struct Reorganization {
     // timestamp of fixed point of forks
     pub time: Timestamp,
