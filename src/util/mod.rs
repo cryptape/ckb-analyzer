@@ -12,6 +12,7 @@ use std::sync::atomic::AtomicU16;
 use std::sync::atomic::Ordering::SeqCst;
 
 static PORT_COUNTER: AtomicU16 = AtomicU16::new(18000);
+const VERSION_CODE_NAME: &str= "probe";
 
 pub fn find_available_port() -> u16 {
     for _ in 0..2000 {
@@ -108,7 +109,7 @@ pub fn get_version() -> Version {
     #[cfg(docker)]
     let commit_describe = commit_describe.map(|s| s.replace("-dirty", ""));
     let commit_date = option_env!("COMMIT_DATE").map(ToString::to_string);
-    let code_name = None;
+    let code_name = Some(VERSION_CODE_NAME.to_string());
     Version {
         major,
         minor,

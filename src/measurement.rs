@@ -105,6 +105,19 @@ pub struct Peers {
 }
 
 #[derive(InfluxDbWriteable, Clone, Debug)]
+pub struct Peer {
+    pub time: Timestamp,
+    pub connected_duration: u64, // ms
+
+    #[tag]
+    pub peer_id: String,
+    #[tag]
+    pub version: String,
+    #[tag]
+    pub is_public: bool,
+}
+
+#[derive(InfluxDbWriteable, Clone, Debug)]
 pub struct NodeVersion {
     pub time: Timestamp,
     pub peers_count: u32,

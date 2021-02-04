@@ -37,6 +37,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use std::time::Instant;
 use tentacle_multiaddr::Multiaddr;
+use ckb_suite_rpc::Jsonrpc;
 
 // TODO handle threads panic
 // TODO logger
@@ -258,35 +259,33 @@ impl NetworkPropagation {
             .into_write_query();
             self.query_sender.send(query).unwrap();
 
-            // Node Version Distribution
-            let mut node_versions = HashMap::new();
-            for peer in guard.values() {
-                if let Some(ref identify_info) = peer.identify_info {
-                    let node_version = identify_info.client_version.clone();
-                    let peers_count = node_versions.entry(node_version).or_insert(0);
-                    *peers_count += 1;
+            // Node Info
+            {
+                let rpc = Jsonrpc::connect(&self.ckb_rpc_url);
+                let mut queries = HashMap::new();
+                for peer in rpc.get_peers() {
+                    let query = measurement::Peer {
+                        time: now,
+                        connected_duration: peer.connected_duration.value() * 1000,
+                        peer_id: peer.node_id.clone(),
+                        version: peer.version,
+                        is_public: false,
+                    };
+                    queries.insert(peer.node_id, query);
                 }
-            }
-            for (node_version, peers_count) in node_versions {
-                let query = measurement::NodeVersion {
-                    time: now,
-                    node_version,
-                    peers_count,
+                for peer in guard.values() {
+                    let query = measurement::Peer {
+                        time: now,
+                        connected_duration: peer.connected_time.elapsed().as_millis() as u64,
+                        peer_id: peer.peer_id.to_base58(),
+                        version: peer.identify_info.as_ref().map(|identity| identity.client_version.clone()).unwrap_or_default(),
+                        is_public: true
+                    };
+                    queries.insert(peer.peer_id.to_base58(), query);
                 }
-                .into_write_query();
-                self.query_sender.send(query).unwrap();
-            }
-
-            // Connection Durations
-            for peer in guard.values() {
-                let connection_duration = peer.connected_time.elapsed();
-                let query = measurement::NodeConnectionDuration {
-                    time: now,
-                    connection_duration: connection_duration.as_millis() as u64,
-                    peer_id: peer.peer_id.to_base58(),
+                for (_, query) in queries.into_iter() {
+                    self.query_sender.send(query.into_write_query()).unwrap();
                 }
-                .into_write_query();
-                self.query_sender.send(query).unwrap();
             }
         }
         self.last_report_total_peers = Instant::now();
