@@ -26,6 +26,7 @@ use ckb_network::{
     bytes::Bytes, CKBProtocol, CKBProtocolContext, CKBProtocolHandler, DefaultExitHandler,
     NetworkService, NetworkState, Peer, PeerIndex, SupportProtocols,
 };
+use ckb_suite_rpc::Jsonrpc;
 use ckb_types::packed::{
     Byte32, CompactBlock, RelayMessage, RelayMessageUnion, SendBlock, SyncMessage, SyncMessageUnion,
 };
@@ -37,7 +38,6 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use std::time::Instant;
 use tentacle_multiaddr::Multiaddr;
-use ckb_suite_rpc::Jsonrpc;
 
 // TODO handle threads panic
 // TODO logger
@@ -49,7 +49,7 @@ type PropagationHashes = Arc<Mutex<HashMap<Byte32, (Instant, HashSet<PeerIndex>)
 #[derive(Clone)]
 pub(crate) struct NetworkPropagation {
     ckb_network_config: NetworkConfig,
-    ckb_rpc_url: String,
+    jsonrpc: Jsonrpc,
     peers: Arc<Mutex<HashMap<PeerIndex, Peer>>>,
     compact_blocks: PropagationHashes,
     transaction_hashes: PropagationHashes,
@@ -59,18 +59,19 @@ pub(crate) struct NetworkPropagation {
 
 impl NetworkPropagation {
     pub(crate) fn new(
-        ckb_rpc_url: String,
+        ckb_rpc_url: &str,
         bootnodes: Vec<Multiaddr>,
         query_sender: Sender<WriteQuery>,
     ) -> Self {
+        let jsonrpc = Jsonrpc::connect(ckb_rpc_url);
         let ckb_network_config = build_network_config(bootnodes);
         Self {
+            jsonrpc,
+            query_sender,
             ckb_network_config,
-            ckb_rpc_url,
             peers: Default::default(),
             compact_blocks: Default::default(),
             transaction_hashes: Default::default(),
-            query_sender,
             last_report_total_peers: Instant::now(),
         }
     }
@@ -95,7 +96,7 @@ impl NetworkPropagation {
                 )
             })
             .collect();
-        let network_identifier = get_network_identifier(&self.ckb_rpc_url);
+        let network_identifier = get_network_identifier(&self.jsonrpc);
         let _network_controller = NetworkService::new(
             network_state,
             ckb_protocols,
@@ -261,25 +262,30 @@ impl NetworkPropagation {
 
             // Node Info
             {
-                let rpc = Jsonrpc::connect(&self.ckb_rpc_url);
                 let mut queries = HashMap::new();
-                for peer in rpc.get_peers() {
-                    let query = measurement::Peer {
-                        time: now,
-                        connected_duration: peer.connected_duration.value() * 1000,
-                        peer_id: peer.node_id.clone(),
-                        version: peer.version,
-                        is_public: false,
-                    };
-                    queries.insert(peer.node_id, query);
+                for peer in self.jsonrpc.get_peers() {
+                    if !peer.version.contains("probe") {
+                        let query = measurement::Peer {
+                            time: now,
+                            connected_duration: peer.connected_duration.value() * 1000,
+                            peer_id: peer.node_id.clone(),
+                            version: peer.version,
+                            is_public: false,
+                        };
+                        queries.insert(peer.node_id, query);
+                    }
                 }
                 for peer in guard.values() {
                     let query = measurement::Peer {
                         time: now,
                         connected_duration: peer.connected_time.elapsed().as_millis() as u64,
                         peer_id: peer.peer_id.to_base58(),
-                        version: peer.identify_info.as_ref().map(|identity| identity.client_version.clone()).unwrap_or_default(),
-                        is_public: true
+                        version: peer
+                            .identify_info
+                            .as_ref()
+                            .map(|identity| identity.client_version.clone())
+                            .unwrap_or_default(),
+                        is_public: true,
                     };
                     queries.insert(peer.peer_id.to_base58(), query);
                 }

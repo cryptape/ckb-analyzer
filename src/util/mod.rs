@@ -12,7 +12,7 @@ use std::sync::atomic::AtomicU16;
 use std::sync::atomic::Ordering::SeqCst;
 
 static PORT_COUNTER: AtomicU16 = AtomicU16::new(18000);
-const VERSION_CODE_NAME: &str= "probe";
+const VERSION_CODE_NAME: &str = "probe";
 
 pub fn find_available_port() -> u16 {
     for _ in 0..2000 {
@@ -78,8 +78,7 @@ pub async fn select_last_block_number_in_influxdb(influx: &Influx, ckb_network_n
     }
 }
 
-pub fn get_network_identifier(ckb_rpc_url: &str) -> String {
-    let jsonrpc = Jsonrpc::connect(ckb_rpc_url);
+pub fn get_network_identifier(jsonrpc: &Jsonrpc) -> String {
     let consensus = jsonrpc.get_consensus();
     let genesis_hash = format!("{:x}", consensus.genesis_hash);
     format!("/{}/{}", consensus.id, &genesis_hash[..8])

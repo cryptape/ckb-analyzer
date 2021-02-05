@@ -213,7 +213,7 @@ async fn run(async_handle: ckb_async_runtime::Handle) {
             Topic::NetworkPropagation => {
                 // WARNING: As network service is synchronous, DON'T use async runtime.
                 let mut handler = NetworkPropagation::new(
-                    node.rpc_url(),
+                    node.rpc_url().as_str(),
                     node.bootnodes.clone(),
                     query_sender.clone(),
                 );
