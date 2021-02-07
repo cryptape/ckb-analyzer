@@ -41,6 +41,7 @@ regex = { version = "1" }
 log = { version = "0.4.11" }
 simple_logger = { version = "1.11.0", default-features = false }
 tentacle-multiaddr = { version = "0.2" }
+tokio-postgres = { version = "0.7.0", features = ["with-chrono-0_4"]}
 
 [workspace]
 members = [

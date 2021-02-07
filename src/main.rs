@@ -126,7 +126,8 @@ use crate::topic::{
     CanonicalChainState, NetworkPropagation, NetworkTopology, PatternLogs, Reorganization,
     TxTransition,
 };
-use crate::util::select_last_block_number_in_influxdb;
+use crate::util::get_last_updated_block_number;
+use ckb_suite_rpc::Jsonrpc;
 use crossbeam::channel::bounded;
 use influxdb::Client as Influx;
 use std::env::var;
@@ -137,6 +138,7 @@ mod config;
 mod dashboard;
 mod measurement;
 mod subscribe;
+mod table;
 mod topic;
 mod util;
 
@@ -158,10 +160,10 @@ async fn run(async_handle: ckb_async_runtime::Handle) {
         log::info!("Start topic {:?}", topic);
         match topic {
             Topic::CanonicalChainState => {
-                let last_number =
-                    select_last_block_number_in_influxdb(&influx, &config.network).await;
-                let mut handler =
-                    CanonicalChainState::new(&node.rpc_url(), query_sender.clone(), last_number);
+                let pg = create_pg(&async_handle, &config.postgres()).await;
+                let jsonrpc = Jsonrpc::connect(&node.rpc_url());
+                let last_number = get_last_updated_block_number(&pg, &config.network).await;
+                let mut handler = CanonicalChainState::new(jsonrpc, pg, last_number).await;
                 async_handle.spawn(async move {
                     handler.run().await;
                     log::info!("End topic {:?}", topic);
@@ -286,4 +288,17 @@ fn init_influx(config: &Config) -> Influx {
     } else {
         Influx::new(&config.influxdb.url, &config.influxdb.database).with_auth(&username, &password)
     }
+}
+
+async fn create_pg(
+    async_handle: &ckb_async_runtime::Handle,
+    pg_config: &tokio_postgres::Config,
+) -> tokio_postgres::Client {
+    let (pg, connection) = pg_config.connect(tokio_postgres::NoTls).await.unwrap();
+    async_handle.spawn(async move {
+        if let Err(err) = connection.await {
+            log::error!("postgres connection error: {}", err);
+        }
+    });
+    pg
 }
