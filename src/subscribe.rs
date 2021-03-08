@@ -42,7 +42,7 @@ pub trait SubscriptionRpc {
 pub struct Subscription {
     address: SocketAddr,
     topic: Topic,
-    publisher: jsonrpc_server_utils::tokio::sync::mpsc::Sender<(Topic, String)>,
+    publisher: crate::tokio01::sync::mpsc::Sender<(Topic, String)>,
 }
 
 impl Subscription {
@@ -51,7 +51,7 @@ impl Subscription {
         topic: Topic,
     ) -> (Self, crossbeam::channel::Receiver<(Topic, String)>) {
         let (publisher, subscriber) = {
-            let (publisher, subscriber) = jsonrpc_server_utils::tokio::sync::mpsc::channel(100);
+            let (publisher, subscriber) = crate::tokio01::sync::mpsc::channel(100);
             let subscriber = forward_tokio1_channel(subscriber);
             (publisher, subscriber)
         };
@@ -107,9 +107,9 @@ impl Subscription {
             },
         );
         log::info!(
-            "subscribe to \"{}\" with topic \"{:?}\"",
+            "subscribe topic \"{:?}\" from \"{}\"",
+            self.topic,
             self.address,
-            self.topic
         );
         duplex
             .join(subscription)
