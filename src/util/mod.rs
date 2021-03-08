@@ -1,12 +1,8 @@
-pub mod log_watcher;
-
+use crate::tokio01::prelude::*;
 use ckb_build_info::Version;
 use ckb_suite_rpc::Jsonrpc;
-use jsonrpc_server_utils::tokio::prelude::*;
-pub use log_watcher::LogWatcher;
 use std::net::{Ipv4Addr, SocketAddrV4, TcpListener};
-use std::sync::atomic::AtomicU16;
-use std::sync::atomic::Ordering::SeqCst;
+use std::sync::atomic::{AtomicU16, Ordering::SeqCst};
 
 static PORT_COUNTER: AtomicU16 = AtomicU16::new(18000);
 const VERSION_CODE_NAME: &str = "probe";
@@ -22,10 +18,10 @@ pub fn find_available_port() -> u16 {
     panic!("failed to allocate available port")
 }
 
-// Just transform tokio 1.0 channel to crossbeam channel
-// I don't know how to transform into tokio 2.0 channel
+// Just transform tokio 0.1 channel to crossbeam channel
+// I don't know how to transform into tokio 0.2 channel
 pub fn forward_tokio1_channel<T>(
-    tokio1_receiver: jsonrpc_server_utils::tokio::sync::mpsc::Receiver<T>,
+    tokio1_receiver: crate::tokio01::sync::mpsc::Receiver<T>,
 ) -> crossbeam::channel::Receiver<T>
 where
     T: Send + 'static,
@@ -46,7 +42,7 @@ pub async fn get_last_updated_block_number(
 ) -> u64 {
     match pg
         .query_opt(
-            "SELECT LAST(number) FROM block WHERE network = $1",
+            "SELECT number FROM block WHERE network = $1 ORDER BY time DESC LIMIT 1",
             &[&ckb_network_name],
         )
         .await
