@@ -6,7 +6,6 @@ use tentacle_multiaddr::Multiaddr;
 pub struct Config {
     pub network: String,
     pub topics: Vec<Topic>,
-    pub influxdb: InfluxDBConfig,
     pub postgres: String,
     pub node: NodeConfig,
 }
@@ -22,12 +21,6 @@ pub enum Topic {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct InfluxDBConfig {
-    pub url: String,
-    pub database: String,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct NodeConfig {
     pub host: String,
     pub rpc_port: u16,
@@ -36,17 +29,20 @@ pub struct NodeConfig {
     pub bootnodes: Vec<Multiaddr>,
 }
 
-impl NodeConfig {
-    pub fn rpc_url(&self) -> String {
-        format!("http://{}:{}", self.host, self.rpc_port)
-    }
-    pub fn subscription_url(&self) -> String {
-        format!("{}:{}", self.host, self.subscription_port)
-    }
-}
-
 impl Config {
     pub fn postgres(&self) -> tokio_postgres::Config {
         tokio_postgres::Config::from_str(&self.postgres).unwrap()
+    }
+
+    pub fn network(&self) -> String {
+        self.network.clone()
+    }
+
+    pub fn rpc_url(&self) -> String {
+        format!("http://{}:{}", self.node.host, self.node.rpc_port)
+    }
+
+    pub fn subscription_url(&self) -> String {
+        format!("{}:{}", self.node.host, self.node.subscription_port)
     }
 }
