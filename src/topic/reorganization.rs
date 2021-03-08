@@ -18,36 +18,37 @@
 
 // TODO rename main_ to canonical_; remove prefix main_ from main_tip_hash/main_tip_number
 
-use crate::measurement::{self, IntoWriteQuery};
+use crate::config::Config;
 use crate::subscribe::{Subscription, Topic};
 use ckb_suite_rpc::{ckb_jsonrpc_types::HeaderView as JsonHeader, Jsonrpc};
 use ckb_types::core::{BlockNumber, HeaderView};
 use ckb_types::packed::Byte32;
-use crossbeam::channel::Sender;
-use influxdb::{Timestamp, WriteQuery};
 use jsonrpc_core::serde_from_str;
+use std::time::Duration;
 
 pub(crate) struct Reorganization {
+    config: Config,
     subscriber: crossbeam::channel::Receiver<(Topic, String)>,
-    query_sender: Sender<WriteQuery>,
     jsonrpc: Jsonrpc,
+    point_sender: crossbeam::channel::Sender<Box<dyn crate::table::Point>>,
     main_tip_number: BlockNumber,
     main_tip_hash: Byte32,
 }
 
 impl Reorganization {
     pub(crate) fn new(
-        ckb_rpc_url: String,
-        ckb_subscribe_url: String,
-        query_sender: Sender<WriteQuery>,
+        config: Config,
+        jsonrpc: Jsonrpc,
+        point_sender: crossbeam::channel::Sender<Box<dyn crate::table::Point>>,
     ) -> (Self, Subscription) {
-        let jsonrpc = Jsonrpc::connect(&ckb_rpc_url);
-        let (subscription, subscriber) = Subscription::new(ckb_subscribe_url, Topic::NewTipHeader);
+        let (subscription, subscriber) =
+            Subscription::new(config.subscription_url(), Topic::NewTipHeader);
         (
             Self {
+                config,
                 jsonrpc,
+                point_sender,
                 subscriber,
-                query_sender,
                 main_tip_number: 0,
                 main_tip_hash: Default::default(),
             },
@@ -72,7 +73,7 @@ impl Reorganization {
                 }
                 Err(crossbeam::channel::TryRecvError::Disconnected) => return,
                 Err(crossbeam::channel::TryRecvError::Empty) => {
-                    tokio::time::delay_for(tokio::time::Duration::from_secs(1)).await
+                    tokio::time::sleep(Duration::from_secs(1)).await
                 }
             }
         }
@@ -130,18 +131,23 @@ impl Reorganization {
             new_tip.hash(),
             attached_length
         );
-        let query = measurement::Reorganization {
-            time: Timestamp::Milliseconds(ancestor.timestamp() as u128),
-            attached_length: attached_length as u32,
-            old_tip_number: old_tip.number(),
+
+        let time = chrono::NaiveDateTime::from_timestamp(
+            (ancestor.timestamp() / 1000) as i64,
+            (ancestor.timestamp() % 1000 * 1000) as u32,
+        );
+        let point = crate::table::Reorganization {
+            network: self.config.network(),
+            time,
+            attached_length: attached_length as i32,
+            old_tip_number: old_tip.number() as i64,
+            new_tip_number: new_tip.number() as i64,
+            ancestor_number: ancestor.number() as i64,
             old_tip_hash: format!("{:#x}", old_tip.hash()),
-            new_tip_number: new_tip.number(),
             new_tip_hash: format!("{:#x}", new_tip.hash()),
-            ancestor_number: ancestor.number(),
             ancestor_hash: format!("{:#x}", ancestor.hash()),
-        }
-        .into_write_query();
-        self.query_sender.send(query).unwrap();
+        };
+        self.point_sender.send(Box::new(point)).unwrap();
     }
 
     async fn get_header(&mut self, block_hash: Byte32) -> HeaderView {

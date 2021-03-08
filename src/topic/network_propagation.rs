@@ -18,7 +18,6 @@
 //!
 //! Note that in a decentralized network, one can only deploy programs on its owned machines, but not the entire network. So of cause, no one can see the whole picture of a decentralized network.
 
-use crate::measurement::{self, IntoWriteQuery, WriteQuery};
 use crate::util::{find_available_port, get_network_identifier, get_version};
 use chrono::Utc;
 use ckb_app_config::NetworkConfig;
@@ -31,8 +30,7 @@ use ckb_types::packed::{
     Byte32, CompactBlock, RelayMessage, RelayMessageUnion, SendBlock, SyncMessage, SyncMessageUnion,
 };
 use ckb_types::prelude::*;
-use crossbeam::channel::Sender;
-use std::collections::{HashMap, HashSet};
+use std::collections::VecDeque;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -44,41 +42,56 @@ use tentacle_multiaddr::Multiaddr;
 // TODO install node-exporter on testnet machines
 // TODO maintain `nc`, so that not maintain `peers`
 
-type PropagationHashes = Arc<Mutex<HashMap<Byte32, (Instant, HashSet<PeerIndex>)>>>;
+/// # Notes
+///
+/// This thread only records events into db.
+/// And there is another thread that event history from db, then write the processed state into another db table.
+///
+/// First, let's consider what the dashboards present:
+/// * time - live peers count, graph
+/// * time - 80%/90%/95% percent propagation, graph
+/// * node version distribution, pie
+/// * node country distribution, pie
+/// * ~~time - count of peers with 1m/1h/1d/1M connection duration, graph~~
+///
+/// Next, list what kind of original information we can collect:
+/// 1. insert a heartbeat record into db with time=now. then db select unique peer id in the time range to calculate the live peers count.
+/// 2. background thread insert the calculated live peers count into another table "peers{time, count}".
+/// 3. insert (CONFLICT ON (peer_id, hash) DO NOTHING ) "propagation{time,peer,hash,message_type}" into db when receives messages.
+/// 4. background thread calculate 80%/90%/95% percent propagation and insert into db "propagation_percentage".
+/// 5. select count(*) from peer group by version in the time range, the node version distribution. do it on Grafana
 
 #[derive(Clone)]
 pub(crate) struct NetworkPropagation {
-    ckb_network_config: NetworkConfig,
+    config: crate::Config,
     jsonrpc: Jsonrpc,
-    peers: Arc<Mutex<HashMap<PeerIndex, Peer>>>,
-    compact_blocks: PropagationHashes,
-    transaction_hashes: PropagationHashes,
-    query_sender: Sender<WriteQuery>,
-    last_report_total_peers: Instant,
+    point_sender: crossbeam::channel::Sender<Box<dyn crate::table::Point>>,
+    async_handle02: ckb_async_runtime::Handle,
+    last_heartbeat: Arc<Mutex<VecDeque<(PeerIndex, Instant)>>>,
 }
+
+const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(10 * 60);
 
 impl NetworkPropagation {
     pub(crate) fn new(
-        ckb_rpc_url: &str,
-        bootnodes: Vec<Multiaddr>,
-        query_sender: Sender<WriteQuery>,
+        config: crate::Config,
+        jsonrpc: Jsonrpc,
+        point_sender: crossbeam::channel::Sender<Box<dyn crate::table::Point>>,
+        async_handle02: ckb_async_runtime::Handle,
     ) -> Self {
-        let jsonrpc = Jsonrpc::connect(ckb_rpc_url);
-        let ckb_network_config = build_network_config(bootnodes);
         Self {
+            config,
             jsonrpc,
-            query_sender,
-            ckb_network_config,
-            peers: Default::default(),
-            compact_blocks: Default::default(),
-            transaction_hashes: Default::default(),
-            last_report_total_peers: Instant::now(),
+            point_sender,
+            async_handle02,
+            last_heartbeat: Arc::new(Mutex::new(Default::default())),
         }
     }
 
-    pub(crate) fn run(&mut self, async_handle: ckb_async_runtime::Handle) {
+    pub(crate) fn run(&mut self) {
+        let ckb_network_config = build_network_config(self.config.node.bootnodes.clone());
         let network_state =
-            Arc::new(NetworkState::from_config(self.ckb_network_config.clone()).unwrap());
+            Arc::new(NetworkState::from_config(ckb_network_config.clone()).unwrap());
         let exit_handler = DefaultExitHandler::default();
         let version = get_version();
         let protocols = vec![SupportProtocols::Sync, SupportProtocols::Relay];
@@ -97,6 +110,7 @@ impl NetworkPropagation {
             })
             .collect();
         let network_identifier = get_network_identifier(&self.jsonrpc);
+        let async_handle = self.async_handle02.clone();
         let _network_controller = NetworkService::new(
             network_state,
             ckb_protocols,
@@ -161,38 +175,19 @@ impl NetworkPropagation {
         compact_block: CompactBlock,
     ) {
         let hash = compact_block.calc_header_hash();
-        let (peers_received, first_received, newly_inserted) = {
-            let mut compact_blocks = self.compact_blocks.lock().unwrap();
-            let (first_received, peers) = compact_blocks
-                .entry(hash)
-                .or_insert_with(|| (Instant::now(), HashSet::default()));
-            let newly_inserted = peers.insert(peer_index);
-            (peers.len() as u32, *first_received, newly_inserted)
-        };
-        if newly_inserted {
-            if let Some(peer) = nc.get_peer(peer_index) {
-                self.report_high_latency_propagation(first_received, &peer);
-                self.report_propagation("compact_block", peers_received, first_received)
-            }
+        if let Some(peer) = nc.get_peer(peer_index) {
+            self.report_propagation("b", &peer, &hash)
         }
     }
 
     fn received_transaction_hash(
         &mut self,
-        _nc: Arc<dyn CKBProtocolContext + Sync>,
+        nc: Arc<dyn CKBProtocolContext + Sync>,
         peer_index: PeerIndex,
         hash: Byte32,
     ) {
-        let (peers_received, first_received, newly_inserted) = {
-            let mut transaction_hashes = self.transaction_hashes.lock().unwrap();
-            let (first_received, peers) = transaction_hashes
-                .entry(hash)
-                .or_insert_with(|| (Instant::now(), HashSet::default()));
-            let newly_inserted = peers.insert(peer_index);
-            (peers.len() as u32, *first_received, newly_inserted)
-        };
-        if newly_inserted {
-            self.report_propagation("transaction_hash", peers_received, first_received)
+        if let Some(peer) = nc.get_peer(peer_index) {
+            self.report_propagation("t", &peer, &hash)
         }
     }
 
@@ -204,97 +199,48 @@ impl NetworkPropagation {
     ) {
     }
 
-    fn report_high_latency_propagation(&self, first_received: Instant, peer: &Peer) {
-        let time_interval = first_received.elapsed();
-        if time_interval < Duration::from_secs(8) {
-            return;
-        }
-
-        let query = measurement::HighLatency {
-            time: Utc::now().into(),
-            time_interval: time_interval.as_millis() as u64,
-            addr: peer.connected_addr.to_string(),
-        }
-        .into_write_query();
-        self.query_sender.send(query).unwrap();
-    }
-
-    fn report_propagation<M>(&self, message_type: M, peers_received: u32, first_received: Instant)
+    fn report_propagation<M>(&self, message_name: M, peer: &Peer, hash: &Byte32)
     where
         M: ToString,
     {
-        let peers_total = self.peers.lock().unwrap().len();
-        let last_percentile = (peers_received - 1) as f32 * 100.0 / peers_total as f32;
-        let current_percentile = peers_received as f32 * 100.0 / peers_total as f32;
-        let time_interval = first_received.elapsed().as_millis() as u64;
-        let percentile = if last_percentile < 99.0 && current_percentile >= 99.0 {
-            Some(99)
-        } else if last_percentile < 95.0 && current_percentile >= 95.0 {
-            Some(95)
-        } else if last_percentile < 80.0 && current_percentile >= 80.0 {
-            Some(80)
-        } else {
-            None
+        let point = crate::table::Propagation {
+            network: self.config.network(),
+            time: Utc::now().naive_utc(),
+            peer_id: peer.peer_id.to_base58(),
+            hash: format!("{:#x}", hash),
+            message_name: message_name.to_string(),
         };
-
-        if let Some(percentile) = percentile {
-            let query = measurement::Propagation {
-                time: Utc::now().into(),
-                time_interval,
-                percentile,
-                message_type: message_type.to_string(),
-            }
-            .into_write_query();
-            self.query_sender.send(query).unwrap();
-        }
+        self.point_sender.send(Box::new(point)).unwrap();
     }
 
-    fn report_peers(&mut self) {
-        if let Ok(guard) = self.peers.lock() {
-            let peers_total = guard.len() as u32;
-            let now = Utc::now().into();
-            let query = measurement::Peers {
-                time: now,
-                peers_total,
-            }
-            .into_write_query();
-            self.query_sender.send(query).unwrap();
-
-            // Node Info
-            {
-                let mut queries = HashMap::new();
-                for peer in self.jsonrpc.get_peers() {
-                    if !peer.version.contains("probe") {
-                        let query = measurement::Peer {
-                            time: now,
-                            connected_duration: peer.connected_duration.value() * 1000,
-                            peer_id: peer.node_id.clone(),
-                            version: peer.version,
-                            is_public: false,
-                        };
-                        queries.insert(peer.node_id, query);
-                    }
-                }
-                for peer in guard.values() {
-                    let query = measurement::Peer {
-                        time: now,
-                        connected_duration: peer.connected_time.elapsed().as_millis() as u64,
-                        peer_id: peer.peer_id.to_base58(),
-                        version: peer
-                            .identify_info
-                            .as_ref()
-                            .map(|identity| identity.client_version.clone())
-                            .unwrap_or_default(),
-                        is_public: true,
-                    };
-                    queries.insert(peer.peer_id.to_base58(), query);
-                }
-                for (_, query) in queries.into_iter() {
-                    self.query_sender.send(query.into_write_query()).unwrap();
-                }
-            }
-        }
-        self.last_report_total_peers = Instant::now();
+    fn report_heartbeat(&self, peer: &Peer) {
+        let host = {
+            let host = peer
+                .connected_addr
+                .iter()
+                .find_map(|protocol| match protocol {
+                    tentacle_multiaddr::Protocol::IP4(ip4) => Some(ip4.to_string()),
+                    tentacle_multiaddr::Protocol::IP6(ip6) => Some(ip6.to_string()),
+                    tentacle_multiaddr::Protocol::DNS4(dns4) => Some(dns4.to_string()),
+                    tentacle_multiaddr::Protocol::DNS6(dns6) => Some(dns6.to_string()),
+                    _ => None,
+                });
+            host.unwrap_or_else(|| peer.connected_addr.to_string())
+        };
+        let client_version = if let Some(ref identify) = peer.identify_info {
+            identify.client_version.clone()
+        } else {
+            "-".to_string()
+        };
+        let point = crate::table::Heartbeat {
+            network: self.config.network(),
+            time: Utc::now().naive_utc(),
+            peer_id: peer.peer_id.to_base58(),
+            host,
+            connected_duration: peer.connected_time.elapsed().as_millis() as i64,
+            client_version,
+        };
+        self.point_sender.send(Box::new(point)).unwrap();
     }
 }
 
@@ -307,26 +253,20 @@ impl CKBProtocolHandler for NetworkPropagation {
         peer_index: PeerIndex,
         _version: &str,
     ) {
-        if let Ok(mut peers) = self.peers.lock() {
-            if let Some(peer) = nc.get_peer(peer_index) {
-                if !peers.contains_key(&peer_index) {
-                    peers.insert(peer_index, peer.clone());
+        if let Some(peer) = nc.get_peer(peer_index) {
+            if let Ok(mut last_heartbeat) = self.last_heartbeat.lock() {
+                if !last_heartbeat.iter().any(|(pi, _)| *pi == peer_index) {
+                    last_heartbeat.push_back((peer_index, Instant::now()));
                     log::info!("connect with #{}({:?})", peer_index, peer.connected_addr);
                 }
             }
         }
-        self.report_peers();
     }
 
     fn disconnected(&mut self, nc: Arc<dyn CKBProtocolContext + Sync>, peer_index: PeerIndex) {
-        if let Ok(mut peers) = self.peers.lock() {
-            if peers.remove(&peer_index).is_some() {
-                if let Some(peer) = nc.get_peer(peer_index) {
-                    log::info!("disconnect with #{}({:?})", peer_index, peer.connected_addr);
-                }
-            }
+        if let Some(peer) = nc.get_peer(peer_index) {
+            log::info!("disconnect with #{}({:?})", peer_index, peer.connected_addr);
         }
-        self.report_peers();
     }
 
     fn received(
@@ -336,12 +276,27 @@ impl CKBProtocolHandler for NetworkPropagation {
         data: Bytes,
     ) {
         if nc.protocol_id() == SupportProtocols::Relay.protocol_id() {
-            self.received_relay(nc, peer_index, data);
+            self.received_relay(nc.clone(), peer_index, data);
         } else if nc.protocol_id() == SupportProtocols::Sync.protocol_id() {
-            self.received_sync(nc, peer_index, data);
+            self.received_sync(nc.clone(), peer_index, data);
         }
-        if self.last_report_total_peers.elapsed() > Duration::from_secs(5 * 60) {
-            self.report_peers();
+
+        if let Ok(mut last_heartbeat) = self.last_heartbeat.lock() {
+            let mut to_heartbeat = Vec::new();
+            while let Some((_pi, instant)) = last_heartbeat.front() {
+                if instant.elapsed() < HEARTBEAT_INTERVAL {
+                    break;
+                }
+                let (pi, _) = last_heartbeat.pop_front().unwrap();
+                to_heartbeat.push(pi);
+            }
+            for pi in to_heartbeat.into_iter().rev() {
+                // If nc.get_peer() return None, this peer was disconnected, just discard it.
+                if let Some(peer) = nc.get_peer(pi) {
+                    self.report_heartbeat(&peer);
+                    last_heartbeat.push_back((pi, Instant::now()));
+                }
+            }
         }
     }
 }

@@ -1,15 +1,8 @@
-pub mod log_watcher;
-
-use crate::measurement;
+use crate::tokio01::prelude::*;
 use ckb_build_info::Version;
 use ckb_suite_rpc::Jsonrpc;
-use influxdb::{Client as Influx, ReadQuery};
-use jsonrpc_server_utils::tokio::prelude::*;
-pub use log_watcher::LogWatcher;
-use std::collections::HashMap;
 use std::net::{Ipv4Addr, SocketAddrV4, TcpListener};
-use std::sync::atomic::AtomicU16;
-use std::sync::atomic::Ordering::SeqCst;
+use std::sync::atomic::{AtomicU16, Ordering::SeqCst};
 
 static PORT_COUNTER: AtomicU16 = AtomicU16::new(18000);
 const VERSION_CODE_NAME: &str = "probe";
@@ -25,10 +18,10 @@ pub fn find_available_port() -> u16 {
     panic!("failed to allocate available port")
 }
 
-// Just transform tokio 1.0 channel to crossbeam channel
-// I don't know how to transform into tokio 2.0 channel
+// Just transform tokio 0.1 channel to crossbeam channel
+// I don't know how to transform into tokio 0.2 channel
 pub fn forward_tokio1_channel<T>(
-    tokio1_receiver: jsonrpc_server_utils::tokio::sync::mpsc::Receiver<T>,
+    tokio1_receiver: crate::tokio01::sync::mpsc::Receiver<T>,
 ) -> crossbeam::channel::Receiver<T>
 where
     T: Send + 'static,
@@ -43,37 +36,22 @@ where
     receiver
 }
 
-pub async fn select_last_block_number_in_influxdb(influx: &Influx, ckb_network_name: &str) -> u64 {
-    let query_name = {
-        let type_name = tynm::type_name::<measurement::Block>();
-        case_style::CaseStyle::guess(type_name)
-            .unwrap_or_else(|_| panic!("failed to convert the type name to kebabcase style"))
-            .to_kebabcase()
-    };
-    let sql = format!(
-        "SELECT last(number) FROM {query_name} WHERE network = '{ckb_network_name}'",
-        query_name = query_name,
-        ckb_network_name = ckb_network_name,
-    );
-    let query_last_number = ReadQuery::new(&sql);
-    match influx.query(&query_last_number).await {
-        Err(err) => {
-            log::error!("influxdb.query(\"{}\"), error: {}", sql, err);
-            ::std::process::exit(1);
-        }
-        Ok(results) => {
-            let json: HashMap<String, serde_json::Value> = serde_json::from_str(&results).unwrap();
-            let results = json.get("results").unwrap().as_array().unwrap();
-            let result = results.get(0).unwrap().as_object().unwrap();
-            if let Some(series) = result.get("series") {
-                let series = series.as_array().unwrap();
-                let serie = series.get(0).unwrap().as_object().unwrap();
-                let values = serie.get("values").unwrap().as_array().unwrap();
-                let value = values.get(0).unwrap().as_array().unwrap();
-                value.get(1).unwrap().as_u64().unwrap()
-            } else {
-                1
-            }
+pub async fn get_last_updated_block_number(
+    pg: &tokio_postgres::Client,
+    ckb_network_name: &str,
+) -> u64 {
+    match pg
+        .query_opt(
+            "SELECT number FROM block WHERE network = $1 ORDER BY time DESC LIMIT 1",
+            &[&ckb_network_name],
+        )
+        .await
+        .unwrap()
+    {
+        None => 0,
+        Some(raw) => {
+            let number: i64 = raw.get(0);
+            number as u64
         }
     }
 }

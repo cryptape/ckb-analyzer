@@ -1,25 +1,10 @@
-//! This module aims on the main chain data.
-//! This module travels the main chain and produces the below measurements:
-//!   - [Epoch](TODO link to measurement)
-//!   - [Block](TODO link to measurement)
-//!   - [Uncle](TODO link to measurement)
-//!   - [Transaction](TODO link to measurement)
-//!
-//! ### Why measure it?
-//!
-//! We can do much things based on the main chain data. Please reference more detail from the
-//! dashboards.
-
-// TODO Only one node run for canonical chain
-
-use crate::measurement::{self, IntoWriteQuery};
+use crate::config::Config;
+use crate::table;
 use ckb_suite_rpc::Jsonrpc;
 use ckb_types::core::{BlockNumber, HeaderView};
 use ckb_types::core::{BlockView, EpochNumber};
 use ckb_types::packed::{CellbaseWitness, ProposalShortId, Script};
 use ckb_types::prelude::*;
-use crossbeam::channel::Sender;
-use influxdb::{Timestamp, WriteQuery};
 use std::cmp::max;
 use std::collections::{HashMap, HashSet};
 use std::time::{Duration, Instant};
@@ -27,23 +12,25 @@ use std::time::{Duration, Instant};
 pub const PROPOSAL_WINDOW: (u64, u64) = (2, 10);
 
 pub struct CanonicalChainState {
-    query_sender: Sender<WriteQuery>,
+    config: Config,
+    point_sender: crossbeam::channel::Sender<Box<dyn crate::table::Point>>,
+    jsonrpc: Jsonrpc,
     start_number: BlockNumber,
-    rpc: Jsonrpc,
     proposals_zones: HashMap<BlockNumber, HashSet<ProposalShortId>>,
 }
 
 impl CanonicalChainState {
     pub fn new(
-        ckb_rpc_url: &str,
-        query_sender: Sender<WriteQuery>,
+        config: Config,
+        jsonrpc: Jsonrpc,
+        point_sender: crossbeam::channel::Sender<Box<dyn crate::table::Point>>,
         start_number: BlockNumber,
     ) -> Self {
-        let rpc = Jsonrpc::connect(ckb_rpc_url);
         Self {
-            query_sender,
+            config,
+            jsonrpc,
+            point_sender,
             start_number,
-            rpc,
             proposals_zones: Default::default(),
         }
     }
@@ -54,9 +41,9 @@ impl CanonicalChainState {
 
     async fn analyze_blocks(&mut self) {
         let mut number = max(1, self.start_number + 1);
-        let mut tip = self.rpc.get_tip_block_number();
+        let mut tip = self.jsonrpc.get_tip_block_number();
         let mut parent: BlockView = self
-            .rpc
+            .jsonrpc
             .get_block_by_number(number.saturating_sub(1))
             .unwrap()
             .into();
@@ -65,12 +52,12 @@ impl CanonicalChainState {
         loop {
             // Assume 10 is block confirmation
             if number >= tip - 10 {
-                tokio::time::delay_for(Duration::from_secs(1)).await;
-                tip = self.rpc.get_tip_block_number();
+                tokio::time::sleep(Duration::from_secs(1)).await;
+                tip = self.jsonrpc.get_tip_block_number();
                 continue;
             }
 
-            if let Some(json_block) = self.rpc.get_block_by_number(number) {
+            if let Some(json_block) = self.jsonrpc.get_block_by_number(number) {
                 let block: BlockView = json_block.into();
                 self.analyze_block(&block, &parent).await;
                 self.analyze_block_uncles(&block).await;
@@ -89,32 +76,36 @@ impl CanonicalChainState {
     }
 
     async fn analyze_block(&self, block: &BlockView, parent: &BlockView) {
-        let time = Timestamp::Milliseconds(block.timestamp() as u128);
+        let time = chrono::NaiveDateTime::from_timestamp(
+            (block.timestamp() / 1000) as i64,
+            (block.timestamp() % 1000 * 1000) as u32,
+        );
         let number = block.number();
-        let time_interval = block.timestamp().saturating_sub(parent.timestamp()); // ms
-        let transactions_count = block.transactions().len() as u32;
-        let uncles_count = block.uncles().hashes().len() as u32;
-        let proposals_count = block.union_proposal_ids().len() as u32;
+        let interval = block.timestamp() as i64 - parent.timestamp() as i64; // ms
+        let n_transactions = block.transactions().len() as u32;
+        let n_proposals = block.union_proposal_ids().len() as u32;
+        let n_uncles = block.uncles().hashes().len() as u32;
         let version = block.version();
-        let miner_lock_args = extract_miner_lock(&block).args().to_string();
-        let query = measurement::Block {
+        let point = table::Block {
+            network: self.config.network(),
             time,
-            number,
-            time_interval,
-            transactions_count,
-            uncles_count,
-            proposals_count,
-            version,
-            miner_lock_args,
-        }
-        .into_write_query();
-        log::info!("block #{}, timestamp: {}", number, block.timestamp(),);
-        self.query_sender.send(query).unwrap();
+            number: number as i64,
+            interval: interval as i64,
+            n_transactions: n_transactions as i32,
+            n_proposals: n_proposals as i32,
+            n_uncles: n_uncles as i32,
+            version: version as i32,
+            hash: format!("{:#x}", block.hash()),
+            miner: format!("{:#x}", extract_miner_lock(&block).args()),
+        };
+
+        log::info!("block #{}, timestamp: {}", number, block.timestamp());
+        self.point_sender.send(Box::new(point)).unwrap();
     }
 
     async fn analyze_block_uncles(&self, block: &BlockView) {
         for uncle_hash in block.uncle_hashes() {
-            if let Some(json_uncle) = self.rpc.get_fork_block(uncle_hash) {
+            if let Some(json_uncle) = self.jsonrpc.get_fork_block(uncle_hash) {
                 self.analyze_block_uncle(&json_uncle.into()).await
             }
         }
@@ -122,55 +113,65 @@ impl CanonicalChainState {
 
     async fn analyze_block_uncle(&self, uncle: &BlockView) {
         let uncle_number = uncle.number();
-        let time = Timestamp::Milliseconds(uncle.timestamp() as u128);
-        let proposals_count = uncle.union_proposal_ids().len() as u32;
-        let transactions_count = uncle.transactions().len() as u32;
+        let time = chrono::NaiveDateTime::from_timestamp(
+            (uncle.timestamp() / 1000) as i64,
+            (uncle.timestamp() % 1000 * 1000) as u32,
+        );
+        let n_transactions = uncle.transactions().len() as u32;
+        let n_proposals = uncle.union_proposal_ids().len() as u32;
         let version = uncle.version();
-        let miner_lock_args = format!("{:#x}", extract_miner_lock(&uncle).args());
-        let slower_than_cousin = {
-            let cousin = self.rpc.get_header_by_number(uncle_number).unwrap().inner;
+        let lag_to_canonical = {
+            let cousin = self
+                .jsonrpc
+                .get_header_by_number(uncle_number)
+                .unwrap()
+                .inner;
             cousin.timestamp.value() as i64 - uncle.timestamp() as i64
         };
-        let query = measurement::Uncle {
+        let point = table::Uncle {
             time,
-            number: uncle_number,
-            proposals_count,
-            transactions_count,
-            version,
-            miner_lock_args,
-            slower_than_cousin,
-        }
-        .into_write_query();
+            network: self.config.network(),
+            number: uncle_number as i64,
+            lag_to_canonical,
+            n_transactions: n_transactions as i32,
+            n_proposals: n_proposals as i32,
+            version: version as i32,
+            hash: format!("{:#x}", uncle.hash()),
+            miner: format!("{:#x}", extract_miner_lock(&uncle).args()),
+        };
         log::info!(
-            "[DEBUG] uncle #{}({:#x}), timestamp: {}, slower_than_cousin: {}",
+            "uncle #{}({:#x}), timestamp: {}, lag_to_canonical: {}",
             uncle_number,
             uncle.hash(),
             uncle.timestamp(),
-            slower_than_cousin,
+            lag_to_canonical,
         );
-        self.query_sender.send(query).unwrap();
+        self.point_sender.send(Box::new(point)).unwrap();
     }
 
     async fn analyze_block_transactions(&mut self, block: &BlockView) {
         let number = block.number();
         for transaction in block.transactions() {
             let proposal_id = transaction.proposal_short_id();
-            for proposed in number - PROPOSAL_WINDOW.1..=number - PROPOSAL_WINDOW.0 {
+            for proposed_number in number - PROPOSAL_WINDOW.1..=number - PROPOSAL_WINDOW.0 {
                 let removed = self
                     .proposals_zones
-                    .get_mut(&proposed)
+                    .get_mut(&proposed_number)
                     .map(|proposals_zone| proposals_zone.remove(&proposal_id))
                     .unwrap_or(false);
                 if removed {
-                    let time = Timestamp::Milliseconds(block.timestamp() as u128);
-                    let pc_delay = (number - proposed) as u32;
-                    let query = measurement::Transaction {
+                    let time = chrono::NaiveDateTime::from_timestamp(
+                        (block.timestamp() / 1000) as i64,
+                        (block.timestamp() % 1000 * 1000) as u32,
+                    );
+                    let delay = number - proposed_number;
+                    let point = table::TwoPCCommitment {
                         time,
-                        number,
-                        pc_delay,
-                    }
-                    .into_write_query();
-                    self.query_sender.send(query).unwrap();
+                        network: self.config.network(),
+                        number: number as i64,
+                        delay: delay as i32,
+                    };
+                    self.point_sender.send(Box::new(point)).unwrap();
                     break;
                 }
             }
@@ -189,25 +190,39 @@ impl CanonicalChainState {
         block: &BlockView,
     ) {
         if *current_epoch_number != block.epoch().number() {
-            let epoch = self.rpc.get_epoch_by_number(*current_epoch_number).unwrap();
+            let epoch = self
+                .jsonrpc
+                .get_epoch_by_number(*current_epoch_number)
+                .unwrap();
             let start_number = epoch.start_number.value();
             let length = epoch.length.value();
             let end_number = start_number + length - 1;
-            let start_header: HeaderView =
-                self.rpc.get_header_by_number(start_number).unwrap().into();
-            let end_header: HeaderView = self.rpc.get_header_by_number(end_number).unwrap().into();
+            let start_header: HeaderView = self
+                .jsonrpc
+                .get_header_by_number(start_number)
+                .unwrap()
+                .into();
+            let end_header: HeaderView = self
+                .jsonrpc
+                .get_header_by_number(end_number)
+                .unwrap()
+                .into();
+            let time = chrono::NaiveDateTime::from_timestamp(
+                (end_header.timestamp() / 1000) as i64,
+                (end_header.timestamp() % 1000 * 1000) as u32,
+            );
             let duration = end_header
                 .timestamp()
                 .saturating_sub(start_header.timestamp());
-            let query = measurement::Epoch {
-                time: Timestamp::Milliseconds(end_header.timestamp() as u128),
-                number: *current_epoch_number,
-                length,
-                duration,
-                uncles_count: *current_epoch_uncles_total,
-            }
-            .into_write_query();
-            self.query_sender.send(query).unwrap();
+            let point = table::Epoch {
+                time,
+                network: self.config.network(),
+                number: *current_epoch_number as i64,
+                length: length as i32,
+                duration: duration as i32,
+                n_uncles: *current_epoch_uncles_total as i32,
+            };
+            self.point_sender.send(Box::new(point)).unwrap();
 
             *current_epoch_number = block.epoch().number();
             *current_epoch_uncles_total = 0;
