@@ -1,3 +1,4 @@
+use crate::config::Config;
 use crate::table;
 use ckb_suite_rpc::Jsonrpc;
 use ckb_types::core::{BlockNumber, HeaderView};
@@ -11,49 +12,25 @@ use std::time::{Duration, Instant};
 pub const PROPOSAL_WINDOW: (u64, u64) = (2, 10);
 
 pub struct CanonicalChainState {
-    pg: tokio_postgres::Client,
+    config: Config,
+    point_sender: crossbeam::channel::Sender<Box<dyn crate::table::Point>>,
     jsonrpc: Jsonrpc,
     start_number: BlockNumber,
     proposals_zones: HashMap<BlockNumber, HashSet<ProposalShortId>>,
-
-    block_stmt: tokio_postgres::Statement,
-    uncle_stmt: tokio_postgres::Statement,
-    epoch_stmt: tokio_postgres::Statement,
-    two_pc_commitment_stmt: tokio_postgres::Statement,
 }
 
 impl CanonicalChainState {
-    pub async fn new(
+    pub fn new(
+        config: Config,
         jsonrpc: Jsonrpc,
-        pg: tokio_postgres::Client,
+        point_sender: crossbeam::channel::Sender<Box<dyn crate::table::Point>>,
         start_number: BlockNumber,
     ) -> Self {
-        let block_stmt = pg.prepare(
-            "INSERT INTO block (time, number, interval, n_transactions, n_proposals, n_uncles, hash, miner, version)\
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)"
-        ).await.unwrap();
-        let uncle_stmt = pg.prepare(
-            "INSERT INTO uncle (time, number, lag_to_canonical, n_transactions, n_proposals, hash, miner, version) \
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)"
-        ).await.unwrap();
-        let two_pc_commitment_stmt = pg
-            .prepare(
-                "INSERT INTO two_pc_commitment (time, number, delay) \
-            VALUES ($1, $2, $3)",
-            )
-            .await
-            .unwrap();
-        let epoch_stmt = pg.prepare(
-            "INSERT INTO epoch (time, number, length, duration, n_uncles) VALUES ($1, $2, $3, $4, $5)"
-        ).await.unwrap();
         Self {
+            config,
             jsonrpc,
-            pg,
+            point_sender,
             start_number,
-            block_stmt,
-            uncle_stmt,
-            epoch_stmt,
-            two_pc_commitment_stmt,
             proposals_zones: Default::default(),
         }
     }
@@ -75,7 +52,7 @@ impl CanonicalChainState {
         loop {
             // Assume 10 is block confirmation
             if number >= tip - 10 {
-                tokio::time::delay_for(Duration::from_secs(1)).await;
+                tokio::time::sleep(Duration::from_secs(1)).await;
                 tip = self.jsonrpc.get_tip_block_number();
                 continue;
             }
@@ -110,6 +87,7 @@ impl CanonicalChainState {
         let n_uncles = block.uncles().hashes().len() as u32;
         let version = block.version();
         let point = table::Block {
+            network: self.config.network(),
             time,
             number: number as i64,
             interval: interval as i64,
@@ -122,23 +100,7 @@ impl CanonicalChainState {
         };
 
         log::info!("block #{}, timestamp: {}", number, block.timestamp());
-        self.pg
-            .execute(
-                &self.block_stmt,
-                &[
-                    &point.time,
-                    &point.number,
-                    &point.interval,
-                    &point.n_transactions,
-                    &point.n_proposals,
-                    &point.n_uncles,
-                    &point.hash,
-                    &point.miner,
-                    &point.version,
-                ],
-            )
-            .await
-            .unwrap();
+        self.point_sender.send(Box::new(point)).unwrap();
     }
 
     async fn analyze_block_uncles(&self, block: &BlockView) {
@@ -168,6 +130,7 @@ impl CanonicalChainState {
         };
         let point = table::Uncle {
             time,
+            network: self.config.network(),
             number: uncle_number as i64,
             lag_to_canonical,
             n_transactions: n_transactions as i32,
@@ -183,22 +146,7 @@ impl CanonicalChainState {
             uncle.timestamp(),
             lag_to_canonical,
         );
-        self.pg
-            .execute(
-                &self.uncle_stmt,
-                &[
-                    &point.time,
-                    &point.number,
-                    &point.lag_to_canonical,
-                    &point.n_transactions,
-                    &point.n_proposals,
-                    &point.hash,
-                    &point.miner,
-                    &point.version,
-                ],
-            )
-            .await
-            .unwrap();
+        self.point_sender.send(Box::new(point)).unwrap();
     }
 
     async fn analyze_block_transactions(&mut self, block: &BlockView) {
@@ -219,16 +167,11 @@ impl CanonicalChainState {
                     let delay = number - proposed_number;
                     let point = table::TwoPCCommitment {
                         time,
+                        network: self.config.network(),
                         number: number as i64,
                         delay: delay as i32,
                     };
-                    self.pg
-                        .execute(
-                            &self.two_pc_commitment_stmt,
-                            &[&point.time, &point.number, &point.delay],
-                        )
-                        .await
-                        .unwrap();
+                    self.point_sender.send(Box::new(point)).unwrap();
                     break;
                 }
             }
@@ -273,24 +216,13 @@ impl CanonicalChainState {
                 .saturating_sub(start_header.timestamp());
             let point = table::Epoch {
                 time,
+                network: self.config.network(),
                 number: *current_epoch_number as i64,
                 length: length as i32,
                 duration: duration as i32,
                 n_uncles: *current_epoch_uncles_total as i32,
             };
-            self.pg
-                .execute(
-                    &self.epoch_stmt,
-                    &[
-                        &point.time,
-                        &point.number,
-                        &point.length,
-                        &point.duration,
-                        &point.n_uncles,
-                    ],
-                )
-                .await
-                .unwrap();
+            self.point_sender.send(Box::new(point)).unwrap();
 
             *current_epoch_number = block.epoch().number();
             *current_epoch_uncles_total = 0;

@@ -122,147 +122,144 @@
 //!   Pushing metrics actively via HTTP to InfluxDB is much useful!
 
 use crate::config::{Config, Topic};
+use crate::table::Point;
 use crate::topic::{
-    CanonicalChainState, NetworkPropagation, NetworkTopology, PatternLogs, Reorganization,
-    TxTransition,
+    CanonicalChainState, NetworkPropagation, NetworkTopology, Reorganization, TxTransition,
 };
 use crate::util::get_last_updated_block_number;
 use ckb_suite_rpc::Jsonrpc;
 use crossbeam::channel::bounded;
-use influxdb::Client as Influx;
+use jsonrpc_server_utils::tokio as tokio01;
+use std::collections::HashMap;
 use std::env::var;
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::Arc;
 
 mod config;
 mod dashboard;
-mod measurement;
 mod subscribe;
 mod table;
 mod topic;
 mod util;
 
 fn main() {
-    let (async_handle, _stop_handler) = ckb_async_runtime::new_global_runtime();
-    async_handle.block_on(run(async_handle.clone()));
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .thread_name("ckb-analyzer-runtime")
+        .build()
+        .expect("ckb runtime initialized");
+    let (async_handle02, _stop_handler) = ckb_async_runtime::new_global_runtime();
+    runtime.block_on(run(async_handle02));
 }
 
-async fn run(async_handle: ckb_async_runtime::Handle) {
+async fn run(async_handle02: ckb_async_runtime::Handle) {
     init_logger();
     log::info!("ckb-analyzer starting");
     let config = init_config();
-    let influx = init_influx(&config);
-    let (query_sender, query_receiver) = bounded(5000);
-    let node = config.node.clone();
+    let (point_sender, point_receiver) = bounded::<Box<dyn Point>>(5000);
+    let pg = create_pg(config.postgres()).await;
 
     for topic in config.topics.iter() {
         let topic = *topic;
         log::info!("Start topic {:?}", topic);
         match topic {
             Topic::CanonicalChainState => {
-                let pg = create_pg(&async_handle, &config.postgres()).await;
-                let jsonrpc = Jsonrpc::connect(&node.rpc_url());
+                let jsonrpc = Jsonrpc::connect(&config.rpc_url());
                 let last_number = get_last_updated_block_number(&pg, &config.network).await;
-                let mut handler = CanonicalChainState::new(jsonrpc, pg, last_number).await;
-                async_handle.spawn(async move {
+                let mut handler = CanonicalChainState::new(
+                    config.clone(),
+                    jsonrpc,
+                    point_sender.clone(),
+                    last_number,
+                );
+                tokio::spawn(async move {
                     handler.run().await;
                     log::info!("End topic {:?}", topic);
                 });
             }
             Topic::Reorganization => {
-                let (handler, subscription) = Reorganization::new(
-                    node.rpc_url(),
-                    node.subscription_url(),
-                    query_sender.clone(),
-                );
+                let jsonrpc = Jsonrpc::connect(&config.rpc_url());
+                let (handler, subscription) =
+                    Reorganization::new(config.clone(), jsonrpc, point_sender.clone());
 
-                // // WARNING: Use tokio 1.0 to run subscription. Since jsonrpc has not support 2.0 yet
                 ::std::thread::spawn(move || {
-                    jsonrpc_server_utils::tokio::run(subscription.run());
+                    let mut runtime01 = tokio01::runtime::Builder::new().build().unwrap();
+                    runtime01.block_on(subscription.run()).unwrap();
+                    log::info!("Runtime for subscription on topic {:?} exit", topic);
                 });
 
-                // jsonrpc_server_utils::tokio::spawn(subscription.run());
-
-                // // PROBLEM: With delaying a while, both tasks subscription and reorganization will run;
-                // // But without delaying, only the task reorganization will run.
-                // async_handle.spawn(async { subscription.run().await });
-                // tokio::time::delay_for(::std::time::Duration::from_secs(3)).await;
-
-                async_handle.spawn(async move {
+                tokio::spawn(async move {
                     handler.run().await;
                     log::info!("End topic {:?}", topic);
                 });
             }
             Topic::TxTransition => {
-                let (handler, subscription) = TxTransition::new(
-                    node.rpc_url(),
-                    node.subscription_url(),
-                    query_sender.clone(),
-                );
-
-                // WARNING: Use tokio 1.0 to run subscription. Since jsonrpc has not support 2.0 yet
-                // jsonrpc_server_utils::tokio::spawn(subscription.run());
+                let jsonrpc = Jsonrpc::connect(&config.rpc_url());
+                let (handler, subscription) =
+                    TxTransition::new(config.clone(), jsonrpc, point_sender.clone());
 
                 ::std::thread::spawn(move || {
-                    jsonrpc_server_utils::tokio::run(subscription.run());
+                    let mut runtime01 = tokio01::runtime::Builder::new().build().unwrap();
+                    runtime01.block_on(subscription.run()).unwrap();
+                    log::info!("Runtime for subscription on topic {:?} exit", topic);
                 });
 
-                async_handle.spawn(async move {
+                tokio::spawn(async move {
                     handler.run().await;
                     log::info!("End topic {:?}", topic);
                 });
             }
             Topic::NetworkPropagation => {
-                // WARNING: As network service is synchronous, DON'T use async runtime.
+                let jsonrpc = Jsonrpc::connect(&config.rpc_url());
                 let mut handler = NetworkPropagation::new(
-                    node.rpc_url().as_str(),
-                    node.bootnodes.clone(),
-                    query_sender.clone(),
+                    config.clone(),
+                    jsonrpc,
+                    point_sender.clone(),
+                    async_handle02.clone(),
                 );
-                let async_handle_ = async_handle.clone();
-                ::std::thread::spawn(move || handler.run(async_handle_));
+                ::std::thread::spawn(move || handler.run());
             }
             Topic::NetworkTopology => {
-                // TODO
+                // TODO NetworkTopology
                 let handler = NetworkTopology::new(vec![]);
-                async_handle.spawn(async move {
+                tokio::spawn(async move {
                     handler.run().await;
                     log::info!("End topic {:?}", topic);
                 });
             }
             Topic::PatternLogs => {
-                let mut handler = PatternLogs::new(&node.data_dir, query_sender.clone()).await;
-                async_handle.spawn(async move {
-                    handler.run().await;
-                    log::info!("End topic {:?}", topic);
-                });
+                // TODO
+                // let mut handler = PatternLogs::new(&node.data_dir, query_sender.clone()).await;
+                // async_handle.spawn(async move {
+                //     handler.run().await;
+                //     log::info!("End topic {:?}", topic);
+                // });
             }
         }
     }
 
-    let hostname = var("HOSTNAME")
-        .unwrap_or_else(|_| gethostname::gethostname().to_string_lossy().to_string());
-    let rate_limiter = Arc::new(AtomicU64::new(0));
-    for mut query in query_receiver {
-        // Attach built-in tags
-        query = query
-            .add_tag("network", config.network.clone())
-            .add_tag("hostname", hostname.clone());
+    let mut prepare_table = HashMap::new();
+    // let hostname = var("HOSTNAME")
+    //     .unwrap_or_else(|_| gethostname::gethostname().to_string_lossy().to_string());
+    // let rate_limiter = Arc::new(AtomicU64::new(0));
+    for point in point_receiver {
+        // // TODO Attach built-in tags
+        // query = query
+        //     .add_tag("network", config.network.clone())
+        //     .add_tag("hostname", hostname.clone());
 
         // Writes asynchronously
-        log::info!("{:?}", query);
-        while rate_limiter.load(Ordering::Relaxed) >= 100 {
-            tokio::time::delay_for(tokio::time::Duration::from_secs(1)).await;
+        log::info!("{}: {:?}", point.name(), point.params());
+        // while rate_limiter.load(Ordering::Relaxed) >= 100 {
+        //     tokio::time::sleep(Duration::from_secs(1)).await;
+        // }
+        // let rate_limiter_ = Arc::clone(&rate_limiter);
+
+        if let Some(prepare) = prepare_table.get(point.name()) {
+            pg.execute(prepare, &point.params()).await.unwrap();
+        } else {
+            let prepare = pg.prepare(point.insert_query()).await.unwrap();
+            pg.execute(&prepare, &point.params()).await.unwrap();
+            prepare_table.insert(point.name().to_string(), prepare);
         }
-        let rate_limiter_ = Arc::clone(&rate_limiter);
-        let influx_ = influx.clone();
-        async_handle.spawn(async move {
-            rate_limiter_.fetch_add(1, Ordering::Relaxed);
-            if let Err(err) = influx_.query(&query).await {
-                log::error!("influxdb.query, error: {}", err);
-            }
-            rate_limiter_.fetch_sub(1, Ordering::Relaxed);
-        });
     }
 }
 
@@ -279,24 +276,10 @@ fn init_config() -> Config {
     toml::from_str(&bytes).unwrap_or_else(|err| panic!("toml::from_str error: {:?}", err))
 }
 
-fn init_influx(config: &Config) -> Influx {
-    let username = var("INFLUXDB_USERNAME").unwrap_or_else(|_| "".to_string());
-    let password = var("INFLUXDB_PASSWORD").unwrap_or_else(|_| "".to_string());
-    let without_auth = username.is_empty();
-    if without_auth {
-        Influx::new(&config.influxdb.url, &config.influxdb.database)
-    } else {
-        Influx::new(&config.influxdb.url, &config.influxdb.database).with_auth(&username, &password)
-    }
-}
-
-async fn create_pg(
-    async_handle: &ckb_async_runtime::Handle,
-    pg_config: &tokio_postgres::Config,
-) -> tokio_postgres::Client {
-    let (pg, connection) = pg_config.connect(tokio_postgres::NoTls).await.unwrap();
-    async_handle.spawn(async move {
-        if let Err(err) = connection.await {
+async fn create_pg(pg_config: tokio_postgres::Config) -> tokio_postgres::Client {
+    let (pg, conn) = pg_config.connect(tokio_postgres::NoTls).await.unwrap();
+    tokio::spawn(async move {
+        if let Err(err) = conn.await {
             log::error!("postgres connection error: {}", err);
         }
     });

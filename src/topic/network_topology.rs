@@ -23,7 +23,7 @@ impl NetworkTopology {
     pub(crate) async fn run(&self) {
         loop {
             self.analyze().await;
-            tokio::time::delay_for(Duration::from_secs(60 * 10)).await;
+            tokio::time::sleep(Duration::from_secs(60 * 10)).await;
         }
     }
 
