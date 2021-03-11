@@ -30,6 +30,7 @@ use ckb_types::packed::{
     Byte32, CompactBlock, RelayMessage, RelayMessageUnion, SendBlock, SyncMessage, SyncMessageUnion,
 };
 use ckb_types::prelude::*;
+use ipinfo::IpInfo;
 use std::collections::VecDeque;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
@@ -68,6 +69,7 @@ pub(crate) struct NetworkPropagation {
     point_sender: crossbeam::channel::Sender<Box<dyn crate::table::Point>>,
     async_handle02: ckb_async_runtime::Handle,
     last_heartbeat: Arc<Mutex<VecDeque<(PeerIndex, Instant)>>>,
+    ipinfo: Arc<Mutex<IpInfo>>,
 }
 
 const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(10 * 60);
@@ -79,12 +81,19 @@ impl NetworkPropagation {
         point_sender: crossbeam::channel::Sender<Box<dyn crate::table::Point>>,
         async_handle02: ckb_async_runtime::Handle,
     ) -> Self {
+        let ipinfo = ipinfo::IpInfo::new(ipinfo::IpInfoConfig {
+            token: config.ipinfo_io_token.clone(),
+            cache_size: 1000,
+            timeout: ::std::time::Duration::from_secs(2 * 60),
+        })
+        .expect("connect to https://ipinfo.io");
         Self {
             config,
             jsonrpc,
             point_sender,
             async_handle02,
             last_heartbeat: Arc::new(Mutex::new(Default::default())),
+            ipinfo: Arc::new(Mutex::new(ipinfo)),
         }
     }
 
@@ -220,7 +229,10 @@ impl NetworkPropagation {
                 .iter()
                 .find_map(|protocol| match protocol {
                     tentacle_multiaddr::Protocol::IP4(ip4) => Some(ip4.to_string()),
-                    tentacle_multiaddr::Protocol::IP6(ip6) => Some(ip6.to_string()),
+                    tentacle_multiaddr::Protocol::IP6(ip6) => ip6
+                        .to_ipv4()
+                        .map(|ip4| ip4.to_string())
+                        .or_else(|| Some(ip6.to_string())),
                     tentacle_multiaddr::Protocol::DNS4(dns4) => Some(dns4.to_string()),
                     tentacle_multiaddr::Protocol::DNS6(dns6) => Some(dns6.to_string()),
                     _ => None,
@@ -232,6 +244,7 @@ impl NetworkPropagation {
         } else {
             "-".to_string()
         };
+        let country = self.lookup_country(&host);
         let point = crate::table::Heartbeat {
             network: self.config.network(),
             time: Utc::now().naive_utc(),
@@ -239,8 +252,23 @@ impl NetworkPropagation {
             host,
             connected_duration: peer.connected_time.elapsed().as_millis() as i64,
             client_version,
+            country,
         };
         self.point_sender.send(Box::new(point)).unwrap();
+    }
+
+    pub fn lookup_country(&self, ip: &str) -> String {
+        let mut ipinfo = self.ipinfo.lock().expect("lock ipinfo");
+        match ipinfo.lookup(&[ip]) {
+            Ok(info_map) => {
+                let ipdetail = &info_map[ip];
+                ipdetail.country.clone()
+            }
+            Err(err) => {
+                log::error!("lookup ipinfo.io for {}, error: {:?}", ip, err);
+                String::from("")
+            }
+        }
     }
 }
 
@@ -254,11 +282,13 @@ impl CKBProtocolHandler for NetworkPropagation {
         _version: &str,
     ) {
         if let Some(peer) = nc.get_peer(peer_index) {
-            if let Ok(mut last_heartbeat) = self.last_heartbeat.lock() {
-                if !last_heartbeat.iter().any(|(pi, _)| *pi == peer_index) {
-                    last_heartbeat.push_back((peer_index, Instant::now()));
-                    log::info!("connect with #{}({:?})", peer_index, peer.connected_addr);
-                }
+            log::info!("connect with #{}({:?})", peer_index, peer.connected_addr);
+        }
+        if let Ok(mut last_heartbeat) = self.last_heartbeat.lock() {
+            if !last_heartbeat.iter().any(|(pi, _)| *pi == peer_index) {
+                // Assign an old timestamp, so that it can be report heartbeat ASAP
+                let tricky_instant = Instant::now() - HEARTBEAT_INTERVAL + Duration::from_secs(10);
+                last_heartbeat.push_back((peer_index, tricky_instant));
             }
         }
     }
