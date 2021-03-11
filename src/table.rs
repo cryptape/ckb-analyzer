@@ -289,7 +289,8 @@ impl Point for Transaction {
 ///     peer_id             VARCHAR ( 46 )  NOT NULL,
 ///     host                VARCHAR ( 46 )  NOT NULL,
 ///     connected_duration  BIGINT          NOT NULL,
-///     client_version      VARCHAR ( 200 ) NOT NULL
+///     client_version      VARCHAR ( 200 ) NOT NULL,
+///     country             VARCHAR ( 5 )   NULL
 /// );
 ///
 /// SELECT create_hypertable('heartbeat', 'time');
@@ -302,6 +303,7 @@ pub struct Heartbeat {
     pub host: String,
     pub connected_duration: i64, // ms
     pub client_version: String,
+    pub country: String,
 }
 
 impl Point for Heartbeat {
@@ -309,8 +311,8 @@ impl Point for Heartbeat {
         "heartbeat"
     }
     fn insert_query(&self) -> &'static str {
-        "INSERT INTO heartbeat(network, time, peer_id, host, connected_duration, client_version)\
-            VALUES ($1, $2, $3, $4, $5, $6)"
+        "INSERT INTO heartbeat(network, time, peer_id, host, connected_duration, client_version, country)\
+            VALUES ($1, $2, $3, $4, $5, $6, $7)"
     }
     fn params(&self) -> Vec<&(dyn ToSql + Sync)> {
         vec![
@@ -320,6 +322,7 @@ impl Point for Heartbeat {
             &self.host,
             &self.connected_duration,
             &self.client_version,
+            &self.country,
         ]
     }
 }
