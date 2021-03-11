@@ -5,6 +5,8 @@ use tentacle_multiaddr::Multiaddr;
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Config {
     pub network: String,
+    #[serde(default)]
+    pub ipinfo_io_token: Option<String>,
     pub topics: Vec<Topic>,
     pub postgres: String,
     pub node: NodeConfig,
