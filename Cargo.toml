@@ -4,7 +4,7 @@ version = "0.39.2"
 license = "MIT"
 authors = ["keroro <keroroxx520@gmail.com>"]
 edition = "2018"
-description = "ckb-analyzer analyzes kinds of data sources and upload the results into InfluxDB"
+description = "ckb-analyzer analyzes kinds of data sources and upload the results into PostgreSQL"
 homepage = "https://github.com/keroro520/ckb-analyzer"
 
 [dependencies]
@@ -18,7 +18,6 @@ ckb-types = { version = "0.39.1" }
 ckb-app-config = { version = "0.39.1" }
 ckb-async-runtime = { version = "0.39.1" }
 
-influxdb = { version = "0.3.0", features = ["derive"] }
 tokio = { version = "1.2.0", features = ["full"] }
 crossbeam = { version = "0.8.0" }
 chrono = { version = "0.4.19" }
@@ -42,6 +41,7 @@ log = { version = "0.4.11" }
 simple_logger = { version = "1.11.0", default-features = false }
 tentacle-multiaddr = { version = "0.2" }
 tokio-postgres = { version = "0.7.0", features = ["with-chrono-0_4", "runtime"] }
+ipinfo = { git = "https://github.com/keroro520/rust-ipinfo", branch = "hostname-optional" }
 
 [workspace]
 members = [
