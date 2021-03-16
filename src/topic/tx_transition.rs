@@ -22,7 +22,7 @@ use std::time::{Duration, Instant};
 ///   - Fix the issue that it takes too long to travel all the pending/proposed transactions.
 ///   - Enable subscription at ckb
 
-const SUSPEND_SECONDS: i64 = 10 * 60;
+const SUSPEND_SECONDS: i64 = 20 * 60;
 
 pub(crate) struct TxTransition {
     entries: HashMap<Byte32, TxEntry>,
