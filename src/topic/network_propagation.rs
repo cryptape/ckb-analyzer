@@ -336,7 +336,9 @@ fn build_network_config(bootnodes: Vec<Multiaddr>) -> NetworkConfig {
     let mut config = NetworkConfig::default();
     config.bootnodes = bootnodes;
     config.path = PathBuf::from("network");
-    config.listen_addresses = vec![format!("/ip4/0.0.0.0/tcp/{}", port).parse().unwrap()];
+    // Don't listen public port!
+    // config.listen_addresses = vec![format!("/ip4/0.0.0.0/tcp/{}", port).parse().unwrap()];
+    config.listen_addresses = vec![];
     config.max_peers = 5000;
     config.max_outbound_peers = 5000;
     config.ping_interval_secs = 120;
