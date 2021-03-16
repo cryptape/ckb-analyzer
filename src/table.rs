@@ -1,5 +1,6 @@
 // TODO How to store u64 in Postgres?
 // TODO Can we use "TIME" to represent duration?
+// TODO Define ToSQL types, instead of String
 
 use std::fmt::Debug;
 use tokio_postgres::types::ToSql;
@@ -395,6 +396,33 @@ impl Point for Propagation {
         ]
     }
 }
+
+/// # Create trigger
+/// ```sql
+/// CREATE OR REPLACE FUNCTION label_nth_propagation() RETURNS trigger AS $$
+/// DECLARE
+///     first_time TIMESTAMP;
+///     inserted_count INT;
+/// BEGIN
+///     SELECT first(time, time) INTO first_time FROM propagation WHERE hash = NEW.hash;
+///
+///     IF first_time IS NULL THEN
+///         NEW.elapsed = 0;
+///         NEW.nth = 1;
+///     ELSE
+///         SELECT COUNT(*) INTO inserted_count FROM propagation WHERE hash = NEW.hash;
+///         NEW.elapsed = EXTRACT(MILLISECONDS FROM (NEW.time - first_time));
+///         NEW.nth := inserted_count + 1;
+///     END IF;
+///
+///     RETURN NEW;
+/// END;
+/// $$ LANGUAGE plpgsql;
+///
+/// CREATE TRIGGER label_nth_propagation_trigger BEFORE INSERT ON propagation
+/// FOR EACH ROW
+/// EXECUTE PROCEDURE label_nth_propagation();
+/// ```
 
 /// ```
 /// CREATE TABLE IF NOT EXISTS propagation_percentile (
