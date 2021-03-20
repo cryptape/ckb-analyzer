@@ -30,7 +30,7 @@ pub(crate) struct Reorganization {
     config: Config,
     subscriber: crossbeam::channel::Receiver<(Topic, String)>,
     jsonrpc: Jsonrpc,
-    point_sender: crossbeam::channel::Sender<Box<dyn crate::table::Point>>,
+    query_sender: crossbeam::channel::Sender<String>,
     main_tip_number: BlockNumber,
     main_tip_hash: Byte32,
 }
@@ -39,7 +39,7 @@ impl Reorganization {
     pub(crate) fn new(
         config: Config,
         jsonrpc: Jsonrpc,
-        point_sender: crossbeam::channel::Sender<Box<dyn crate::table::Point>>,
+        query_sender: crossbeam::channel::Sender<String>,
     ) -> (Self, Subscription) {
         let (subscription, subscriber) =
             Subscription::new(config.subscription_url(), Topic::NewTipHeader);
@@ -47,7 +47,7 @@ impl Reorganization {
             Self {
                 config,
                 jsonrpc,
-                point_sender,
+                query_sender,
                 subscriber,
                 main_tip_number: 0,
                 main_tip_hash: Default::default(),
@@ -147,7 +147,7 @@ impl Reorganization {
             new_tip_hash: format!("{:#x}", new_tip.hash()),
             ancestor_hash: format!("{:#x}", ancestor.hash()),
         };
-        self.point_sender.send(Box::new(point)).unwrap();
+        self.query_sender.send(point.insert_query()).unwrap();
     }
 
     async fn get_header(&mut self, block_hash: Byte32) -> HeaderView {

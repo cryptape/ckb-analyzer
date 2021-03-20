@@ -13,7 +13,7 @@ pub const PROPOSAL_WINDOW: (u64, u64) = (2, 10);
 
 pub struct CanonicalChainState {
     config: Config,
-    point_sender: crossbeam::channel::Sender<Box<dyn crate::table::Point>>,
+    query_sender: crossbeam::channel::Sender<String>,
     jsonrpc: Jsonrpc,
     start_number: BlockNumber,
     proposals_zones: HashMap<BlockNumber, HashSet<ProposalShortId>>,
@@ -23,13 +23,13 @@ impl CanonicalChainState {
     pub fn new(
         config: Config,
         jsonrpc: Jsonrpc,
-        point_sender: crossbeam::channel::Sender<Box<dyn crate::table::Point>>,
+        query_sender: crossbeam::channel::Sender<String>,
         start_number: BlockNumber,
     ) -> Self {
         Self {
             config,
             jsonrpc,
-            point_sender,
+            query_sender,
             start_number,
             proposals_zones: Default::default(),
         }
@@ -100,7 +100,7 @@ impl CanonicalChainState {
         };
 
         log::info!("block #{}, timestamp: {}", number, block.timestamp());
-        self.point_sender.send(Box::new(point)).unwrap();
+        self.query_sender.send(point.insert_query()).unwrap();
     }
 
     async fn analyze_block_uncles(&self, block: &BlockView) {
@@ -146,7 +146,7 @@ impl CanonicalChainState {
             uncle.timestamp(),
             lag_to_canonical,
         );
-        self.point_sender.send(Box::new(point)).unwrap();
+        self.query_sender.send(point.insert_query()).unwrap();
     }
 
     async fn analyze_block_transactions(&mut self, block: &BlockView) {
@@ -171,7 +171,7 @@ impl CanonicalChainState {
                         number: number as i64,
                         delay: delay as i32,
                     };
-                    self.point_sender.send(Box::new(point)).unwrap();
+                    self.query_sender.send(point.insert_query()).unwrap();
                     break;
                 }
             }
@@ -222,7 +222,7 @@ impl CanonicalChainState {
                 duration: duration as i32,
                 n_uncles: *current_epoch_uncles_total as i32,
             };
-            self.point_sender.send(Box::new(point)).unwrap();
+            self.query_sender.send(point.insert_query()).unwrap();
 
             *current_epoch_number = block.epoch().number();
             *current_epoch_uncles_total = 0;

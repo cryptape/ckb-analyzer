@@ -122,7 +122,6 @@
 //!   Pushing metrics actively via HTTP to InfluxDB is much useful!
 
 use crate::config::{Config, Topic};
-use crate::table::Point;
 use crate::topic::{
     CanonicalChainState, NetworkPropagation, NetworkTopology, Reorganization, TxTransition,
 };
@@ -130,8 +129,8 @@ use crate::util::get_last_updated_block_number;
 use ckb_suite_rpc::Jsonrpc;
 use crossbeam::channel::bounded;
 use jsonrpc_server_utils::tokio as tokio01;
-use std::collections::HashMap;
 use std::env::var;
+use std::time::{Duration, Instant};
 
 mod config;
 mod dashboard;
@@ -154,7 +153,7 @@ async fn run(async_handle02: ckb_async_runtime::Handle) {
     init_logger();
     log::info!("ckb-analyzer starting");
     let config = init_config();
-    let (point_sender, point_receiver) = bounded::<Box<dyn Point>>(5000);
+    let (query_sender, query_receiver) = bounded::<String>(5000);
     let pg = create_pg(config.postgres()).await;
 
     for topic in config.topics.iter() {
@@ -167,7 +166,7 @@ async fn run(async_handle02: ckb_async_runtime::Handle) {
                 let mut handler = CanonicalChainState::new(
                     config.clone(),
                     jsonrpc,
-                    point_sender.clone(),
+                    query_sender.clone(),
                     last_number,
                 );
                 tokio::spawn(async move {
@@ -178,7 +177,7 @@ async fn run(async_handle02: ckb_async_runtime::Handle) {
             Topic::Reorganization => {
                 let jsonrpc = Jsonrpc::connect(&config.rpc_url());
                 let (handler, subscription) =
-                    Reorganization::new(config.clone(), jsonrpc, point_sender.clone());
+                    Reorganization::new(config.clone(), jsonrpc, query_sender.clone());
 
                 ::std::thread::spawn(move || {
                     let mut runtime01 = tokio01::runtime::Builder::new().build().unwrap();
@@ -194,7 +193,7 @@ async fn run(async_handle02: ckb_async_runtime::Handle) {
             Topic::TxTransition => {
                 let jsonrpc = Jsonrpc::connect(&config.rpc_url());
                 let (handler, subscription) =
-                    TxTransition::new(config.clone(), jsonrpc, point_sender.clone());
+                    TxTransition::new(config.clone(), jsonrpc, query_sender.clone());
 
                 ::std::thread::spawn(move || {
                     let mut runtime01 = tokio01::runtime::Builder::new().build().unwrap();
@@ -212,7 +211,7 @@ async fn run(async_handle02: ckb_async_runtime::Handle) {
                 let mut handler = NetworkPropagation::new(
                     config.clone(),
                     jsonrpc,
-                    point_sender.clone(),
+                    query_sender.clone(),
                     async_handle02.clone(),
                 );
                 ::std::thread::spawn(move || handler.run());
@@ -225,40 +224,23 @@ async fn run(async_handle02: ckb_async_runtime::Handle) {
                     log::info!("End topic {:?}", topic);
                 });
             }
-            Topic::PatternLogs => {
-                // TODO
-                // let mut handler = PatternLogs::new(&node.data_dir, query_sender.clone()).await;
-                // async_handle.spawn(async move {
-                //     handler.run().await;
-                //     log::info!("End topic {:?}", topic);
-                // });
-            }
         }
     }
 
-    let mut prepare_table = HashMap::new();
-    // let hostname = var("HOSTNAME")
-    //     .unwrap_or_else(|_| gethostname::gethostname().to_string_lossy().to_string());
-    // let rate_limiter = Arc::new(AtomicU64::new(0));
-    for point in point_receiver {
-        // // TODO Attach built-in tags
-        // query = query
-        //     .add_tag("network", config.network.clone())
-        //     .add_tag("hostname", hostname.clone());
-
-        // Writes asynchronously
-        log::info!("{}: {:?}", point.name(), point.params());
-        // while rate_limiter.load(Ordering::Relaxed) >= 100 {
-        //     tokio::time::sleep(Duration::from_secs(1)).await;
-        // }
-        // let rate_limiter_ = Arc::clone(&rate_limiter);
-
-        if let Some(prepare) = prepare_table.get(point.name()) {
-            pg.execute(prepare, &point.params()).await.unwrap();
-        } else {
-            let prepare = pg.prepare(point.insert_query()).await.unwrap();
-            pg.execute(&prepare, &point.params()).await.unwrap();
-            prepare_table.insert(point.name().to_string(), prepare);
+    let max_batch_size: usize = 1000;
+    let max_batch_timeout = Duration::from_secs(30);
+    let mut last_batch_instant: Instant = Instant::now();
+    let mut batch: Vec<String> = Vec::with_capacity(max_batch_size);
+    for query in query_receiver {
+        // TODO Attach built-in tags, hostname
+        batch.push(query);
+        if batch.len() >= max_batch_size || last_batch_instant.elapsed() >= max_batch_timeout {
+            last_batch_instant = Instant::now();
+            let batch_query: String = batch.join(";");
+            pg.batch_execute(&batch_query).await.unwrap_or_else(|err| {
+                panic!("pg.batch_execute(\"{}\"), error: {}", batch_query, err)
+            });
+            batch = Vec::new();
         }
     }
 }

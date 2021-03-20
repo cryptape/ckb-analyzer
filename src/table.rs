@@ -3,13 +3,6 @@
 // TODO Define ToSQL types, instead of String
 
 use std::fmt::Debug;
-use tokio_postgres::types::ToSql;
-
-pub trait Point: Send + Debug {
-    fn name(&self) -> &'static str;
-    fn insert_query(&self) -> &'static str;
-    fn params(&self) -> Vec<&(dyn ToSql + Sync)>;
-}
 
 /// ```
 /// CREATE TABLE IF NOT EXISTS block (
@@ -41,16 +34,11 @@ pub struct Block {
     pub version: i32,
 }
 
-impl Point for Block {
-    fn name(&self) -> &'static str {
-        "block"
-    }
-    fn insert_query(&self) -> &'static str {
-        "INSERT INTO block (network, time, number, interval, n_transactions, n_proposals, n_uncles, hash, miner, version)\
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)"
-    }
-    fn params(&self) -> Vec<&(dyn ToSql + Sync)> {
-        vec![
+impl Block {
+    pub fn insert_query(&self) -> String {
+        format!(
+            "INSERT INTO block (network, time, number, interval, n_transactions, n_proposals, n_uncles, hash, miner, version)\
+            VALUES ('{}', '{}', {}, {}, {}, {}, {}, '{}', '{}', {})",
             &self.network,
             &self.time,
             &self.number,
@@ -61,7 +49,7 @@ impl Point for Block {
             &self.hash,
             &self.miner,
             &self.version,
-        ]
+        )
     }
 }
 
@@ -93,16 +81,11 @@ pub struct Uncle {
     pub version: i32,
 }
 
-impl Point for Uncle {
-    fn name(&self) -> &'static str {
-        "uncle"
-    }
-    fn insert_query(&self) -> &'static str {
-        "INSERT INTO uncle (network, time, number, lag_to_canonical, n_transactions, n_proposals, hash, miner, version) \
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)"
-    }
-    fn params(&self) -> Vec<&(dyn ToSql + Sync)> {
-        vec![
+impl Uncle {
+    pub fn insert_query(&self) -> String {
+        format!(
+            "INSERT INTO uncle (network, time, number, lag_to_canonical, n_transactions, n_proposals, hash, miner, version)\
+            VALUES ('{}', '{}', {}, {}, {}, {}, '{}', '{}', {})",
             &self.network,
             &self.time,
             &self.number,
@@ -112,7 +95,7 @@ impl Point for Uncle {
             &self.hash,
             &self.miner,
             &self.version,
-        ]
+        )
     }
 }
 
@@ -134,16 +117,13 @@ pub struct TwoPCCommitment {
     pub delay: i32,
 }
 
-impl Point for TwoPCCommitment {
-    fn name(&self) -> &'static str {
-        "two_pc_commitment"
-    }
-    fn insert_query(&self) -> &'static str {
-        "INSERT INTO two_pc_commitment (network, time, number, delay) \
-            VALUES ($1, $2, $3, $4)"
-    }
-    fn params(&self) -> Vec<&(dyn ToSql + Sync)> {
-        vec![&self.network, &self.time, &self.number, &self.delay]
+impl TwoPCCommitment {
+    pub fn insert_query(&self) -> String {
+        format!(
+            "INSERT INTO two_pc_commitment (network, time, number, delay) \
+            VALUES ('{}', '{}', {}, {})",
+            self.network, &self.time, &self.number, &self.delay
+        )
     }
 }
 
@@ -169,22 +149,13 @@ pub struct Epoch {
     pub n_uncles: i32,
 }
 
-impl Point for Epoch {
-    fn name(&self) -> &'static str {
-        "epoch"
-    }
-    fn insert_query(&self) -> &'static str {
-        "INSERT INTO epoch (network, time, number, length, duration, n_uncles) VALUES ($1, $2, $3, $4, $5, $6)"
-    }
-    fn params(&self) -> Vec<&(dyn ToSql + Sync)> {
-        vec![
-            &self.network,
-            &self.time,
-            &self.number,
-            &self.length,
-            &self.duration,
-            &self.n_uncles,
-        ]
+impl Epoch {
+    pub fn insert_query(&self) -> String {
+        format!(
+            "INSERT INTO epoch (network, time, number, length, duration, n_uncles) \
+            VALUES ('{}', '{}', {}, {}, {}, {})",
+            &self.network, &self.time, &self.number, &self.length, &self.duration, &self.n_uncles,
+        )
     }
 }
 
@@ -219,17 +190,12 @@ pub struct Reorganization {
     pub ancestor_hash: String,
 }
 
-impl Point for Reorganization {
-    fn name(&self) -> &'static str {
-        "reorganization"
-    }
-    fn insert_query(&self) -> &'static str {
-        "INSERT INTO reorganization (network, time, attached_length, old_tip_number, \
+impl Reorganization {
+    pub fn insert_query(&self) -> String {
+        format!(
+            "INSERT INTO reorganization (network, time, attached_length, old_tip_number, \
             new_tip_number, ancestor_number, old_tip_hash, new_tip_hash, ancestor_hash)\
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)"
-    }
-    fn params(&self) -> Vec<&(dyn ToSql + Sync)> {
-        vec![
+            VALUES ('{}', '{}', {}, {}, {}, {}, '{}', '{}', '{}')",
             &self.network,
             &self.time,
             &self.attached_length,
@@ -239,16 +205,16 @@ impl Point for Reorganization {
             &self.old_tip_hash,
             &self.new_tip_hash,
             &self.ancestor_hash,
-        ]
+        )
     }
 }
 
 /// ```
 /// CREATE TABLE IF NOT EXISTS transaction (
 ///     network             VARCHAR ( 10 )  NOT NULL,
-///     time                TIMESTAMP       NOT NULL,
-///     elapsed             BIGINT          NOT NULL,
-///     event               CHAR ( 10 )     NOT NULL,
+///     enter_time          TIMESTAMP,
+///     commit_time         TIMESTAMP,
+///     remove_time         TIMESTAMP,
 ///     hash                CHAR ( 66 )     NOT NULL
 /// );
 ///
@@ -257,29 +223,30 @@ impl Point for Reorganization {
 #[derive(Clone, Debug)]
 pub struct Transaction {
     pub network: String,
-    // timestamp of entering in transaction pool
-    pub time: chrono::NaiveDateTime,
-    pub elapsed: i64, // ms
-    pub event: String,
+    pub enter_time: Option<chrono::NaiveDateTime>,
+    pub commit_time: Option<chrono::NaiveDateTime>,
+    pub remove_time: Option<chrono::NaiveDateTime>,
     pub hash: String,
 }
 
-impl Point for Transaction {
-    fn name(&self) -> &'static str {
-        "transaction"
+impl Transaction {
+    pub fn insert_query(&self) -> String {
+        format!(
+            "INSERT INTO transaction (network, enter_time, hash)\
+            VALUES ('{}', '{}', '{}')",
+            self.network,
+            self.enter_time.unwrap(),
+            self.hash,
+        )
     }
-    fn insert_query(&self) -> &'static str {
-        "INSERT INTO transaction (network, time, elapsed, event, hash)\
-            VALUES ($1, $2, $3, $4, $5)"
-    }
-    fn params(&self) -> Vec<&(dyn ToSql + Sync)> {
-        vec![
-            &self.network,
-            &self.time,
-            &self.elapsed,
-            &self.event,
-            &self.hash,
-        ]
+    pub fn update_query(&self) -> String {
+        if let Some(ref commit_time) = self.commit_time {
+            format!("UPDATE transaction SET commit_time='{}' WHERE hash='{}'", commit_time, self.hash)
+        } else if let Some(ref remove_time) = self.remove_time {
+            format!("UPDATE transaction SET remove_time='{}' WHERE hash='{}'", remove_time, self.hash)
+        } else {
+            unreachable!()
+        }
     }
 }
 
@@ -307,16 +274,11 @@ pub struct Heartbeat {
     pub country: String,
 }
 
-impl Point for Heartbeat {
-    fn name(&self) -> &'static str {
-        "heartbeat"
-    }
-    fn insert_query(&self) -> &'static str {
-        "INSERT INTO heartbeat(network, time, peer_id, host, connected_duration, client_version, country)\
-            VALUES ($1, $2, $3, $4, $5, $6, $7)"
-    }
-    fn params(&self) -> Vec<&(dyn ToSql + Sync)> {
-        vec![
+impl Heartbeat {
+    pub fn insert_query(&self) -> String {
+        format!(
+            "INSERT INTO heartbeat(network, time, peer_id, host, connected_duration, client_version, country)\
+            VALUES ('{}', '{}', '{}', '{}', {}, '{}', '{}')",
             &self.network,
             &self.time,
             &self.peer_id,
@@ -324,35 +286,7 @@ impl Point for Heartbeat {
             &self.connected_duration,
             &self.client_version,
             &self.country,
-        ]
-    }
-}
-
-/// ```
-/// CREATE TABLE IF NOT EXISTS peers (
-///     network             VARCHAR ( 10 )  NOT NULL,
-///     time                TIMESTAMP       NOT NULL,
-///     number              INT             NOT NULL
-/// );
-///
-/// SELECT create_hypertable('peers', 'time');
-/// ```
-#[derive(Clone, Debug)]
-pub struct Peers {
-    pub network: String,
-    pub time: chrono::NaiveDateTime,
-    pub number: i32,
-}
-
-impl Point for Peers {
-    fn name(&self) -> &'static str {
-        "peers"
-    }
-    fn insert_query(&self) -> &'static str {
-        "TODO"
-    }
-    fn params(&self) -> Vec<&(dyn ToSql + Sync)> {
-        vec![&self.network, &self.time, &self.number]
+        )
     }
 }
 
@@ -378,89 +312,61 @@ pub struct Propagation {
     pub message_name: String,
 }
 
-impl Point for Propagation {
-    fn name(&self) -> &'static str {
-        "propagation"
-    }
-    fn insert_query(&self) -> &'static str {
-        "INSERT INTO propagation(network, time, peer_id, hash, message_name)\
-            VALUES ($1, $2, $3, $4, $5)"
-    }
-    fn params(&self) -> Vec<&(dyn ToSql + Sync)> {
-        vec![
-            &self.network,
-            &self.time,
-            &self.peer_id,
-            &self.hash,
-            &self.message_name,
-        ]
+impl Propagation {
+    pub fn insert_query(&self) -> String {
+        format!(
+            "INSERT INTO propagation(network, time, peer_id, hash, message_name)\
+            VALUES ('{}', '{}', '{}', '{}', '{}')",
+            &self.network, &self.time, &self.peer_id, &self.hash, &self.message_name,
+        )
     }
 }
 
-/// # Create trigger
-/// ```sql
-/// CREATE OR REPLACE FUNCTION label_nth_propagation() RETURNS trigger AS $$
-/// DECLARE
-///     first_time TIMESTAMP;
-///     inserted_count INT;
-/// BEGIN
-///     SELECT first(time, time) INTO first_time FROM propagation WHERE hash = NEW.hash;
-///
-///     IF first_time IS NULL THEN
-///         NEW.elapsed = 0;
-///         NEW.nth = 1;
-///     ELSE
-///         SELECT COUNT(*) INTO inserted_count FROM propagation WHERE hash = NEW.hash;
-///         NEW.elapsed = EXTRACT(MILLISECONDS FROM (NEW.time - first_time));
-///         NEW.nth := inserted_count + 1;
-///     END IF;
-///
-///     RETURN NEW;
-/// END;
-/// $$ LANGUAGE plpgsql;
-///
-/// CREATE TRIGGER label_nth_propagation_trigger BEFORE INSERT ON propagation
-/// FOR EACH ROW
-/// EXECUTE PROCEDURE label_nth_propagation();
-/// ```
+// /// # Create trigger
+// /// ```sql
+// /// CREATE OR REPLACE FUNCTION label_nth_propagation() RETURNS trigger AS $$
+// /// DECLARE
+// ///     first_time TIMESTAMP;
+// ///     inserted_count INT;
+// /// BEGIN
+// ///     SELECT first(time, time) INTO first_time FROM propagation WHERE hash = NEW.hash;
+// ///
+// ///     IF first_time IS NULL THEN
+// ///         NEW.elapsed = 0;
+// ///         NEW.nth = 1;
+// ///     ELSE
+// ///         SELECT COUNT(*) INTO inserted_count FROM propagation WHERE hash = NEW.hash;
+// ///         NEW.elapsed = EXTRACT(MILLISECONDS FROM (NEW.time - first_time));
+// ///         NEW.nth := inserted_count + 1;
+// ///     END IF;
+// ///
+// ///     RETURN NEW;
+// /// END;
+// /// $$ LANGUAGE plpgsql;
+// ///
+// /// CREATE TRIGGER label_nth_propagation_trigger BEFORE INSERT ON propagation
+// /// FOR EACH ROW
+// /// EXECUTE PROCEDURE label_nth_propagation();
+// /// ```
 
-/// ```
-/// CREATE TABLE IF NOT EXISTS propagation_percentile (
-///     network             VARCHAR ( 10 )  NOT NULL,
-///     time                TIMESTAMP       NOT NULL,
-///     percentile          INT             NOT NULL,
-///     elapsed             BIGINT          NOT NULL,
-///     hash                VARCHAR ( 66 )  NOT NULL,
-///     message_name        VARCHAR ( 20 )  NOT NULL
-/// );
-///
-/// SELECT create_hypertable('propagation_percentile', 'time');
-/// ```
-#[derive(Clone, Debug)]
-pub struct PropagationPercentile {
-    pub network: String,
-    pub time: chrono::NaiveDateTime,
-    pub elapsed: i64,    // ms
-    pub percentile: i32, // 50 | 80 | 90 | 95
-    pub hash: String,
-    pub message_name: String, // "t" | "b"
-}
-
-impl Point for PropagationPercentile {
-    fn name(&self) -> &'static str {
-        "propagation_percentile"
-    }
-    fn insert_query(&self) -> &'static str {
-        "TODO"
-    }
-    fn params(&self) -> Vec<&(dyn ToSql + Sync)> {
-        vec![
-            &self.network,
-            &self.time,
-            &self.elapsed,
-            &self.percentile,
-            &self.hash,
-            &self.message_name,
-        ]
-    }
-}
+// /// ```
+// /// CREATE TABLE IF NOT EXISTS propagation_percentile (
+// ///     network             VARCHAR ( 10 )  NOT NULL,
+// ///     time                TIMESTAMP       NOT NULL,
+// ///     percentile          INT             NOT NULL,
+// ///     elapsed             BIGINT          NOT NULL,
+// ///     hash                VARCHAR ( 66 )  NOT NULL,
+// ///     message_name        VARCHAR ( 20 )  NOT NULL
+// /// );
+// ///
+// /// SELECT create_hypertable('propagation_percentile', 'time');
+// /// ```
+// #[derive(Clone, Debug)]
+// pub struct PropagationPercentile {
+//     pub network: String,
+//     pub time: chrono::NaiveDateTime,
+//     pub elapsed: i64,    // ms
+//     pub percentile: i32, // 50 | 80 | 90 | 95
+//     pub hash: String,
+//     pub message_name: String, // "t" | "b"
+// }

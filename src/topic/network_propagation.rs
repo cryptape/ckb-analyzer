@@ -66,7 +66,7 @@ use tentacle_multiaddr::Multiaddr;
 pub(crate) struct NetworkPropagation {
     config: crate::Config,
     jsonrpc: Jsonrpc,
-    point_sender: crossbeam::channel::Sender<Box<dyn crate::table::Point>>,
+    query_sender: crossbeam::channel::Sender<String>,
     async_handle02: ckb_async_runtime::Handle,
     last_heartbeat: Arc<Mutex<VecDeque<(PeerIndex, Instant)>>>,
     ipinfo: Arc<Mutex<IpInfo>>,
@@ -78,7 +78,7 @@ impl NetworkPropagation {
     pub(crate) fn new(
         config: crate::Config,
         jsonrpc: Jsonrpc,
-        point_sender: crossbeam::channel::Sender<Box<dyn crate::table::Point>>,
+        query_sender: crossbeam::channel::Sender<String>,
         async_handle02: ckb_async_runtime::Handle,
     ) -> Self {
         let ipinfo = ipinfo::IpInfo::new(ipinfo::IpInfoConfig {
@@ -90,7 +90,7 @@ impl NetworkPropagation {
         Self {
             config,
             jsonrpc,
-            point_sender,
+            query_sender,
             async_handle02,
             last_heartbeat: Arc::new(Mutex::new(Default::default())),
             ipinfo: Arc::new(Mutex::new(ipinfo)),
@@ -219,7 +219,7 @@ impl NetworkPropagation {
             hash: format!("{:#x}", hash),
             message_name: message_name.to_string(),
         };
-        self.point_sender.send(Box::new(point)).unwrap();
+        self.query_sender.send(point.insert_query()).unwrap();
     }
 
     fn report_heartbeat(&self, peer: &Peer) {
@@ -254,7 +254,7 @@ impl NetworkPropagation {
             client_version,
             country,
         };
-        self.point_sender.send(Box::new(point)).unwrap();
+        self.query_sender.send(point.insert_query()).unwrap();
     }
 
     pub fn lookup_country(&self, ip: &str) -> String {

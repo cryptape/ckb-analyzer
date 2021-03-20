@@ -7,7 +7,6 @@ use ckb_suite_rpc::{
 use ckb_types::{packed::Byte32, prelude::*};
 use jsonrpc_core::serde_from_str;
 use std::collections::HashMap;
-use std::fmt;
 use std::time::{Duration, Instant};
 
 /// This module aims to the pool transactions
@@ -22,14 +21,14 @@ use std::time::{Duration, Instant};
 ///   - Fix the issue that it takes too long to travel all the pending/proposed transactions.
 ///   - Enable subscription at ckb
 
-const SUSPEND_SECONDS: i64 = 20 * 60;
+const SUSPEND_SECONDS: i64 = 3 * 60;
 
 pub(crate) struct TxTransition {
     entries: HashMap<Byte32, TxEntry>,
     subscriber: crossbeam::channel::Receiver<(Topic, String)>,
     config: Config,
     jsonrpc: Jsonrpc,
-    point_sender: crossbeam::channel::Sender<Box<dyn crate::table::Point>>,
+    query_sender: crossbeam::channel::Sender<String>,
     last_checking_at: Instant,
 }
 
@@ -37,7 +36,7 @@ impl TxTransition {
     pub(crate) fn new(
         config: Config,
         jsonrpc: Jsonrpc,
-        point_sender: crossbeam::channel::Sender<Box<dyn crate::table::Point>>,
+        query_sender: crossbeam::channel::Sender<String>,
     ) -> (Self, Subscription) {
         let (subscription, subscriber) =
             Subscription::new(config.subscription_url(), Topic::NewTransaction);
@@ -45,7 +44,7 @@ impl TxTransition {
             Self {
                 config,
                 jsonrpc,
-                point_sender,
+                query_sender,
                 subscriber,
                 last_checking_at: Instant::now(),
                 entries: Default::default(),
@@ -68,7 +67,7 @@ impl TxTransition {
                     let txhash = pool_transaction_entry.transaction.hash.pack();
                     if !self.entries.contains_key(&txhash) {
                         let entry = TxEntry {
-                            time,
+                            enter_time: time,
                             pool_transaction_entry,
                         };
                         self.report_enter(&entry).await;
@@ -93,7 +92,7 @@ impl TxTransition {
         let now = chrono::Utc::now().naive_utc();
         let mut to_remove_hashes = Vec::new();
         for (txhash, entry) in self.entries.iter() {
-            if (now - entry.time).num_seconds() > SUSPEND_SECONDS {
+            if (now - entry.enter_time).num_seconds() > SUSPEND_SECONDS {
                 to_remove_hashes.push(txhash.clone());
             }
         }
@@ -122,7 +121,7 @@ impl TxTransition {
                 }
             }
             Some((_status, None)) => {
-                self.report_suspend(entry).await;
+                return;
             }
             None => {
                 self.report_remove(entry).await;
@@ -131,55 +130,37 @@ impl TxTransition {
         }
     }
 
-    async fn report_commit(&self, entry: &TxEntry, committed_time: chrono::NaiveDateTime) {
-        let elapsed = (committed_time - entry.time).num_milliseconds();
-        self.report(crate::table::Transaction {
-            network: self.config.network(),
-            time: entry.time,
-            elapsed,
-            event: TxEvent::Commit.to_string(),
-            hash: format!("{:#x}", entry.pool_transaction_entry.transaction.hash),
-        })
-        .await;
-    }
-
     async fn report_enter(&self, entry: &TxEntry) {
-        self.report(crate::table::Transaction {
+        let point = crate::table::Transaction {
             network: self.config.network(),
-            time: entry.time,
-            elapsed: 0,
-            event: TxEvent::Enter.to_string(),
+            enter_time: Some(entry.enter_time),
+            commit_time: None,
+            remove_time: None,
             hash: format!("{:#x}", entry.pool_transaction_entry.transaction.hash),
-        })
-        .await;
+        };
+        self.query_sender.send(point.insert_query()).unwrap();
     }
 
-    async fn report_suspend(&self, entry: &TxEntry) {
-        let elapsed = (chrono::Utc::now().naive_utc() - entry.time).num_milliseconds();
-        self.report(crate::table::Transaction {
+    async fn report_commit(&self, entry: &TxEntry, committed_time: chrono::NaiveDateTime) {
+        let point = crate::table::Transaction {
             network: self.config.network(),
-            time: entry.time,
-            elapsed,
-            event: TxEvent::Suspend.to_string(),
+            enter_time: None,
+            commit_time: Some(committed_time),
+            remove_time: None,
             hash: format!("{:#x}", entry.pool_transaction_entry.transaction.hash),
-        })
-        .await;
+        };
+        self.query_sender.send(point.update_query()).unwrap();
     }
 
     async fn report_remove(&self, entry: &TxEntry) {
-        let elapsed = (chrono::Utc::now().naive_utc() - entry.time).num_milliseconds();
-        self.report(crate::table::Transaction {
+        let point = crate::table::Transaction {
             network: self.config.network(),
-            time: entry.time,
-            elapsed,
-            event: TxEvent::Remove.to_string(),
+            enter_time: None,
+            commit_time: None,
+            remove_time: Some(chrono::Utc::now().naive_utc()),
             hash: format!("{:#x}", entry.pool_transaction_entry.transaction.hash),
-        })
-        .await;
-    }
-
-    async fn report(&self, point: crate::table::Transaction) {
-        self.point_sender.send(Box::new(point)).unwrap();
+        };
+        self.query_sender.send(point.update_query()).unwrap();
     }
 
     fn get_block_timestamp(&self, block_hash: Byte32) -> Option<chrono::NaiveDateTime> {
@@ -195,24 +176,5 @@ impl TxTransition {
 #[derive(Clone, Debug)]
 struct TxEntry {
     pool_transaction_entry: PoolTransactionEntry,
-    time: chrono::NaiveDateTime, // pending time
-}
-
-#[derive(Clone, Debug)]
-enum TxEvent {
-    Enter,
-    Commit,
-    Remove,
-    Suspend,
-}
-
-impl fmt::Display for TxEvent {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            TxEvent::Enter => write!(f, "Enter"),
-            TxEvent::Commit => write!(f, "Commit"),
-            TxEvent::Remove => write!(f, "Remove"),
-            TxEvent::Suspend => write!(f, "Suspend"),
-        }
-    }
+    enter_time: chrono::NaiveDateTime, // pending time
 }

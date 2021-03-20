@@ -17,7 +17,6 @@ pub enum Topic {
     CanonicalChainState,
     Reorganization,
     TxTransition,
-    PatternLogs,
     NetworkPropagation,
     NetworkTopology,
 }
