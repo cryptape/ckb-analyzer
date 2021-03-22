@@ -41,14 +41,11 @@ pub async fn get_last_updated_block_number(
     pg: &tokio_postgres::Client,
     ckb_network_name: &str,
 ) -> u64 {
-    match pg
-        .query_opt(
-            "SELECT number FROM block WHERE network = $1 ORDER BY time DESC LIMIT 1",
-            &[&ckb_network_name],
-        )
-        .await
-        .unwrap()
-    {
+    let query = format!(
+        "SELECT number FROM {}_block ORDER BY time DESC LIMIT 1",
+        ckb_network_name
+    );
+    match pg.query_opt(query.as_str(), &[]).await.unwrap() {
         None => 0,
         Some(raw) => {
             let number: i64 = raw.get(0);

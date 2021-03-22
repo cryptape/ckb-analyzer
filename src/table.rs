@@ -5,7 +5,7 @@
 use std::fmt::Debug;
 
 /// ```
-/// CREATE TABLE IF NOT EXISTS block (
+/// CREATE TABLE IF NOT EXISTS $network_block (
 ///     network         VARCHAR ( 10 )  NOT NULL,
 ///     time            TIMESTAMP       NOT NULL,
 ///     number          BIGINT          NOT NULL,
@@ -18,7 +18,7 @@ use std::fmt::Debug;
 ///     version         INT             NOT NULL
 /// );
 ///
-/// SELECT create_hypertable('block', 'time');
+/// SELECT create_hypertable('$network_block', 'time');
 /// ```
 #[derive(Clone, Debug)]
 pub struct Block {
@@ -37,8 +37,9 @@ pub struct Block {
 impl Block {
     pub fn insert_query(&self) -> String {
         format!(
-            "INSERT INTO block (network, time, number, interval, n_transactions, n_proposals, n_uncles, hash, miner, version)\
+            "INSERT INTO {}_block (network, time, number, interval, n_transactions, n_proposals, n_uncles, hash, miner, version)\
             VALUES ('{}', '{}', {}, {}, {}, {}, {}, '{}', '{}', {})",
+            &self.network,
             &self.network,
             &self.time,
             &self.number,
@@ -54,7 +55,7 @@ impl Block {
 }
 
 /// ```
-/// CREATE TABLE IF NOT EXISTS uncle (
+/// CREATE TABLE IF NOT EXISTS $network_uncle (
 ///     network             VARCHAR ( 10 )  NOT NULL,
 ///     time                TIMESTAMP   NOT NULL,
 ///     number              BIGINT      NOT NULL,
@@ -66,7 +67,7 @@ impl Block {
 ///     version             INT         NOT NULL
 /// );
 ///
-/// SELECT create_hypertable('uncle', 'time');
+/// SELECT create_hypertable('$network_uncle', 'time');
 /// ```
 #[derive(Clone, Debug)]
 pub struct Uncle {
@@ -84,8 +85,9 @@ pub struct Uncle {
 impl Uncle {
     pub fn insert_query(&self) -> String {
         format!(
-            "INSERT INTO uncle (network, time, number, lag_to_canonical, n_transactions, n_proposals, hash, miner, version)\
+            "INSERT INTO {}_uncle (network, time, number, lag_to_canonical, n_transactions, n_proposals, hash, miner, version)\
             VALUES ('{}', '{}', {}, {}, {}, {}, '{}', '{}', {})",
+            &self.network,
             &self.network,
             &self.time,
             &self.number,
@@ -100,14 +102,14 @@ impl Uncle {
 }
 
 /// ```
-/// CREATE TABLE IF NOT EXISTS two_pc_commitment (
+/// CREATE TABLE IF NOT EXISTS $network_two_pc_commitment (
 ///     network     VARCHAR ( 10 )  NOT NULL,
 ///     time        TIMESTAMP       NOT NULL,
 ///     number      BIGINT          NOT NULL,
 ///     delay       INT             NOT NULL
 /// );
 ///
-/// SELECT create_hypertable('two_pc_commitment', 'time');
+/// SELECT create_hypertable('$network_two_pc_commitment', 'time');
 /// ```
 #[derive(Clone, Debug)]
 pub struct TwoPCCommitment {
@@ -120,15 +122,15 @@ pub struct TwoPCCommitment {
 impl TwoPCCommitment {
     pub fn insert_query(&self) -> String {
         format!(
-            "INSERT INTO two_pc_commitment (network, time, number, delay) \
+            "INSERT INTO {}_two_pc_commitment (network, time, number, delay) \
             VALUES ('{}', '{}', {}, {})",
-            self.network, &self.time, &self.number, &self.delay
+            &self.network, self.network, &self.time, &self.number, &self.delay
         )
     }
 }
 
 /// ```
-/// CREATE TABLE IF NOT EXISTS epoch (
+/// CREATE TABLE IF NOT EXISTS $network_epoch (
 ///     network     VARCHAR ( 10 )  NOT NULL,
 ///     time        TIMESTAMP       NOT NULL,
 ///     number      BIGINT          NOT NULL,
@@ -137,7 +139,7 @@ impl TwoPCCommitment {
 ///     n_uncles    INT             NOT NULL
 /// );
 ///
-/// SELECT create_hypertable('epoch', 'time');
+/// SELECT create_hypertable('$network_epoch', 'time');
 /// ```
 #[derive(Clone, Debug)]
 pub struct Epoch {
@@ -152,15 +154,21 @@ pub struct Epoch {
 impl Epoch {
     pub fn insert_query(&self) -> String {
         format!(
-            "INSERT INTO epoch (network, time, number, length, duration, n_uncles) \
+            "INSERT INTO {}_epoch (network, time, number, length, duration, n_uncles) \
             VALUES ('{}', '{}', {}, {}, {}, {})",
-            &self.network, &self.time, &self.number, &self.length, &self.duration, &self.n_uncles,
+            &self.network,
+            &self.network,
+            &self.time,
+            &self.number,
+            &self.length,
+            &self.duration,
+            &self.n_uncles,
         )
     }
 }
 
 /// ```
-/// CREATE TABLE IF NOT EXISTS reorganization (
+/// CREATE TABLE IF NOT EXISTS $network_reorganization (
 ///     network             VARCHAR ( 10 )  NOT NULL,
 ///     time                TIMESTAMP       NOT NULL,
 ///     attached_length     INT             NOT NULL,
@@ -172,7 +180,7 @@ impl Epoch {
 ///     ancestor_hash       CHAR ( 66 )     NOT NULL
 /// );
 ///
-/// SELECT create_hypertable('reorganization', 'time');
+/// SELECT create_hypertable('$network_reorganization', 'time');
 /// ```
 #[derive(Clone, Debug)]
 pub struct Reorganization {
@@ -193,9 +201,10 @@ pub struct Reorganization {
 impl Reorganization {
     pub fn insert_query(&self) -> String {
         format!(
-            "INSERT INTO reorganization (network, time, attached_length, old_tip_number, \
+            "INSERT INTO {}_reorganization (network, time, attached_length, old_tip_number, \
             new_tip_number, ancestor_number, old_tip_hash, new_tip_hash, ancestor_hash)\
             VALUES ('{}', '{}', {}, {}, {}, {}, '{}', '{}', '{}')",
+            &self.network,
             &self.network,
             &self.time,
             &self.attached_length,
@@ -210,15 +219,15 @@ impl Reorganization {
 }
 
 /// ```
-/// CREATE TABLE IF NOT EXISTS transaction (
+/// CREATE TABLE IF NOT EXISTS $network_transaction (
 ///     network             VARCHAR ( 10 )  NOT NULL,
-///     enter_time          TIMESTAMP,
+///     enter_time          TIMESTAMP       NOT NULL,
 ///     commit_time         TIMESTAMP,
 ///     remove_time         TIMESTAMP,
 ///     hash                CHAR ( 66 )     NOT NULL
 /// );
 ///
-/// SELECT create_hypertable('transaction', 'time');
+/// SELECT create_hypertable('$network_transaction', 'enter_time');
 /// ```
 #[derive(Clone, Debug)]
 pub struct Transaction {
@@ -232,8 +241,9 @@ pub struct Transaction {
 impl Transaction {
     pub fn insert_query(&self) -> String {
         format!(
-            "INSERT INTO transaction (network, enter_time, hash)\
+            "INSERT INTO {}_transaction (network, enter_time, hash)\
             VALUES ('{}', '{}', '{}')",
+            self.network,
             self.network,
             self.enter_time.unwrap(),
             self.hash,
@@ -241,9 +251,15 @@ impl Transaction {
     }
     pub fn update_query(&self) -> String {
         if let Some(ref commit_time) = self.commit_time {
-            format!("UPDATE transaction SET commit_time='{}' WHERE hash='{}'", commit_time, self.hash)
+            format!(
+                "UPDATE {}_transaction SET commit_time='{}' WHERE hash='{}'",
+                self.network, commit_time, self.hash
+            )
         } else if let Some(ref remove_time) = self.remove_time {
-            format!("UPDATE transaction SET remove_time='{}' WHERE hash='{}'", remove_time, self.hash)
+            format!(
+                "UPDATE {}_transaction SET remove_time='{}' WHERE hash='{}'",
+                self.network, remove_time, self.hash
+            )
         } else {
             unreachable!()
         }
@@ -251,7 +267,7 @@ impl Transaction {
 }
 
 /// ```
-/// CREATE TABLE IF NOT EXISTS heartbeat (
+/// CREATE TABLE IF NOT EXISTS $network_heartbeat (
 ///     network             VARCHAR ( 10 )  NOT NULL,
 ///     time                TIMESTAMP       NOT NULL,
 ///     peer_id             VARCHAR ( 46 )  NOT NULL,
@@ -261,7 +277,7 @@ impl Transaction {
 ///     country             VARCHAR ( 5 )   NULL
 /// );
 ///
-/// SELECT create_hypertable('heartbeat', 'time');
+/// SELECT create_hypertable('$network_heartbeat', 'time');
 /// ```
 #[derive(Clone, Debug)]
 pub struct Heartbeat {
@@ -277,8 +293,9 @@ pub struct Heartbeat {
 impl Heartbeat {
     pub fn insert_query(&self) -> String {
         format!(
-            "INSERT INTO heartbeat(network, time, peer_id, host, connected_duration, client_version, country)\
+            "INSERT INTO {}_heartbeat(network, time, peer_id, host, connected_duration, client_version, country)\
             VALUES ('{}', '{}', '{}', '{}', {}, '{}', '{}')",
+            &self.network,
             &self.network,
             &self.time,
             &self.peer_id,
@@ -291,7 +308,7 @@ impl Heartbeat {
 }
 
 /// ```
-/// CREATE TABLE IF NOT EXISTS propagation (
+/// CREATE TABLE IF NOT EXISTS $network_propagation (
 ///     network             VARCHAR ( 10 )  NOT NULL,
 ///     time                TIMESTAMP       NOT NULL,
 ///     peer_id             VARCHAR ( 46 )  NOT NULL,
@@ -301,7 +318,7 @@ impl Heartbeat {
 ///     nth                 INT             NULL
 /// );
 ///
-/// SELECT create_hypertable('propagation', 'time');
+/// SELECT create_hypertable('$network_propagation', 'time');
 /// ```
 #[derive(Clone, Debug)]
 pub struct Propagation {
@@ -315,9 +332,9 @@ pub struct Propagation {
 impl Propagation {
     pub fn insert_query(&self) -> String {
         format!(
-            "INSERT INTO propagation(network, time, peer_id, hash, message_name)\
+            "INSERT INTO {}_propagation(network, time, peer_id, hash, message_name)\
             VALUES ('{}', '{}', '{}', '{}', '{}')",
-            &self.network, &self.time, &self.peer_id, &self.hash, &self.message_name,
+            &self.network, &self.network, &self.time, &self.peer_id, &self.hash, &self.message_name,
         )
     }
 }
@@ -350,7 +367,7 @@ impl Propagation {
 // /// ```
 
 // /// ```
-// /// CREATE TABLE IF NOT EXISTS propagation_percentile (
+// /// CREATE TABLE IF NOT EXISTS $network_propagation_percentile (
 // ///     network             VARCHAR ( 10 )  NOT NULL,
 // ///     time                TIMESTAMP       NOT NULL,
 // ///     percentile          INT             NOT NULL,
@@ -359,7 +376,7 @@ impl Propagation {
 // ///     message_name        VARCHAR ( 20 )  NOT NULL
 // /// );
 // ///
-// /// SELECT create_hypertable('propagation_percentile', 'time');
+// /// SELECT create_hypertable('$network_propagation_percentile', 'time');
 // /// ```
 // #[derive(Clone, Debug)]
 // pub struct PropagationPercentile {
