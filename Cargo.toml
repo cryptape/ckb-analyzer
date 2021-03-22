@@ -1,6 +1,6 @@
 [package]
 name = "ckb-analyzer"
-version = "0.39.8"
+version = "0.0.3"
 license = "MIT"
 authors = ["keroro <keroroxx520@gmail.com>"]
 edition = "2018"
@@ -8,7 +8,7 @@ description = "ckb-analyzer analyzes kinds of data sources and upload the result
 homepage = "https://github.com/keroro520/ckb-analyzer"
 
 [dependencies]
-ckb-suite-rpc = { path = "ckb-suite-rpc", version = "0.39.8" }
+ckb-suite-rpc = { path = "ckb-suite-rpc", version = "0.0.3" }
 ckb-network = { version = "0.39.1" }
 ckb-util = { version = "0.39.1" }
 ckb-sync = { version = "0.39.1" }
