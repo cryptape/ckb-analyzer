@@ -6,20 +6,12 @@
 #
 # ```shell
 # GRAFANA_ADDRESS="http://127.0.0.1:3000" GRAFANA_TOKEN=<API TOKEN> python3 scripts/alerts.py
+# ```
 
 from __future__ import print_function
 import requests
 import copy
 import os
-
-print('# [Alerts]({}/alerting/list)'.format(GRAFANA_ADDRESS), end='\n\n')
-print('Genrated by https://github.com/keroro520/ckb-analyzer/blob/main/scripts/alerts.py')
-print('''
-> References:
->   * https://grafana.com/docs/grafana/latest/alerting/create-alerts
----
-''')
-
 
 # https://grafana.com/docs/grafana/latest/http_api/alerting
 GRAFANA_ADDRESS = os.environ['GRAFANA_ADDRESS'].strip('/')
@@ -73,8 +65,16 @@ for alert in alerts:
     grafana_get_alert_url = '{}/api/alerts/{}'.format(GRAFANA_ADDRESS, alert_id)
     detail_alert = requests.get(grafana_get_alert_url, headers=GRAFANA_HEADERS).json()
     detail_alerts.append(detail_alert)
-detail_alerts = sorted(detail_alerts, key=lambda alert: alert['PanelId'])
+detail_alerts = sorted(detail_alerts, key=lambda alert: alert['DashboardId'] + alert['PanelId'])
 
+
+print('# [Alerts]({}/alerting/list)'.format(GRAFANA_ADDRESS), end='\n\n')
+print('Genrated by https://github.com/keroro520/ckb-analyzer/blob/main/scripts/alerts.py')
+print('''
+> References:
+>   * https://grafana.com/docs/grafana/latest/alerting/create-alerts
+---
+''')
 
 for alert in detail_alerts:
     settings = alert['Settings']
@@ -83,7 +83,7 @@ for alert in detail_alerts:
     panel_id = alert['PanelId']
     panel = panels[(dashboard_id, panel_id)]
     panel_link = '{}{}?viewPanel={}'.format(GRAFANA_ADDRESS, dashboard_urls[dashboard_id], panel_id)
-    description = panel.get('description', '').replace('\n', ' ')
+    description = panel.get('description', '')
 
     print('* Name: [{}]({})'.format(alert_name, panel_link), end='\n\n')
     print('  Evaluate: Every {} for {}'.format(settings['frequency'], settings['for']), end='\n\n')
