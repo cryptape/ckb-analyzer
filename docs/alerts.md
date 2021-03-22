@@ -1,127 +1,94 @@
 # [Alerts](http://13.212.112.4:3000/alerting/list)
 
+Genrated by https://github.com/keroro520/ckb-analyzer/blob/main/scripts/alerts.py
 
 > References:
 >   * https://grafana.com/docs/grafana/latest/alerting/create-alerts
 ---
 
-* Name: [Tip Change (network=aggron) Alert](http://13.212.112.4:3000/d/vcN5hTfGz/alerting?viewPanel=3)
+* Name: [[Aggron] Chain Growth](http://13.212.112.4:3000/d/vcN5hTfGz/aggron-alerts?viewPanel=30)
 
-  Evaluate: every 1m for 5m
+  Evaluate: Every 5m for 10m
 
-  Description: Tip number change indicates the change growth.  When the tip number doesn't change for a long time, the chain may suspend.
+  Description:   Target: Tip number
 
-* Name: [Block Time Interval Alert (network = aggron)](http://13.212.112.4:3000/d/vcN5hTfGz/alerting?viewPanel=4)
+  Alert When: No update in a certain time
 
-  Evaluate: every 1m for 2m
+  Possible Cause: The canonical chain suspend
 
-  Description: Block time interval relates to the network mining power and the network propagation. A continuous long block time interval is a warning.
 
-* Name: [Transaction Being Pending Too Long Alert (network = aggron)](http://13.212.112.4:3000/d/vcN5hTfGz/alerting?viewPanel=5)
+* Name: [[Aggron] Block Time Interval](http://13.212.112.4:3000/d/vcN5hTfGz/aggron-alerts?viewPanel=32)
 
-  Evaluate: every 1m for 0m
+  Evaluate: Every 1m for 5m
 
-  Description: There is a transaction being pending for a long time.  Transactions should be packaged within new blocks or removed because of invalidation. Therefore if there are any pending-too-long transactions, tx-pool may have trouble.
+  Description:   Target: Block time interval
 
-* Name: [Transaction Being Proposed Too Long Alert (network = aggron)](http://13.212.112.4:3000/d/vcN5hTfGz/alerting?viewPanel=6)
+  Alert When: The average block time interval is greater/less than thresholds
 
-  Evaluate: every 1m for 0m
+  Possible Cause: Mining power changes rapidly
 
-  Description: There is a transaction being proposed for a long time.  Transactions should be packaged within new blocks or removed because of invalidation. Therefore if there are any proposed-too-long transactions, tx-pool may have trouble.
 
-* Name: [Error/Warning Logs Alert (network=aggron)](http://13.212.112.4:3000/d/vcN5hTfGz/alerting?viewPanel=7)
+* Name: [[Aggron] Uncle Count](http://13.212.112.4:3000/d/vcN5hTfGz/aggron-alerts?viewPanel=34)
 
-  Evaluate: every 1m for 0m
+  Evaluate: Every 5m for 10m
 
-  Description: 
+  Description:   Target: Uncle count
 
-* Name: [Tip Change (network=lina) Alert](http://13.212.112.4:3000/d/vcN5hTfGz/alerting?viewPanel=9)
+  Alert When: The uncle count in the recent 20m is greater than the threshold
 
-  Evaluate: every 1m for 5m
+  Possible Cause: Mining power changes rapidly; network traffic jam
 
-  Description: Tip number change indicates the change growth.  When the tip number doesn't change for a long time, the chain may suspend.
 
-* Name: [Block Time Interval Alert (network = lina)](http://13.212.112.4:3000/d/vcN5hTfGz/alerting?viewPanel=10)
+* Name: [[Aggron] Transaction Suspend in Pending Pool](http://13.212.112.4:3000/d/vcN5hTfGz/aggron-alerts?viewPanel=36)
 
-  Evaluate: every 1m for 2m
+  Evaluate: Every 1m for 5m
 
-  Description: 
+  Description:   Target: Pending Transaction
 
-* Name: [Transaction Being Pending Too Long (network = lina)](http://13.212.112.4:3000/d/vcN5hTfGz/alerting?viewPanel=11)
+  Alert When: There are transactions that have been pending for a long time
 
-  Evaluate: every 1m for 0m
+  Possible Cause: Pool bug
 
-  Description: 
+* Name: [[Lina] Chain Growth](http://13.212.112.4:3000/d/1rK5hPfGe/lina-alerts?viewPanel=30)
 
-* Name: [Transaction Being Proposed Too Long Alert (network = lina)](http://13.212.112.4:3000/d/vcN5hTfGz/alerting?viewPanel=12)
+  Evaluate: Every 5m for 10m
 
-  Evaluate: every 1m for 0m
+  Description:   Target: Tip number
 
-  Description: 
+  Alert When: No update in a certain time
 
-* Name: [Error/Warning Logs Alert (network=lina)](http://13.212.112.4:3000/d/vcN5hTfGz/alerting?viewPanel=13)
+  Possible Cause: The canonical chain suspend
 
-  Evaluate: every 1m for 0m
 
-  Description: 
+* Name: [[Lina] Block Time Interval](http://13.212.112.4:3000/d/1rK5hPfGe/lina-alerts?viewPanel=32)
 
-* Name: [Tip Change Alert (network=wano)](http://13.212.112.4:3000/d/vcN5hTfGz/alerting?viewPanel=15)
+  Evaluate: Every 1m for 5m
 
-  Evaluate: every 1m for 5m
+  Description:   Target: Block time interval
 
-  Description: Tip number change indicates the change growth.  When the tip number doesn't change for a long time, the chain may suspend.
+  Alert When: The average block time interval is greater/less than thresholds
 
-* Name: [Block Time Interval Alert (network = wano)](http://13.212.112.4:3000/d/vcN5hTfGz/alerting?viewPanel=16)
+  Possible Cause: Mining power changes rapidly
 
-  Evaluate: every 1m for 2m
 
-  Description: 
+* Name: [[Lina] Uncle Count](http://13.212.112.4:3000/d/1rK5hPfGe/lina-alerts?viewPanel=34)
 
-* Name: [Transaction Being Pending Too Long Alert (network = wano)](http://13.212.112.4:3000/d/vcN5hTfGz/alerting?viewPanel=17)
+  Evaluate: Every 5m for 10m
 
-  Evaluate: every 1m for 0m
+  Description:   Target: Uncle count
 
-  Description: 
+  Alert When: The uncle count in the recent 20m is greater than the threshold
 
-* Name: [Transaction Being Proposed Too Long Alert (network = wano)](http://13.212.112.4:3000/d/vcN5hTfGz/alerting?viewPanel=18)
+  Possible Cause: Mining power changes rapidly; network traffic jam
 
-  Evaluate: every 1m for 0m
 
-  Description: 
+* Name: [[Lina] Transaction Suspend in Pending Pool](http://13.212.112.4:3000/d/1rK5hPfGe/lina-alerts?viewPanel=36)
 
-* Name: [Error/Warning Logs Alert (network=wano)](http://13.212.112.4:3000/d/vcN5hTfGz/alerting?viewPanel=19)
+  Evaluate: Every 1m for 5m
 
-  Evaluate: every 1m for 0m
+  Description:   Target: Pending Transaction
 
-  Description: 
+  Alert When: There are transactions that have been pending for a long time
 
-* Name: [No Data Alert (network = aggron)](http://13.212.112.4:3000/d/vcN5hTfGz/alerting?viewPanel=21)
-
-  Evaluate: every 30m for 60m
-
-  Description: 
-
-* Name: [No Data Alert (network = lina)](http://13.212.112.4:3000/d/vcN5hTfGz/alerting?viewPanel=22)
-
-  Evaluate: every 30m for 60m
-
-  Description: 
-
-* Name: [No Data Alert (network = wano)](http://13.212.112.4:3000/d/vcN5hTfGz/alerting?viewPanel=23)
-
-  Evaluate: every 30m for 60m
-
-  Description: 
-
-* Name: [Uncle Count in 20m Alert (network = aggron)](http://13.212.112.4:3000/d/vcN5hTfGz/alerting?viewPanel=27)
-
-  Evaluate: every 1m for 10m
-
-  Description: 
-
-* Name: [Uncle Count in 20m Alert (network = lina)](http://13.212.112.4:3000/d/vcN5hTfGz/alerting?viewPanel=28)
-
-  Evaluate: every 1m for 10m
-
-  Description: 
+  Possible Cause: Pool bug
 
