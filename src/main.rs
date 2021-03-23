@@ -228,19 +228,37 @@ async fn run(async_handle02: ckb_async_runtime::Handle) {
     }
 
     let max_batch_size: usize = 1000;
-    let max_batch_timeout = Duration::from_secs(30);
+    let max_batch_timeout = Duration::from_secs(60);
     let mut last_batch_instant: Instant = Instant::now();
     let mut batch: Vec<String> = Vec::with_capacity(max_batch_size);
-    for query in query_receiver {
-        // TODO Attach built-in tags, hostname
-        batch.push(query);
-        if batch.len() >= max_batch_size || last_batch_instant.elapsed() >= max_batch_timeout {
-            last_batch_instant = Instant::now();
-            let batch_query: String = batch.join(";");
-            pg.batch_execute(&batch_query).await.unwrap_or_else(|err| {
-                panic!("pg.batch_execute(\"{}\"), error: {}", batch_query, err)
-            });
-            batch = Vec::new();
+    loop {
+        match query_receiver.recv_timeout(Duration::from_secs(10)) {
+            Ok(query) => {
+                // TODO Attach built-in tags, hostname
+                batch.push(query);
+                if batch.len() >= max_batch_size || last_batch_instant.elapsed() >= max_batch_timeout {
+                    last_batch_instant = Instant::now();
+                    let batch_query: String = batch.join(";");
+                    pg.batch_execute(&batch_query).await.unwrap_or_else(|err| {
+                        panic!("pg.batch_execute(\"{}\"), error: {}", batch_query, err)
+                    });
+                    batch = Vec::new();
+                }
+            }
+            Err(crossbeam::channel::RecvTimeoutError::Timeout) => {
+                if !batch.is_empty() {
+                    last_batch_instant = Instant::now();
+                    let batch_query: String = batch.join(";");
+                    pg.batch_execute(&batch_query).await.unwrap_or_else(|err| {
+                        panic!("pg.batch_execute(\"{}\"), error: {}", batch_query, err)
+                    });
+                    batch = Vec::new();
+                }
+            }
+            Err(_) => {
+                log::info!("exit ckb-analyzer");
+                break;
+            }
         }
     }
 }
