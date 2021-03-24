@@ -20,6 +20,7 @@
 
 use crate::config::Config;
 use crate::subscribe::{Subscription, Topic};
+use crate::util::retry_send;
 use ckb_suite_rpc::{ckb_jsonrpc_types::HeaderView as JsonHeader, Jsonrpc};
 use ckb_types::core::{BlockNumber, HeaderView};
 use ckb_types::packed::Byte32;
@@ -147,7 +148,7 @@ impl Reorganization {
             new_tip_hash: format!("{:#x}", new_tip.hash()),
             ancestor_hash: format!("{:#x}", ancestor.hash()),
         };
-        self.query_sender.send(point.insert_query()).unwrap();
+        retry_send(&self.query_sender, point.insert_query()).await;
     }
 
     async fn get_header(&mut self, block_hash: Byte32) -> HeaderView {

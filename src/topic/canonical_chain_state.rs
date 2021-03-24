@@ -1,5 +1,6 @@
 use crate::config::Config;
 use crate::table;
+use crate::util::retry_send;
 use ckb_suite_rpc::Jsonrpc;
 use ckb_types::core::{BlockNumber, HeaderView};
 use ckb_types::core::{BlockView, EpochNumber};
@@ -100,7 +101,7 @@ impl CanonicalChainState {
         };
 
         log::info!("block #{}, timestamp: {}", number, block.timestamp());
-        self.query_sender.send(point.insert_query()).unwrap();
+        retry_send(&self.query_sender, point.insert_query()).await;
     }
 
     async fn analyze_block_uncles(&self, block: &BlockView) {
@@ -146,7 +147,7 @@ impl CanonicalChainState {
             uncle.timestamp(),
             lag_to_canonical,
         );
-        self.query_sender.send(point.insert_query()).unwrap();
+        retry_send(&self.query_sender, point.insert_query()).await;
     }
 
     async fn analyze_block_transactions(&mut self, block: &BlockView) {
@@ -171,7 +172,7 @@ impl CanonicalChainState {
                         number: number as i64,
                         delay: delay as i32,
                     };
-                    self.query_sender.send(point.insert_query()).unwrap();
+                    retry_send(&self.query_sender, point.insert_query()).await;
                     break;
                 }
             }
@@ -222,7 +223,7 @@ impl CanonicalChainState {
                 duration: duration as i32,
                 n_uncles: *current_epoch_uncles_total as i32,
             };
-            self.query_sender.send(point.insert_query()).unwrap();
+            retry_send(&self.query_sender, point.insert_query()).await;
 
             *current_epoch_number = block.epoch().number();
             *current_epoch_uncles_total = 0;

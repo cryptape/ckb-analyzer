@@ -95,3 +95,22 @@ pub fn get_version() -> Version {
         commit_date,
     }
 }
+
+// I use crossbeam channel to communicate between pg and handlers. But this way has a bug. When
+// both of the communication side are in the same Tokio runtime, the communication may suspend.
+// The reason is that both of them are waiting for others and Tokio cannot schedule now because
+// the runtime is suspend.
+//
+// Therefore I create `retry_send` to enforce Tokio schedule works.
+pub async fn retry_send<T: Clone>(sender: &crossbeam::channel::Sender<T>, message: T) {
+    while try_send(sender, message.clone()).await.is_err() {
+        tokio::time::sleep(::std::time::Duration::from_secs(1)).await;
+    }
+}
+
+async fn try_send<T>(
+    sender: &crossbeam::channel::Sender<T>,
+    message: T,
+) -> Result<(), crossbeam::channel::TrySendError<T>> {
+    sender.try_send(message)
+}

@@ -1,5 +1,6 @@
 use crate::config::Config;
 use crate::subscribe::{Subscription, Topic};
+use crate::util::retry_send;
 use ckb_suite_rpc::{
     ckb_jsonrpc_types::{PoolTransactionEntry, Status},
     Jsonrpc,
@@ -138,7 +139,7 @@ impl TxTransition {
             remove_time: None,
             hash: format!("{:#x}", entry.pool_transaction_entry.transaction.hash),
         };
-        self.query_sender.send(point.insert_query()).unwrap();
+        retry_send(&self.query_sender, point.insert_query()).await;
     }
 
     async fn report_commit(&self, entry: &TxEntry, committed_time: chrono::NaiveDateTime) {
@@ -149,7 +150,7 @@ impl TxTransition {
             remove_time: None,
             hash: format!("{:#x}", entry.pool_transaction_entry.transaction.hash),
         };
-        self.query_sender.send(point.update_query()).unwrap();
+        retry_send(&self.query_sender, point.update_query()).await;
     }
 
     async fn report_remove(&self, entry: &TxEntry) {
@@ -160,7 +161,7 @@ impl TxTransition {
             remove_time: Some(chrono::Utc::now().naive_utc()),
             hash: format!("{:#x}", entry.pool_transaction_entry.transaction.hash),
         };
-        self.query_sender.send(point.update_query()).unwrap();
+        retry_send(&self.query_sender, point.update_query()).await;
     }
 
     fn get_block_timestamp(&self, block_hash: Byte32) -> Option<chrono::NaiveDateTime> {
