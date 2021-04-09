@@ -240,28 +240,28 @@ async fn handle_message(
     batch: &mut Vec<String>,
     last_batch_instant: &mut Instant,
 ) {
-    let max_batch_size: usize = 1000;
+    let max_batch_size: usize = 100;
     let max_batch_timeout = Duration::from_secs(60);
     match query_receiver.try_recv() {
         Ok(query) => {
             // TODO Attach built-in tags, hostname
             batch.push(query);
             if batch.len() >= max_batch_size || last_batch_instant.elapsed() >= max_batch_timeout {
-                *last_batch_instant = Instant::now();
                 let batch_query: String = batch.join(";");
                 pg.batch_execute(&batch_query).await.unwrap_or_else(|err| {
                     panic!("pg.batch_execute(\"{}\"), error: {}", batch_query, err)
                 });
+                *last_batch_instant = Instant::now();
                 *batch = Vec::new();
             }
         }
         Err(crossbeam::channel::TryRecvError::Empty) => {
             if !batch.is_empty() {
-                *last_batch_instant = Instant::now();
                 let batch_query: String = batch.join(";");
                 pg.batch_execute(&batch_query).await.unwrap_or_else(|err| {
                     panic!("pg.batch_execute(\"{}\"), error: {}", batch_query, err)
                 });
+                *last_batch_instant = Instant::now();
                 *batch = Vec::new();
             }
         }
