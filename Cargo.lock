@@ -2149,8 +2149,9 @@ dependencies = [
 
 [[package]]
 name = "ipinfo"
-version = "0.1.3"
-source = "git+https://github.com/keroro520/rust-ipinfo?branch=hostname-optional#63964d23cb029ec0a7187e93bf96630afb8b0dec"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "07c56207b0c86c1e6f5a816e5d1904ee181fa7a99f23b75f6d024c869711c0a8"
 dependencies = [
  "lru",
  "reqwest",
