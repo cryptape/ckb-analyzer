@@ -123,7 +123,8 @@
 
 use crate::config::{Config, Topic};
 use crate::topic::{
-    CanonicalChainState, NetworkPropagation, NetworkTopology, Reorganization, TxTransition,
+    CanonicalChainState, NetworkPropagation, NetworkTopology, Reorganization,
+    SubscribeNewTipHeader, SubscribeNewTransaction, TxTransition,
 };
 use crate::util::get_last_updated_block_number;
 use ckb_suite_rpc::Jsonrpc;
@@ -219,6 +220,36 @@ async fn run(async_handle02: ckb_async_runtime::Handle) {
             Topic::NetworkTopology => {
                 // TODO NetworkTopology
                 let handler = NetworkTopology::new(vec![]);
+                tokio::spawn(async move {
+                    handler.run().await;
+                    log::info!("End topic {:?}", topic);
+                });
+            }
+            Topic::SubscribeNewTipHeader => {
+                let (handler, subscription) =
+                    SubscribeNewTipHeader::new(config.clone(), query_sender.clone());
+
+                ::std::thread::spawn(move || {
+                    let mut runtime01 = tokio01::runtime::Builder::new().build().unwrap();
+                    runtime01.block_on(subscription.run()).unwrap();
+                    log::info!("Runtime for subscription on topic {:?} exit", topic);
+                });
+
+                tokio::spawn(async move {
+                    handler.run().await;
+                    log::info!("End topic {:?}", topic);
+                });
+            }
+            Topic::SubscribeNewTransaction => {
+                let (handler, subscription) =
+                    SubscribeNewTransaction::new(config.clone(), query_sender.clone());
+
+                ::std::thread::spawn(move || {
+                    let mut runtime01 = tokio01::runtime::Builder::new().build().unwrap();
+                    runtime01.block_on(subscription.run()).unwrap();
+                    log::info!("Runtime for subscription on topic {:?} exit", topic);
+                });
+
                 tokio::spawn(async move {
                     handler.run().await;
                     log::info!("End topic {:?}", topic);

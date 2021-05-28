@@ -352,7 +352,7 @@ dependencies = [
 
 [[package]]
 name = "ckb-analyzer"
-version = "0.0.6"
+version = "0.0.7"
 dependencies = [
  "case_style",
  "chrono",
@@ -947,7 +947,7 @@ dependencies = [
 
 [[package]]
 name = "ckb-suite-rpc"
-version = "0.0.3"
+version = "0.0.7"
 dependencies = [
  "ckb-jsonrpc-types",
  "ckb-types",

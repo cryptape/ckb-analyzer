@@ -19,6 +19,8 @@ pub enum Topic {
     TxTransition,
     NetworkPropagation,
     NetworkTopology,
+    SubscribeNewTipHeader,
+    SubscribeNewTransaction,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

@@ -1,6 +1,6 @@
 [package]
 name = "ckb-suite-rpc"
-version = "0.0.3"
+version = "0.0.7"
 license = "MIT"
 authors = ["Nervos Core Dev <dev@nervos.org>"]
 edition = "2018"

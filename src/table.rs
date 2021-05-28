@@ -340,57 +340,59 @@ impl Propagation {
 }
 
 /// ```
-/// CREATE TABLE IF NOT EXISTS $network_subscription_new_tip_header(
+/// CREATE TABLE IF NOT EXISTS $network_subscribe_new_tip_header(
 ///     network             VARCHAR ( 10 )  NOT NULL,
 ///     time                TIMESTAMP       NOT NULL,
 ///     hostname            VARCHAR ( 46 )  NOT NULL,
+///     block_timestamp     TIMESTAMP       NOT NULL,
 ///     block_hash          VARCHAR ( 66 )  NOT NULL,
 ///     block_number        BIGINT          NOT NULL
 /// );
 ///
-/// SELECT create_hypertable('$network_subscription_new_tip_header', 'time');
+/// SELECT create_hypertable('$network_subscribe_new_tip_header', 'time');
 /// ```
 #[derive(Clone, Debug)]
-pub struct SubscriptionNewTipHeader {
+pub struct SubscribeNewTipHeader {
     pub network: String,
     pub time: chrono::NaiveDateTime,
     pub hostname: String,
+    pub block_timestamp: chrono::NaiveDateTime,
     pub block_number: u64,
     pub block_hash: String,
 }
 
-impl SubscriptionNewTipHeader {
+impl SubscribeNewTipHeader {
     pub fn insert_query(&self) -> String {
         format!(
-            "INSERT INTO {}_subscription_new_tip_header(network, time, hostname, block_number, block_hash)\
-            VALUES ('{}', '{}', '{}', {}, '{}')",
-            &self.network, &self.network, &self.time, &self.hostname, &self.block_number, &self.block_hash,
+            "INSERT INTO {}_subscribe_new_tip_header(network, time, hostname, block_timestamp, block_number, block_hash)\
+            VALUES ('{}', '{}', '{}', '{}', {}, '{}')",
+            &self.network, &self.network, &self.time, &self.hostname, &self.block_timestamp, &self.block_number, &self.block_hash,
         )
     }
 }
 
 /// ```
-/// CREATE TABLE IF NOT EXISTS $network_subscription_new_transaction (
+/// CREATE TABLE IF NOT EXISTS $network_subscribe_new_transaction (
 ///     network             VARCHAR ( 10 )  NOT NULL,
 ///     time                TIMESTAMP       NOT NULL,
 ///     hostname            VARCHAR ( 46 )  NOT NULL,
 ///     transaction_hash    VARCHAR ( 66 )  NOT NULL
 /// );
 ///
-/// SELECT create_hypertable('$network_subscription_new_transaction', 'time');
+/// SELECT create_hypertable('$network_subscribe_new_transaction', 'time');
 /// ```
 #[derive(Clone, Debug)]
-pub struct SubscriptionNewTransaction {
+pub struct SubscribeNewTransaction {
     pub network: String,
     pub time: chrono::NaiveDateTime,
     pub hostname: String,
     pub transaction_hash: String,
 }
 
-impl SubscriptionNewTransaction {
+impl SubscribeNewTransaction {
     pub fn insert_query(&self) -> String {
         format!(
-            "INSERT INTO {}_subscription_new_transaction(network, time, hostname, transaction_hash)\
+            "INSERT INTO {}_subscribe_new_transaction(network, time, hostname, transaction_hash)\
             VALUES ('{}', '{}', '{}', '{}')",
             &self.network, &self.network, &self.time, &self.hostname, &self.transaction_hash,
         )
