@@ -17,7 +17,7 @@ ckb-build-info = { version = "0.42.0" }
 ckb-types = { version = "0.42.0" }
 ckb-app-config = { version = "0.42.0" }
 ckb-async-runtime = { version = "0.42.0" }
-tentacle-multiaddr = { version = "0.3.8" }
+tentacle-multiaddr = { version = "0.2" }
 
 tokio = { version = "1.2.0", features = ["full"] }
 crossbeam = { version = "0.8.0" }

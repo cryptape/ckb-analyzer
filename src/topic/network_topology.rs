@@ -1,6 +1,6 @@
 //! This module is experimentle at present.
 
-use ckb_network::{multiaddr::MultiAddr, MultiaddrExt};
+use ckb_network::{multiaddr::MultiAddr, multiaddr_to_socketaddr};
 use ckb_suite_rpc::Jsonrpc;
 use std::collections::{HashMap, HashSet};
 use std::net::SocketAddr;
@@ -102,8 +102,8 @@ impl NetworkTopology {
 // FIXME Use more accurate identifier
 fn extract_ip(address: &str) -> String {
     if let Ok(multiaddr) = address.parse::<MultiAddr>() {
-        let ip_port = multiaddr.extract_ip_addr().unwrap();
-        ip_port.ip.to_string()
+        let socket_addr = multiaddr_to_socketaddr(&multiaddr).unwrap();
+        socket_addr.ip().to_string()
     } else if let Ok(socket_addr) = address[7..].parse::<SocketAddr>() {
         // FIXME ugly
         socket_addr.ip().to_string()

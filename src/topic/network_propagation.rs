@@ -22,8 +22,8 @@ use crate::util::{get_network_identifier, get_version};
 use chrono::Utc;
 use ckb_app_config::NetworkConfig;
 use ckb_network::{
-    bytes::Bytes, CKBProtocol, CKBProtocolContext, CKBProtocolHandler, DefaultExitHandler,
-    NetworkService, NetworkState, Peer, PeerIndex, SupportProtocols,
+    bytes::Bytes, extract_peer_id, CKBProtocol, CKBProtocolContext, CKBProtocolHandler,
+    DefaultExitHandler, NetworkService, NetworkState, Peer, PeerIndex, SupportProtocols,
 };
 use ckb_suite_rpc::Jsonrpc;
 use ckb_types::packed::{
@@ -212,10 +212,11 @@ impl NetworkPropagation {
     where
         M: ToString,
     {
+        let peer_id = extract_peer_id(&peer.connected_addr).unwrap();
         let point = crate::table::Propagation {
             network: self.config.network(),
             time: Utc::now().naive_utc(),
-            peer_id: peer.peer_id.to_base58(),
+            peer_id: peer_id.to_base58(),
             hash: format!("{:#x}", hash),
             message_name: message_name.to_string(),
         };
@@ -244,11 +245,12 @@ impl NetworkPropagation {
         } else {
             "-".to_string()
         };
+        let peer_id = extract_peer_id(&peer.connected_addr).unwrap();
         let country = self.lookup_country(&host);
         let point = crate::table::Heartbeat {
             network: self.config.network(),
             time: Utc::now().naive_utc(),
-            peer_id: peer.peer_id.to_base58(),
+            peer_id: peer_id.to_base58(),
             host,
             connected_duration: peer.connected_time.elapsed().as_millis() as i64,
             client_version,
