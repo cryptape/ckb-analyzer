@@ -399,6 +399,34 @@ impl SubscribeNewTransaction {
     }
 }
 
+/// ```
+/// CREATE TABLE IF NOT EXISTS $network_subscribe_proposed_transaction (
+///     network             VARCHAR ( 10 )  NOT NULL,
+///     time                TIMESTAMP       NOT NULL,
+///     hostname            VARCHAR ( 46 )  NOT NULL,
+///     transaction_hash    VARCHAR ( 66 )  NOT NULL
+/// );
+///
+/// SELECT create_hypertable('$network_subscribe_proposed_transaction', 'time');
+/// ```
+#[derive(Clone, Debug)]
+pub struct SubscribeProposedTransaction {
+    pub network: String,
+    pub time: chrono::NaiveDateTime,
+    pub hostname: String,
+    pub transaction_hash: String,
+}
+
+impl SubscribeProposedTransaction {
+    pub fn insert_query(&self) -> String {
+        format!(
+            "INSERT INTO {}_subscribe_proposed_transaction(network, time, hostname, transaction_hash)\
+            VALUES ('{}', '{}', '{}', '{}')",
+            &self.network, &self.network, &self.time, &self.hostname, &self.transaction_hash,
+        )
+    }
+}
+
 // /// # Create trigger
 // /// ```sql
 // /// CREATE OR REPLACE FUNCTION label_nth_propagation() RETURNS trigger AS $$

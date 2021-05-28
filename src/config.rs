@@ -21,6 +21,7 @@ pub enum Topic {
     NetworkTopology,
     SubscribeNewTipHeader,
     SubscribeNewTransaction,
+    SubscribeProposedTransaction,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
