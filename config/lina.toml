@@ -1,0 +1,24 @@
+network = "lina"
+ipinfo_io_token = "e322ddf327f26b"
+
+topics = ['CanonicalChainState', 'Reorganization', 'TxTransition', 'NetworkPropagation']
+
+postgres = "postgres://<username>:<password>@<host>:<port>/ckb"
+
+[node]
+host = "127.0.0.1"
+rpc_port = 8114
+subscription_port = 18114
+data_dir = "/home/ckb/nodes/node-8111/default/"
+bootnodes = [
+  # Hangzhou (China)
+  "/ip4/47.110.15.57/tcp/8114/p2p/QmXS4Kbc9HEeykHUTJCm2tNmqghbvWyYpUp6BtE5b6VrAU",
+  # Tokyo
+  "/ip4/47.245.31.79/tcp/8114/p2p/QmUaSuEdXNGJEKvkE4rCn3cwBrpRFUm5TsouF4M3Sjursv",
+  # Bombay
+  "/ip4/13.234.144.148/tcp/8114/p2p/QmbT7QimcrcD5k2znoJiWpxoESxang6z1Gy9wof1rT1LKR",
+  # Virginia
+  "/ip4/3.218.170.86/tcp/8114/p2p/QmShw2vtVt49wJagc1zGQXGS6LkQTcHxnEV3xs6y8MAmQN",
+  # Frankfurt
+  "/ip4/52.59.155.249/tcp/8114/p2p/QmRHqhSGMGm5FtnkW8D6T83X7YwaiMAZXCXJJaKzQEo3rb",
+]
