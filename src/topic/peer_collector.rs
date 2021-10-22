@@ -13,6 +13,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tentacle_multiaddr::Multiaddr;
 
+/// PeerCollector crawl the CKB network and gather the nodes' info.
 #[derive(Clone)]
 pub struct PeerCollector {
     node: Node,
@@ -149,7 +150,7 @@ impl CKBProtocolHandler for PeerCollector {
         _version: &str,
     ) {
         if let Some(peer) = nc.get_peer(peer_index) {
-            ckb_testkit::info!(
+            log::info!(
                 "connect with #{}({:?}), protocols: {:?}",
                 peer_index,
                 peer.connected_addr,
@@ -160,7 +161,7 @@ impl CKBProtocolHandler for PeerCollector {
 
     fn disconnected(&mut self, nc: Arc<dyn CKBProtocolContext + Sync>, peer_index: PeerIndex) {
         if let Some(peer) = nc.get_peer(peer_index) {
-            ckb_testkit::info!("disconnect with #{}({:?})", peer_index, peer.connected_addr);
+            log::info!("disconnect with #{}({:?})", peer_index, peer.connected_addr);
         }
     }
 
@@ -170,19 +171,6 @@ impl CKBProtocolHandler for PeerCollector {
         _peer_index: PeerIndex,
         data: Bytes,
     ) {
-        {
-            use ckb_types::packed;
-            use ckb_types::prelude::*;
-            if packed::RelayMessageReader::from_compatible_slice(&data).is_err() {
-                if packed::SyncMessageReader::from_compatible_slice(&data).is_err() {
-                    log::warn!(
-                        "bilibili this message is not relay nor sync, protocol_id: {:?}",
-                        nc.protocol_id()
-                    );
-                }
-            };
-        }
-
         if self.last_update_time.elapsed() < Duration::from_secs(5) {
             return;
         }
