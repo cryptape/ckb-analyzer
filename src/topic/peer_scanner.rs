@@ -60,7 +60,11 @@ impl PeerScanner {
             }
 
             last_id = raws[raws.len() - 1].get(0);
-            log::debug!("select {} null-country peer entries, last id is {}", raws.len(), last_id);
+            log::debug!(
+                "select {} null-country peer entries, last id is {}",
+                raws.len(),
+                last_id
+            );
 
             for raw in raws {
                 let id: i32 = raw.get(0);

@@ -13,9 +13,9 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tentacle_multiaddr::Multiaddr;
 
-/// PeerCollector crawl the CKB network and gather the nodes' info.
+/// PeerCrawler crawl the CKB network and gather the nodes' info.
 #[derive(Clone)]
-pub struct PeerCollector {
+pub struct PeerCrawler {
     node: Node,
     query_sender: crossbeam::channel::Sender<String>,
     async_handle: ckb_async_runtime::Handle,
@@ -23,7 +23,7 @@ pub struct PeerCollector {
     last_update_time: Instant,
 }
 
-impl PeerCollector {
+impl PeerCrawler {
     pub fn new(
         node: Node,
         query_sender: crossbeam::channel::Sender<String>,
@@ -140,7 +140,7 @@ impl PeerCollector {
     }
 }
 
-impl CKBProtocolHandler for PeerCollector {
+impl CKBProtocolHandler for PeerCrawler {
     fn init(&mut self, _nc: Arc<dyn CKBProtocolContext + Sync>) {}
 
     fn connected(
@@ -169,7 +169,7 @@ impl CKBProtocolHandler for PeerCollector {
         &mut self,
         nc: Arc<dyn CKBProtocolContext + Sync>,
         _peer_index: PeerIndex,
-        data: Bytes,
+        _data: Bytes,
     ) {
         if self.last_update_time.elapsed() < Duration::from_secs(5) {
             return;

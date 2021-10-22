@@ -1,4 +1,4 @@
-use crate::topic::{PeerCollector, PeerScanner};
+use crate::topic::{PeerCrawler, PeerScanner};
 use crate::util::crossbeam_channel_to_tokio_channel;
 use ckb_testkit::Node;
 use clap::{crate_version, value_t_or_exit, values_t_or_exit, App, Arg};
@@ -27,7 +27,12 @@ async fn run(async_handle: ckb_async_runtime::Handle) {
     let rpc_url = value_t_or_exit!(matches, "node.rpc", String);
     let subscription_url = value_t_or_exit!(matches, "node.subscription", String);
     let topics = values_t_or_exit!(matches, "topics", String);
-    log::info!("CKBAnalyzer parameters: node.rpc={}, node.subscription={}, topics: {:?}", rpc_url, subscription_url, topics);
+    log::info!(
+        "CKBAnalyzer parameters: node.rpc={}, node.subscription={}, topics: {:?}",
+        rpc_url,
+        subscription_url,
+        topics
+    );
 
     let pg_config = {
         let postgres_str = env::var_os("CKB_ANALYZER_POSTGRES")
@@ -53,9 +58,9 @@ async fn run(async_handle: ckb_async_runtime::Handle) {
         crossbeam_channel_to_tokio_channel::channel::<String>(5000);
     for topic in topics {
         match topic.as_str() {
-            "PeerCollector" => {
+            "PeerCrawler" => {
                 let node = Node::init_from_url(&rpc_url, PathBuf::new());
-                let handler = PeerCollector::new(node, query_sender.clone(), async_handle.clone());
+                let handler = PeerCrawler::new(node, query_sender.clone(), async_handle.clone());
                 thread::spawn(move || handler.run());
             }
             "PeerScanner" => {
@@ -144,7 +149,7 @@ pub fn clap_app() -> App<'static, 'static> {
                 .takes_value(true)
                 .multiple(true)
                 .use_delimiter(true)
-                .default_value("PeerCollector,PeerScanner")
-                .possible_values(&["PeerCollector", "PeerScanner"]),
+                .default_value("PeerCrawler,PeerScanner")
+                .possible_values(&["PeerCrawler", "PeerScanner"]),
         )
 }
