@@ -1,49 +1,55 @@
-# ckb-analyzer
+# CKBAnalyzer
 
-ckb-analyzer is an agent for collecting metrics from ckb, then writing the processed metrics
-info InfluxDB. We can visualize these metrics on Grafana or other visualization tools.
+The purpose of CKBAnalyzer is to facilitate observation of the CKB network.
 
-ckb-analyzer is still working in progress rapidly.
+The program does several things:
+  - Crawl the CKB network to gather the nodes information
+  - Store the main-chain blocks
+
+CKBAnalyzer is still working in progress rapidly.
+
+## Storage
+
+CKBAnalyzer acts as a metrics agent and stores the data into [Timescaldb](https://docs.timescale.com/).
+
+## Visualization
+
+We visualize data using [Grafana](https://grafana.com/). Our Grafana dashboards are maintained in this repository.
 
 ## Install
 
-Download from [releases](https://github.com/keroro520/ckb-analyzer/releases) or
-
-```shell
-cargo install ckb-analyzer
-```
+Download from [releases](https://github.com/keroro520/ckb-analyzer/releases).
 
 ## Usage
 
-ckb-analyzer reads several environment variables:
+### Environment Variables
 
-* `CKB_ANALYZER_CONFIG` specify the configuration file path
-* `CKB_RPC_USERNAME` specify the authorization username to ckb rpc service, default is `""`
-* `CKB_RPC_PASSWORD` specify the authorization password to ckb rpc service, default is `""`
-* `INFLUXDB_USERNAME` specify the influxdb username, default is `""`
-* `INFLUXDB_PASSWORD` specify the influxdb password, default is `""`
+* `IPINFO_IO_TOKEN`, optional, [ipinfo.io](https://ipinfo.ip) authentication token, is used by [`PeerScanner`](./src/topics/peer_scanner.rs) to look up the geographical location by nodes' ip.
 
-Command example:
+* `CKB_ANALYZER_POSTGRES`, required, Postgres login key.
+
+### Help
 
 ```shell
-CKB_ANALYZER_CONFIG=config/test.toml ckb-analyzer
+USAGE:
+    ckb-analyzer [OPTIONS] --node.rpc <URL> --node.subscription <URL>
+
+FLAGS:
+    -h, --help       Prints help information
+    -V, --version    Prints version information
+
+OPTIONS:
+        --node.rpc <URL>
+        --node.subscription <URL>
+        --topics <TOPIC>...           [default: PeerCrawler,PeerScanner]  [possible values: PeerCrawler, PeerScanner]
 ```
 
-## Dashboards
+### Example
 
-Please reference the dashboards index [`dashboards.md`](dashboards.md)
-
-## FAQ
-
-* ckb itself exposes metrics. Then why create ckb-analyzer?
-
-  Some metrics are not convenient to expose from ckb, like historical chain metrics and complex
-  analyzing tasks. With ckb-analyzer, we can display historical chain information by extracting
-  the historical blocks and do some complexity tasks outside ckb, which prevent adding too much
-  complexity into ckb.
-
-* Why use InfluxDB?
-
-  Pushing metrics actively via HTTP to InfluxDB is much useful!
+```shell
+CKB_ANALYZER_POSTGRES="postgres://postgres:postgres@localhost:5432/ckbraw" \
+ckb-analyzer --node.rpc="http://127.0.0.1:8111" --node.subscription="http://127.0.0.1:18114"
+```
 
 License: MIT
+
