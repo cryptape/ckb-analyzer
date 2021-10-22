@@ -1,17 +1,5 @@
-mod canonical_chain_state;
-mod network_propagation;
-mod network_topology;
-mod reorganization;
-mod subscribe_new_tip_header;
-mod subscribe_new_transaction;
-mod subscribe_proposed_transaction;
-mod tx_transition;
+mod peer_collector;
+mod peer_scanner;
 
-pub(crate) use canonical_chain_state::CanonicalChainState;
-pub(crate) use network_propagation::NetworkPropagation;
-pub(crate) use network_topology::NetworkTopology;
-pub(crate) use reorganization::Reorganization;
-pub(crate) use subscribe_new_tip_header::SubscribeNewTipHeader;
-pub(crate) use subscribe_new_transaction::SubscribeNewTransaction;
-pub(crate) use subscribe_proposed_transaction::SubscribeProposedTransaction;
-pub(crate) use tx_transition::TxTransition;
+pub(crate) use peer_collector::PeerCollector;
+pub(crate) use peer_scanner::PeerScanner;
