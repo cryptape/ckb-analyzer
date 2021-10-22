@@ -1,5 +1,3 @@
-use crate::entry;
-use ipinfo::IpInfo;
 use std::env;
 use std::time::Duration;
 
@@ -66,8 +64,9 @@ impl PeerScanner {
 
                 match self.lookup_country(&ip) {
                     Ok(country) => {
-                        let query = entry::Peer::update_peer_country(id, &country);
-                        self.pg.batch_execute(&query).await?;
+                        let raw_query =
+                            format!("UPDATE peer SET country = '{}' WHERE id = {}", country, id,);
+                        self.pg.batch_execute(&raw_query).await?;
                     }
                     Err(err) => {
                         log::error!("ipinfo.io query error: {:?}", err);

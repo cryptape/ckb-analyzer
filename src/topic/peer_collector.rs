@@ -1,12 +1,11 @@
 use crate::entry;
-use crate::util::find_available_port;
 use chrono::Utc;
 use ckb_app_config::{NetworkConfig, SupportProtocol};
 use ckb_network::{
-    bytes::Bytes, extract_peer_id, multiaddr_to_socketaddr, CKBProtocol, CKBProtocolContext,
-    CKBProtocolHandler, DefaultExitHandler, NetworkService, NetworkState, Peer, PeerIndex,
-    SupportProtocols,
+    bytes::Bytes, multiaddr_to_socketaddr, CKBProtocol, CKBProtocolContext, CKBProtocolHandler,
+    DefaultExitHandler, NetworkService, NetworkState, PeerIndex, SupportProtocols,
 };
+use ckb_testkit::util::find_available_port;
 use ckb_testkit::Node;
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -200,9 +199,12 @@ impl CKBProtocolHandler for PeerCollector {
                         ip,
                         country: None,
                     };
-                    self.query_sender
-                        .send(entry.insert_raw_peer_query())
-                        .unwrap();
+                    let raw_query = format!(
+                        "INSERT INTO peer(network, time, version, ip) \
+            VALUES ('{}', '{}', '{}', '{}')",
+                        entry.network, entry.time, entry.version, entry.ip,
+                    );
+                    self.query_sender.send(raw_query).unwrap();
                 }
             }
         }

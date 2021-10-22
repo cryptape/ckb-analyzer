@@ -1,14 +1,12 @@
 use crate::topic::{PeerCollector, PeerScanner};
 use crate::util::crossbeam_channel_to_tokio_channel;
 use ckb_testkit::Node;
-use clap::{crate_version, value_t_or_exit, values_t_or_exit, App, Arg, ArgMatches, SubCommand};
-use crossbeam::channel::bounded;
+use clap::{crate_version, value_t_or_exit, values_t_or_exit, App, Arg};
 use std::env;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::thread;
 use std::time::{Duration, Instant};
-use tentacle_multiaddr::Multiaddr;
 
 mod entry;
 mod topic;
@@ -56,118 +54,6 @@ async fn run(async_handle: ckb_async_runtime::Handle) {
             }
             _ => unreachable!(),
         }
-
-        //         match topic {
-        //             // Topic::CanonicalChainState => {
-        //             //     let jsonrpc = Jsonrpc::connect(&config.rpc_url());
-        //             //     let last_number = get_last_updated_block_number(&pg, &config.network).await;
-        //             //     let mut handler = CanonicalChainState::new(
-        //             //         config.clone(),
-        //             //         jsonrpc,
-        //             //         query_sender.clone(),
-        //             //         last_number,
-        //             //     );
-        //             //     tokio::spawn(async move {
-        //             //         handler.run().await;
-        //             //         log::info!("End topic {:?}", topic);
-        //             //     });
-        //             // }
-        //             // Topic::Reorganization => {
-        //             //     let jsonrpc = Jsonrpc::connect(&config.rpc_url());
-        //             //     let (handler, subscription) =
-        //             //         Reorganization::new(config.clone(), jsonrpc, query_sender.clone());
-        //
-        //             //     ::std::thread::spawn(move || {
-        //             //         let mut runtime01 = tokio01::runtime::Builder::new().build().unwrap();
-        //             //         runtime01.block_on(subscription.run()).unwrap();
-        //             //         log::info!("Runtime for subscription on topic {:?} exit", topic);
-        //             //     });
-        //
-        //             //     tokio::spawn(async move {
-        //             //         handler.run().await;
-        //             //         log::info!("End topic {:?}", topic);
-        //             //     });
-        //             // }
-        //             // Topic::TxTransition => {
-        //             //     let jsonrpc = Jsonrpc::connect(&config.rpc_url());
-        //             //     let (handler, subscription) =
-        //             //         TxTransition::new(config.clone(), jsonrpc, query_sender.clone());
-        //
-        //             //     ::std::thread::spawn(move || {
-        //             //         let mut runtime01 = tokio01::runtime::Builder::new().build().unwrap();
-        //             //         runtime01.block_on(subscription.run()).unwrap();
-        //             //         log::info!("Runtime for subscription on topic {:?} exit", topic);
-        //             //     });
-        //
-        //             //     tokio::spawn(async move {
-        //             //         handler.run().await;
-        //             //         log::info!("End topic {:?}", topic);
-        //             //     });
-        //             // }
-        //             // Topic::NetworkPropagation => {
-        //             //     let jsonrpc = Jsonrpc::connect(&config.rpc_url());
-        //             //     let mut handler = NetworkPropagation::new(
-        //             //         config.clone(),
-        //             //         jsonrpc,
-        //             //         query_sender.clone(),
-        //             //         async_handle02.clone(),
-        //             //     );
-        //             //     ::std::thread::spawn(move || handler.run());
-        //             // }
-        //             // Topic::NetworkTopology => {
-        //             //     // TODO NetworkTopology
-        //             //     let handler = NetworkTopology::new(vec![]);
-        //             //     tokio::spawn(async move {
-        //             //         handler.run().await;
-        //             //         log::info!("End topic {:?}", topic);
-        //             //     });
-        //             // }
-        //             // Topic::SubscribeNewTipHeader => {
-        //             //     let (handler, subscription) =
-        //             //         SubscribeNewTipHeader::new(config.clone(), query_sender.clone());
-        //
-        //             //     ::std::thread::spawn(move || {
-        //             //         let mut runtime01 = tokio01::runtime::Builder::new().build().unwrap();
-        //             //         runtime01.block_on(subscription.run()).unwrap();
-        //             //         log::info!("Runtime for subscription on topic {:?} exit", topic);
-        //             //     });
-        //
-        //             //     tokio::spawn(async move {
-        //             //         handler.run().await;
-        //             //         log::info!("End topic {:?}", topic);
-        //             //     });
-        //             // }
-        //             // Topic::SubscribeNewTransaction => {
-        //             //     let (handler, subscription) =
-        //             //         SubscribeNewTransaction::new(config.clone(), query_sender.clone());
-        //
-        //             //     ::std::thread::spawn(move || {
-        //             //         let mut runtime01 = tokio01::runtime::Builder::new().build().unwrap();
-        //             //         runtime01.block_on(subscription.run()).unwrap();
-        //             //         log::info!("Runtime for subscription on topic {:?} exit", topic);
-        //             //     });
-        //
-        //             //     tokio::spawn(async move {
-        //             //         handler.run().await;
-        //             //         log::info!("End topic {:?}", topic);
-        //             //     });
-        //             // }
-        //             // Topic::SubscribeProposedTransaction => {
-        //             //     let (handler, subscription) =
-        //             //         SubscribeProposedTransaction::new(config.clone(), query_sender.clone());
-        //
-        //             //     ::std::thread::spawn(move || {
-        //             //         let mut runtime01 = tokio01::runtime::Builder::new().build().unwrap();
-        //             //         runtime01.block_on(subscription.run()).unwrap();
-        //             //         log::info!("Runtime for subscription on topic {:?} exit", topic);
-        //             //     });
-        //
-        //             //     tokio::spawn(async move {
-        //             //         handler.run().await;
-        //             //         log::info!("End topic {:?}", topic);
-        //             //     });
-        //             // }
-        //         }
     }
     handle_message(&pg, query_receiver).await;
 }
