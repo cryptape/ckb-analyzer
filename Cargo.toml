@@ -1,10 +1,10 @@
 [package]
 name = "ckb-analyzer"
-version = "0.0.7"
+version = "0.0.9"
 license = "MIT"
 authors = ["keroro <keroroxx520@gmail.com>"]
 edition = "2018"
-description = "ckb-analyzer analyzes kinds of data sources and upload the results into PostgreSQL"
+description = "CKBAnalyzer"
 homepage = "https://github.com/keroro520/ckb-analyzer"
 
 [dependencies]
@@ -18,19 +18,8 @@ ckb-logger-config = { git = "https://github.com/nervosnetwork/ckb", rev = "bba9f
 ckb-logger-service = { git = "https://github.com/nervosnetwork/ckb", rev = "bba9f083c42c2df8c87f2e7cea2caadc84afe74f" }
 tentacle-multiaddr = { version = "0.3.0" }
 
-# tokio = { version = "1.2.0", features = ["full"] }
 crossbeam = { version = "0.8.0" }
 chrono = { version = "0.4.19" }
-gethostname = { version = "0.2.1" }
-# jsonrpc-core = { version = "15.1" }
-# jsonrpc-derive = { version = "15.1" }
-# jsonrpc-tcp-server = { version = "15.1" }
-# jsonrpc-ws-server = { version = "15.1" }
-# jsonrpc-server-utils = { version = "15.1" }
-# jsonrpc-pubsub = { version = "15.1" }
-# jsonrpc-core-client = { version = "15.1" }
-# jsonrpc-client-transports = { version = "15.1" }
-# logwatcher = { version = "0.1.1" }
 log = { version = "0.4.11" }
 simple_logger = { version = "1.11.0", default-features = false }
 tokio-postgres = { version = "0.7.0", features = ["with-chrono-0_4", "runtime"] }

@@ -18,12 +18,12 @@ jobs:
         include:
           - build: linux
             os: ubuntu-18.04
-            rust: 1.46.0
+            rust: 1.51.0
     steps:
     - uses: actions/checkout@v1
 
     - name: Cargo Build
-      run: cargo build --verbose --release
+      run: cargo build --release
 
     - name: Create Artifact Directory
       run: mkdir artifacts
