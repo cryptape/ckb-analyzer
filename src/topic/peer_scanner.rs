@@ -1,3 +1,4 @@
+use crate::tokio;
 use std::env;
 use std::time::Duration;
 
@@ -9,7 +10,7 @@ pub struct PeerScanner {
 impl PeerScanner {
     pub async fn new(pg_config: &tokio_postgres::Config) -> Self {
         let (pg, pg_connection) = pg_config.connect(tokio_postgres::NoTls).await.unwrap();
-        ckb_async_runtime::tokio::spawn(async move {
+        tokio::spawn(async move {
             if let Err(err) = pg_connection.await {
                 log::error!("postgres connection error: {:?}", err);
             }
@@ -36,7 +37,7 @@ impl PeerScanner {
         loop {
             if let Err(err) = self.run_().await {
                 log::error!("postgres error: {:?}", err);
-                ckb_async_runtime::tokio::time::sleep(Duration::from_secs(10)).await;
+                tokio::time::sleep(Duration::from_secs(10)).await;
             }
         }
     }
@@ -52,7 +53,7 @@ impl PeerScanner {
             let raws = self.pg.query(&statement, &[&last_id]).await?;
             if raws.is_empty() {
                 log::debug!("select null-country peer, empty results");
-                ckb_async_runtime::tokio::time::sleep(Duration::from_secs(5)).await;
+                tokio::time::sleep(Duration::from_secs(5)).await;
                 continue;
             }
 

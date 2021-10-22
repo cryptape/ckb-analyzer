@@ -8,6 +8,8 @@ use std::str::FromStr;
 use std::thread;
 use std::time::{Duration, Instant};
 
+pub use ckb_async_runtime::tokio;
+
 mod entry;
 mod topic;
 mod util;
@@ -48,7 +50,7 @@ async fn run(async_handle: ckb_async_runtime::Handle) {
             }
             "PeerScanner" => {
                 let mut handler = PeerScanner::new(&pg_config).await;
-                ckb_async_runtime::tokio::spawn(async move {
+                tokio::spawn(async move {
                     handler.run().await;
                 });
             }
@@ -77,7 +79,7 @@ fn init_logger() -> ckb_logger_service::LoggerInitGuard {
 
 async fn handle_message(
     pg: &tokio_postgres::Client,
-    mut query_receiver: ckb_async_runtime::tokio::sync::mpsc::Receiver<String>,
+    mut query_receiver: tokio::sync::mpsc::Receiver<String>,
 ) {
     let max_batch_size: usize = 100;
     let max_batch_timeout = Duration::from_secs(3);
@@ -104,7 +106,7 @@ async fn handle_message(
 
 async fn create_pg(pg_config: &tokio_postgres::Config) -> tokio_postgres::Client {
     let (pg, conn) = pg_config.connect(tokio_postgres::NoTls).await.unwrap();
-    ckb_async_runtime::tokio::spawn(async move {
+    tokio::spawn(async move {
         if let Err(err) = conn.await {
             log::error!("postgres connection error: {}", err);
         }
