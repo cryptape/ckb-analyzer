@@ -1,8 +1,9 @@
-use crate::entry;
-use ipinfo::IpInfo;
+use crate::tokio;
 use std::env;
 use std::time::Duration;
 
+/// PeerScanner scan the null-country entries in `peer` table and write back
+/// country shortcuts back to database.
 pub struct PeerScanner {
     pg: tokio_postgres::Client,
     ipinfo: ipinfo::IpInfo,
@@ -11,7 +12,7 @@ pub struct PeerScanner {
 impl PeerScanner {
     pub async fn new(pg_config: &tokio_postgres::Config) -> Self {
         let (pg, pg_connection) = pg_config.connect(tokio_postgres::NoTls).await.unwrap();
-        ckb_async_runtime::tokio::spawn(async move {
+        tokio::spawn(async move {
             if let Err(err) = pg_connection.await {
                 log::error!("postgres connection error: {:?}", err);
             }
@@ -38,7 +39,7 @@ impl PeerScanner {
         loop {
             if let Err(err) = self.run_().await {
                 log::error!("postgres error: {:?}", err);
-                ckb_async_runtime::tokio::time::sleep(Duration::from_secs(10)).await;
+                tokio::time::sleep(Duration::from_secs(10)).await;
             }
         }
     }
@@ -53,21 +54,27 @@ impl PeerScanner {
         loop {
             let raws = self.pg.query(&statement, &[&last_id]).await?;
             if raws.is_empty() {
-                log::debug!("select null-country peer, empty results");
-                ckb_async_runtime::tokio::time::sleep(Duration::from_secs(5)).await;
+                log::debug!("select empty null-country peer entries");
+                tokio::time::sleep(Duration::from_secs(10)).await;
                 continue;
             }
 
             last_id = raws[raws.len() - 1].get(0);
-            log::debug!("select null-country peer, last_id: {}", last_id);
+            log::debug!(
+                "select {} null-country peer entries, last id is {}",
+                raws.len(),
+                last_id
+            );
+
             for raw in raws {
                 let id: i32 = raw.get(0);
                 let ip: String = raw.get(4);
 
                 match self.lookup_country(&ip) {
                     Ok(country) => {
-                        let query = entry::Peer::update_peer_country(id, &country);
-                        self.pg.batch_execute(&query).await?;
+                        let raw_query =
+                            format!("UPDATE peer SET country = '{}' WHERE id = {}", country, id,);
+                        self.pg.batch_execute(&raw_query).await?;
                     }
                     Err(err) => {
                         log::error!("ipinfo.io query error: {:?}", err);

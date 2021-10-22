@@ -1,12 +1,11 @@
 use crate::entry;
-use crate::util::find_available_port;
 use chrono::Utc;
 use ckb_app_config::{NetworkConfig, SupportProtocol};
 use ckb_network::{
-    bytes::Bytes, extract_peer_id, multiaddr_to_socketaddr, CKBProtocol, CKBProtocolContext,
-    CKBProtocolHandler, DefaultExitHandler, NetworkService, NetworkState, Peer, PeerIndex,
-    SupportProtocols,
+    bytes::Bytes, multiaddr_to_socketaddr, CKBProtocol, CKBProtocolContext, CKBProtocolHandler,
+    DefaultExitHandler, NetworkService, NetworkState, PeerIndex, SupportProtocols,
 };
+use ckb_testkit::util::find_available_port;
 use ckb_testkit::Node;
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -14,8 +13,9 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tentacle_multiaddr::Multiaddr;
 
+/// PeerCrawler crawl the CKB network and gather the nodes' info.
 #[derive(Clone)]
-pub struct PeerCollector {
+pub struct PeerCrawler {
     node: Node,
     query_sender: crossbeam::channel::Sender<String>,
     async_handle: ckb_async_runtime::Handle,
@@ -23,7 +23,7 @@ pub struct PeerCollector {
     last_update_time: Instant,
 }
 
-impl PeerCollector {
+impl PeerCrawler {
     pub fn new(
         node: Node,
         query_sender: crossbeam::channel::Sender<String>,
@@ -140,7 +140,7 @@ impl PeerCollector {
     }
 }
 
-impl CKBProtocolHandler for PeerCollector {
+impl CKBProtocolHandler for PeerCrawler {
     fn init(&mut self, _nc: Arc<dyn CKBProtocolContext + Sync>) {}
 
     fn connected(
@@ -150,7 +150,7 @@ impl CKBProtocolHandler for PeerCollector {
         _version: &str,
     ) {
         if let Some(peer) = nc.get_peer(peer_index) {
-            ckb_testkit::info!(
+            log::info!(
                 "connect with #{}({:?}), protocols: {:?}",
                 peer_index,
                 peer.connected_addr,
@@ -161,7 +161,7 @@ impl CKBProtocolHandler for PeerCollector {
 
     fn disconnected(&mut self, nc: Arc<dyn CKBProtocolContext + Sync>, peer_index: PeerIndex) {
         if let Some(peer) = nc.get_peer(peer_index) {
-            ckb_testkit::info!("disconnect with #{}({:?})", peer_index, peer.connected_addr);
+            log::info!("disconnect with #{}({:?})", peer_index, peer.connected_addr);
         }
     }
 
@@ -169,21 +169,8 @@ impl CKBProtocolHandler for PeerCollector {
         &mut self,
         nc: Arc<dyn CKBProtocolContext + Sync>,
         _peer_index: PeerIndex,
-        data: Bytes,
+        _data: Bytes,
     ) {
-        {
-            use ckb_types::packed;
-            use ckb_types::prelude::*;
-            if packed::RelayMessageReader::from_compatible_slice(&data).is_err() {
-                if packed::SyncMessageReader::from_compatible_slice(&data).is_err() {
-                    log::warn!(
-                        "bilibili this message is not relay nor sync, protocol_id: {:?}",
-                        nc.protocol_id()
-                    );
-                }
-            };
-        }
-
         if self.last_update_time.elapsed() < Duration::from_secs(5) {
             return;
         }
@@ -200,9 +187,12 @@ impl CKBProtocolHandler for PeerCollector {
                         ip,
                         country: None,
                     };
-                    self.query_sender
-                        .send(entry.insert_raw_peer_query())
-                        .unwrap();
+                    let raw_query = format!(
+                        "INSERT INTO peer(network, time, version, ip) \
+            VALUES ('{}', '{}', '{}', '{}')",
+                        entry.network, entry.time, entry.version, entry.ip,
+                    );
+                    self.query_sender.send(raw_query).unwrap();
                 }
             }
         }
