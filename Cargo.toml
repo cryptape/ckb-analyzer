@@ -8,42 +8,33 @@ description = "ckb-analyzer analyzes kinds of data sources and upload the result
 homepage = "https://github.com/keroro520/ckb-analyzer"
 
 [dependencies]
-ckb-suite-rpc = { path = "ckb-suite-rpc", version = "0.0.7" }
-ckb-network = { version = "0.42.0" }
-ckb-util = { version = "0.42.0" }
-ckb-sync = { version = "0.42.0" }
-ckb-logger = { version = "0.42.0" }
-ckb-build-info = { version = "0.42.0" }
-ckb-types = { version = "0.42.0" }
-ckb-app-config = { version = "0.42.0" }
-ckb-async-runtime = { version = "0.42.0" }
-tentacle-multiaddr = { version = "0.2" }
+ckb-network = { git = "https://github.com/nervosnetwork/ckb", rev = "bba9f083c42c2df8c87f2e7cea2caadc84afe74f" }
+ckb-util = { git = "https://github.com/nervosnetwork/ckb", rev = "bba9f083c42c2df8c87f2e7cea2caadc84afe74f" }
+ckb-logger = { git = "https://github.com/nervosnetwork/ckb", rev = "bba9f083c42c2df8c87f2e7cea2caadc84afe74f" }
+ckb-types = { git = "https://github.com/nervosnetwork/ckb", rev = "bba9f083c42c2df8c87f2e7cea2caadc84afe74f" }
+ckb-app-config = { git = "https://github.com/nervosnetwork/ckb", rev = "bba9f083c42c2df8c87f2e7cea2caadc84afe74f" }
+ckb-async-runtime = { git = "https://github.com/nervosnetwork/ckb", rev = "bba9f083c42c2df8c87f2e7cea2caadc84afe74f" }
+ckb-logger-config = { git = "https://github.com/nervosnetwork/ckb", rev = "bba9f083c42c2df8c87f2e7cea2caadc84afe74f" }
+ckb-logger-service = { git = "https://github.com/nervosnetwork/ckb", rev = "bba9f083c42c2df8c87f2e7cea2caadc84afe74f" }
+tentacle-multiaddr = { version = "0.3.0" }
 
-tokio = { version = "1.2.0", features = ["full"] }
+# tokio = { version = "1.2.0", features = ["full"] }
 crossbeam = { version = "0.8.0" }
 chrono = { version = "0.4.19" }
-toml = { version = "0.5" }
 gethostname = { version = "0.2.1" }
-serde = { version = "1.0.117", features = [ "derive" ] }
-serde_json = { version = "1.0.59" }
-case_style = { version = "0.2.1" }
-tynm = { version = "0.1.6" }
-jsonrpc-core = { version = "15.1" }
-jsonrpc-derive = { version = "15.1" }
-jsonrpc-tcp-server = { version = "15.1" }
-jsonrpc-ws-server = { version = "15.1" }
-jsonrpc-server-utils = { version = "15.1" }
-jsonrpc-pubsub = { version = "15.1" }
-jsonrpc-core-client = { version = "15.1" }
-jsonrpc-client-transports = { version = "15.1" }
-logwatcher = { version = "0.1.1" }
-regex = { version = "1" }
+# jsonrpc-core = { version = "15.1" }
+# jsonrpc-derive = { version = "15.1" }
+# jsonrpc-tcp-server = { version = "15.1" }
+# jsonrpc-ws-server = { version = "15.1" }
+# jsonrpc-server-utils = { version = "15.1" }
+# jsonrpc-pubsub = { version = "15.1" }
+# jsonrpc-core-client = { version = "15.1" }
+# jsonrpc-client-transports = { version = "15.1" }
+# logwatcher = { version = "0.1.1" }
 log = { version = "0.4.11" }
 simple_logger = { version = "1.11.0", default-features = false }
 tokio-postgres = { version = "0.7.0", features = ["with-chrono-0_4", "runtime"] }
 ipinfo = { version = "0.2.0" }
-
-[workspace]
-members = [
-    "ckb-suite-rpc"
-]
+ckb-testkit = { git = "https://github.com/nervosnetwork/ckb-integration-test", rev = "6062924b0e2243a5dea7400b9d9ae6f83072c7a6" }
+clap = { version = "2" }
+url = "1.7.2"
