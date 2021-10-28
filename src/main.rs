@@ -1,4 +1,4 @@
-use crate::topic::{ChainCrawler, PeerCrawler, PeerScanner};
+use crate::topic::{ChainCrawler, PeerCrawler, PeerScanner, PoolCrawler};
 use crate::util::crossbeam_channel_to_tokio_channel;
 use ckb_testkit::Node;
 use clap::{crate_version, value_t_or_exit, values_t_or_exit, App, Arg};
@@ -96,6 +96,12 @@ async fn run(async_handle: ckb_async_runtime::Handle) {
                     handler.run(last_block_number).await;
                 });
             }
+            "PoolCrawler" => {
+                let handler = PoolCrawler::new(node.clone(), query_sender.clone());
+                tokio::spawn(async move {
+                    handler.run().await;
+                });
+            }
             _ => unreachable!(),
         }
     }
@@ -176,7 +182,7 @@ pub fn clap_app() -> App<'static, 'static> {
                 .takes_value(true)
                 .multiple(true)
                 .use_delimiter(true)
-                .default_value("PeerCrawler,PeerScanner,ChainCrawler")
-                .possible_values(&["PeerCrawler", "PeerScanner", "ChainCrawler"]),
+                .default_value("PeerCrawler,PeerScanner,ChainCrawler,PoolCrawler")
+                .possible_values(&["PeerCrawler", "PeerScanner", "ChainCrawler", "PoolCrawler"]),
         )
 }
