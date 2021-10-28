@@ -178,8 +178,24 @@ impl CKBProtocolHandler for PeerCrawler {
         for peer_index in nc.connected_peers() {
             if let Some(peer) = nc.get_peer(peer_index) {
                 if let Some(ref identify_info) = peer.identify_info {
-                    let socket_addr = multiaddr_to_socketaddr(&peer.connected_addr).unwrap();
-                    let ip = socket_addr.ip().to_string();
+                    let ip = peer
+                        .connected_addr
+                        .iter()
+                        .find_map(|protocol| match protocol {
+                            tentacle_multiaddr::Protocol::Ip4(ip4) => Some(ip4.to_string()),
+                            tentacle_multiaddr::Protocol::Ip6(ip6) => ip6
+                                .to_ipv4()
+                                .map(|ip4| ip4.to_string())
+                                .or_else(|| Some(ip6.to_string())),
+                            tentacle_multiaddr::Protocol::Dns4(dns4) => Some(dns4.to_string()),
+                            tentacle_multiaddr::Protocol::Dns6(dns6) => Some(dns6.to_string()),
+                            _ => None,
+                        })
+                        .unwrap_or_else(|| {
+                            let socket_addr =
+                                multiaddr_to_socketaddr(&peer.connected_addr).unwrap();
+                            socket_addr.ip().to_string()
+                        });
                     let entry = entry::Peer {
                         network: self.node.consensus().id.clone(),
                         time: Utc::now().naive_utc(),
@@ -188,8 +204,8 @@ impl CKBProtocolHandler for PeerCrawler {
                         country: None,
                     };
                     let raw_query = format!(
-                        "INSERT INTO peer(network, time, version, ip) \
-            VALUES ('{}', '{}', '{}', '{}')",
+                        "INSERT INTO {}.peer(time, version, ip) \
+            VALUES ('{}', '{}', '{}')",
                         entry.network, entry.time, entry.version, entry.ip,
                     );
                     self.query_sender.send(raw_query).unwrap();
