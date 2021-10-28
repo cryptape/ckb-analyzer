@@ -7,10 +7,11 @@ use std::time::Duration;
 pub struct PeerScanner {
     pg: tokio_postgres::Client,
     ipinfo: ipinfo::IpInfo,
+    network_id: String,
 }
 
 impl PeerScanner {
-    pub async fn new(pg_config: &tokio_postgres::Config) -> Self {
+    pub async fn new(pg_config: &tokio_postgres::Config, network_id: String) -> Self {
         let (pg, pg_connection) = pg_config.connect(tokio_postgres::NoTls).await.unwrap();
         tokio::spawn(async move {
             if let Err(err) = pg_connection.await {
@@ -32,7 +33,11 @@ impl PeerScanner {
         })
         .expect("connect to https://ipinfo.io");
 
-        Self { pg, ipinfo }
+        Self {
+            pg,
+            ipinfo,
+            network_id,
+        }
     }
 
     pub async fn run(&mut self) {
@@ -47,7 +52,7 @@ impl PeerScanner {
     async fn run_(&mut self) -> Result<(), tokio_postgres::Error> {
         let statement = self
             .pg
-            .prepare("SELECT id, network, time, version, ip FROM peer WHERE id > $1 AND country IS NULL ORDER BY ID LIMIT 100")
+            .prepare(&format!("SELECT id, time, version, ip FROM {}.peer WHERE id > $1 AND country IS NULL ORDER BY ID LIMIT 100", self.network_id))
             .await?;
         let mut last_id = 0i32;
 
@@ -68,12 +73,14 @@ impl PeerScanner {
 
             for raw in raws {
                 let id: i32 = raw.get(0);
-                let ip: String = raw.get(4);
+                let ip: String = raw.get(3);
 
                 match self.lookup_country(&ip) {
                     Ok(country) => {
-                        let raw_query =
-                            format!("UPDATE peer SET country = '{}' WHERE id = {}", country, id,);
+                        let raw_query = format!(
+                            "UPDATE {}.peer SET country = '{}' WHERE id = {}",
+                            self.network_id, country, id,
+                        );
                         self.pg.batch_execute(&raw_query).await?;
                     }
                     Err(err) => {
