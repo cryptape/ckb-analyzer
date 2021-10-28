@@ -24,9 +24,10 @@ Download from [releases](https://github.com/keroro520/ckb-analyzer/releases).
 
 ### Environment Variables
 
-* `IPINFO_IO_TOKEN`, optional, [ipinfo.io](https://ipinfo.ip) authentication token, is used by [`PeerScanner`](./src/topics/peer_scanner.rs) to look up the geographical location by nodes' ip.
-
-* `CKB_ANALYZER_POSTGRES`, required, Postgres login key.
+| variable | required | description |
+| :--- | :--- | :--- |
+| `IPINFO_IO_TOKEN` | false | [ipinfo.io](https://ipinfo.ip) authentication token, is used by [`PeerScanner`](./src/topics/peer_scanner.rs) to look up the geographical location by nodes' ip. |
+| `CKB_ANALYZER_POSTGRES` | true | Postgres login key |
 
 ### Help
 
