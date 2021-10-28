@@ -1,4 +1,4 @@
-use crate::topic::{PeerCrawler, PeerScanner};
+use crate::topic::{ChainCrawler, PeerCrawler, PeerScanner};
 use crate::util::crossbeam_channel_to_tokio_channel;
 use ckb_testkit::Node;
 use clap::{crate_version, value_t_or_exit, values_t_or_exit, App, Arg};
@@ -56,17 +56,44 @@ async fn run(async_handle: ckb_async_runtime::Handle) {
     // start handlers
     let (query_sender, mut query_receiver) =
         crossbeam_channel_to_tokio_channel::channel::<String>(5000);
+    let node = Node::init_from_url(&rpc_url, PathBuf::new());
     for topic in topics {
         match topic.as_str() {
             "PeerCrawler" => {
-                let node = Node::init_from_url(&rpc_url, PathBuf::new());
-                let handler = PeerCrawler::new(node, query_sender.clone(), async_handle.clone());
+                let handler =
+                    PeerCrawler::new(node.clone(), query_sender.clone(), async_handle.clone());
                 thread::spawn(move || handler.run());
             }
             "PeerScanner" => {
-                let mut handler = PeerScanner::new(&pg_config).await;
+                let mut handler = PeerScanner::new(&pg_config, node.consensus().id.clone()).await;
                 tokio::spawn(async move {
                     handler.run().await;
+                });
+            }
+            "ChainCrawler" => {
+                let last_block_number = {
+                    match pg
+                        .query_opt(
+                            format!(
+                                "SELECT number FROM {}.block ORDER BY time DESC LIMIT 1",
+                                node.consensus().id,
+                            )
+                            .as_str(),
+                            &[],
+                        )
+                        .await
+                        .expect("query last block number")
+                    {
+                        None => 0,
+                        Some(raw) => {
+                            let number: i64 = raw.get(0);
+                            number as u64
+                        }
+                    }
+                };
+                let handler = ChainCrawler::new(node.clone(), query_sender.clone());
+                tokio::spawn(async move {
+                    handler.run(last_block_number).await;
                 });
             }
             _ => unreachable!(),
@@ -149,7 +176,7 @@ pub fn clap_app() -> App<'static, 'static> {
                 .takes_value(true)
                 .multiple(true)
                 .use_delimiter(true)
-                .default_value("PeerCrawler,PeerScanner")
-                .possible_values(&["PeerCrawler", "PeerScanner"]),
+                .default_value("PeerCrawler,PeerScanner,ChainCrawler")
+                .possible_values(&["PeerCrawler", "PeerScanner", "ChainCrawler"]),
         )
 }
