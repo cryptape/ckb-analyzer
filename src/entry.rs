@@ -21,3 +21,15 @@ pub struct Block {
 
     pub interval: Option<i64>, // ms
 }
+
+/// Tx Pool Info
+#[derive(Clone, Debug)]
+pub struct TxPoolInfo {
+    pub network: String,
+    pub time: chrono::NaiveDateTime,
+    pub total_tx_cycles: i64,
+    pub total_tx_size: i64,
+    pub pending: i64,
+    pub proposed: i64,
+    pub orphan: i64,
+}
