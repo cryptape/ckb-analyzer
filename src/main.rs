@@ -1,4 +1,4 @@
-use crate::topic::{ChainCrawler, PeerCrawler, PeerScanner, PoolCrawler};
+use crate::topic::{ChainCrawler, ChainTransactionCrawler, PeerCrawler, PeerScanner, PoolCrawler};
 use crate::util::crossbeam_channel_to_tokio_channel;
 use ckb_testkit::Node;
 use clap::{crate_version, value_t_or_exit, values_t_or_exit, App, Arg};
@@ -102,12 +102,38 @@ async fn run(async_handle: ckb_async_runtime::Handle) {
                     handler.run().await;
                 });
             }
+            "ChainTransactionCrawler" => {
+                let last_block_number = {
+                    match pg
+                        .query_opt(
+                            format!(
+                                "SELECT number FROM {}.block_transaction ORDER BY time DESC LIMIT 1",
+                                node.consensus().id,
+                            )
+                                .as_str(),
+                            &[],
+                        )
+                        .await
+                        .expect("query last block number")
+                    {
+                        None => 0,
+                        Some(raw) => {
+                            let number: i64 = raw.get(0);
+                            number as u64
+                        }
+                    }
+                };
+                let handler = ChainTransactionCrawler::new(node.clone(), query_sender.clone());
+                tokio::spawn(async move {
+                    handler.run(last_block_number).await;
+                });
+            }
             _ => unreachable!(),
         }
     }
 
     // loop listen and batch execute queries
-    let max_batch_size: usize = 100;
+    let max_batch_size: usize = 200;
     let max_batch_timeout = Duration::from_secs(3);
     let mut batch: Vec<String> = Vec::with_capacity(max_batch_size);
     let mut last_batch_instant = Instant::now();
@@ -116,7 +142,7 @@ async fn run(async_handle: ckb_async_runtime::Handle) {
         batch.push(query);
 
         if batch.len() >= max_batch_size || last_batch_instant.elapsed() >= max_batch_timeout {
-            log::info!("batch_execute {} queries", batch.len());
+            log::debug!("batch_execute {} queries", batch.len());
 
             let batch_query: String = batch.join(";");
             pg.batch_execute(&batch_query).await.unwrap_or_else(|err| {
@@ -182,7 +208,15 @@ pub fn clap_app() -> App<'static, 'static> {
                 .takes_value(true)
                 .multiple(true)
                 .use_delimiter(true)
-                .default_value("PeerCrawler,PeerScanner,ChainCrawler,PoolCrawler")
-                .possible_values(&["PeerCrawler", "PeerScanner", "ChainCrawler", "PoolCrawler"]),
+                .default_value(
+                    "PeerCrawler,PeerScanner,ChainCrawler,PoolCrawler,ChainTransactionCrawler",
+                )
+                .possible_values(&[
+                    "PeerCrawler",
+                    "PeerScanner",
+                    "ChainCrawler",
+                    "PoolCrawler",
+                    "ChainTransactionCrawler",
+                ]),
         )
 }
