@@ -33,3 +33,19 @@ pub struct TxPoolInfo {
     pub proposed: i64,
     pub orphan: i64,
 }
+
+/// Block Transaction Info
+#[derive(Clone, Debug)]
+pub struct BlockTransaction {
+    pub network: String,
+    pub time: chrono::NaiveDateTime,
+    pub number: i64,
+    pub size: i32,
+    pub n_inputs: i32,
+    pub n_outputs: i32,
+    pub n_header_deps: i32,
+    pub n_cell_deps: i32,
+    pub total_data_size: i32,
+    pub proposal_id: String,
+    pub hash: String,
+}
