@@ -22,8 +22,8 @@
   "fiscalYearStartMonth": 0,
   "gnetId": null,
   "graphTooltip": 0,
-  "id": 5,
-  "iteration": 1635845198127,
+  "id": 7,
+  "iteration": 1635845432343,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -80,7 +80,7 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 10,
+        "h": 9,
         "w": 24,
         "x": 0,
         "y": 0
@@ -89,7 +89,7 @@
       "options": {
         "legend": {
           "calcs": [
-            "lastNotNull"
+            "mean"
           ],
           "displayMode": "table",
           "placement": "right"
@@ -101,163 +101,42 @@
       "targets": [
         {
           "format": "time_series",
-          "group": [],
-          "metricColumn": "none",
-          "rawQuery": true,
-          "rawSql": "SELECT\n  time AS \"time\",\n  pending as \"Pending\"\nFROM $network.tx_pool_info\nWHERE\n  $__timeFilter(time)\nORDER BY 1",
+          "group": [
+            {
+              "params": [
+                "$__interval",
+                "none"
+              ],
+              "type": "time"
+            }
+          ],
+          "metricColumn": "reason",
+          "rawQuery": false,
+          "rawSql": "SELECT\n  $__timeGroupAlias(time,$__interval),\n  reason AS metric,\n  count(*) AS \"value\"\nFROM $network.subscribed_rejected_transaction\nWHERE\n  $__timeFilter(time)\nGROUP BY 1,2\nORDER BY 1,2",
           "refId": "A",
           "select": [
             [
               {
                 "params": [
-                  "pending"
+                  "*"
                 ],
                 "type": "column"
-              }
-            ]
-          ],
-          "table": "ckb.tx_pool_info",
-          "timeColumn": "time",
-          "timeColumnType": "timestamp",
-          "where": [
-            {
-              "name": "$__timeFilter",
-              "params": [],
-              "type": "macro"
-            }
-          ]
-        },
-        {
-          "format": "time_series",
-          "group": [],
-          "hide": false,
-          "metricColumn": "none",
-          "rawQuery": true,
-          "rawSql": "SELECT\n  time AS \"time\",\n  proposed as \"Proposed\"\nFROM $network.tx_pool_info\nWHERE\n  $__timeFilter(time)\nORDER BY 1",
-          "refId": "B",
-          "select": [
-            [
+              },
+              {
+                "params": [
+                  "count"
+                ],
+                "type": "aggregate"
+              },
               {
                 "params": [
                   "value"
                 ],
-                "type": "column"
+                "type": "alias"
               }
             ]
           ],
-          "timeColumn": "time",
-          "where": [
-            {
-              "name": "$__timeFilter",
-              "params": [],
-              "type": "macro"
-            }
-          ]
-        },
-        {
-          "format": "time_series",
-          "group": [],
-          "hide": false,
-          "metricColumn": "none",
-          "rawQuery": true,
-          "rawSql": "SELECT\n  time AS \"time\",\n  orphan as \"Orphan\"\nFROM $network.tx_pool_info\nWHERE\n  $__timeFilter(time)\nORDER BY 1",
-          "refId": "C",
-          "select": [
-            [
-              {
-                "params": [
-                  "value"
-                ],
-                "type": "column"
-              }
-            ]
-          ],
-          "timeColumn": "time",
-          "where": [
-            {
-              "name": "$__timeFilter",
-              "params": [],
-              "type": "macro"
-            }
-          ]
-        },
-        {
-          "format": "time_series",
-          "group": [],
-          "hide": false,
-          "metricColumn": "none",
-          "rawQuery": true,
-          "rawSql": "SELECT\n  time_bucket(INTERVAL '$interval', time) AS \"time\",\n  avg(pending) as \"Mean Pending ($interval)\"\nFROM $network.tx_pool_info\nWHERE\n  $__timeFilter(time)\nGROUP BY time_bucket(INTERVAL '$interval', time)\nORDER BY 1",
-          "refId": "D",
-          "select": [
-            [
-              {
-                "params": [
-                  "pending"
-                ],
-                "type": "column"
-              }
-            ]
-          ],
-          "table": "ckb.tx_pool_info",
-          "timeColumn": "time",
-          "timeColumnType": "timestamp",
-          "where": [
-            {
-              "name": "$__timeFilter",
-              "params": [],
-              "type": "macro"
-            }
-          ]
-        },
-        {
-          "format": "time_series",
-          "group": [],
-          "hide": false,
-          "metricColumn": "none",
-          "rawQuery": true,
-          "rawSql": "SELECT\n  time_bucket(INTERVAL '$interval', time) AS \"time\",\n  avg(proposed) as \"Mean Proposed ($interval)\"\nFROM $network.tx_pool_info\nWHERE\n  $__timeFilter(time)\nGROUP BY time_bucket(INTERVAL '$interval', time)\nORDER BY 1",
-          "refId": "E",
-          "select": [
-            [
-              {
-                "params": [
-                  "pending"
-                ],
-                "type": "column"
-              }
-            ]
-          ],
-          "table": "ckb.tx_pool_info",
-          "timeColumn": "time",
-          "timeColumnType": "timestamp",
-          "where": [
-            {
-              "name": "$__timeFilter",
-              "params": [],
-              "type": "macro"
-            }
-          ]
-        },
-        {
-          "format": "time_series",
-          "group": [],
-          "hide": false,
-          "metricColumn": "none",
-          "rawQuery": true,
-          "rawSql": "SELECT\n  time_bucket(INTERVAL '$interval', time) AS \"time\",\n  avg(orphan) as \"Mean Orphan ($interval)\"\nFROM $network.tx_pool_info\nWHERE\n  $__timeFilter(time)\nGROUP BY time_bucket(INTERVAL '$interval', time)\nORDER BY 1",
-          "refId": "F",
-          "select": [
-            [
-              {
-                "params": [
-                  "pending"
-                ],
-                "type": "column"
-              }
-            ]
-          ],
-          "table": "ckb.tx_pool_info",
+          "table": "$network.subscribed_rejected_transaction",
           "timeColumn": "time",
           "timeColumnType": "timestamp",
           "where": [
@@ -269,7 +148,7 @@
           ]
         }
       ],
-      "title": "Pool Info",
+      "title": "Rejected Transactions",
       "type": "timeseries"
     },
     {
@@ -277,14 +156,37 @@
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "thresholds"
+            "mode": "palette-classic"
           },
           "custom": {
-            "align": "auto",
-            "displayMode": "auto"
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "stepBefore",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
           },
           "mappings": [],
-          "noValue": "Everything is ok",
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -302,23 +204,32 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 4,
+        "h": 9,
         "w": 24,
         "x": 0,
-        "y": 10
+        "y": 9
       },
       "id": 4,
       "options": {
-        "showHeader": true
+        "legend": {
+          "calcs": [
+            "lastNotNull",
+            "mean"
+          ],
+          "displayMode": "table",
+          "placement": "right"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
       },
-      "pluginVersion": "8.2.2",
       "targets": [
         {
           "format": "time_series",
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n  time AS \"time\",\n  total_tx_size AS \"TotalTxSize\",\n  total_tx_cycles AS \"TotalTxCycles\",\n  proposed AS \"Proposed\",\n  pending AS \"Pending\",\n  orphan AS \"Orphan\"\nFROM $network.tx_pool_info\nWHERE\n  $__timeFilter(time) AND proposed = 0 AND pending = 0 AND orphan = 0 AND (total_tx_size != 0 OR total_tx_cycles != 0)\nORDER BY 1",
+          "rawSql": "WITH v1 AS (\n    SELECT\n        time_bucket(INTERVAL '$interval', bt.time) AS \"rejected_time\",\n        EXTRACT(MILLISECOND FROM (bt.time - snt.time)) AS \"seconds\"\n    FROM ckb.subscribed_rejected_transaction bt JOIN ckb.subscribed_new_transaction snt\n    ON $__timeFilter(bt.time) AND bt.proposal_id = snt.proposal_id\n)\n\nSELECT\n  v1.rejected_time AS time,\n  avg(v1.seconds) AS \"Pending to Rejected\"\nFROM v1\nGROUP BY v1.rejected_time\nORDER BY v1.rejected_time;",
           "refId": "A",
           "select": [
             [
@@ -340,11 +251,10 @@
           ]
         }
       ],
-      "title": "Abnormal Logs (It's Okay that no data)",
-      "type": "table"
+      "title": "Elapsed",
+      "type": "timeseries"
     }
   ],
-  "refresh": false,
   "schemaVersion": 31,
   "style": "dark",
   "tags": [],
@@ -353,7 +263,7 @@
       {
         "allValue": null,
         "current": {
-          "selected": true,
+          "selected": false,
           "text": "ckb",
           "value": "ckb"
         },
@@ -377,7 +287,6 @@
           }
         ],
         "query": "ckb,ckb_testnet",
-        "queryValue": "",
         "skipUrlSync": false,
         "type": "custom"
       },
@@ -461,12 +370,12 @@
     ]
   },
   "time": {
-    "from": "2021-10-29T07:35:11.679Z",
-    "to": "2021-10-29T21:57:17.835Z"
+    "from": "now-15m",
+    "to": "now"
   },
   "timepicker": {},
   "timezone": "",
-  "title": "Pool",
-  "uid": "pxjU-4Knk",
-  "version": 7
+  "title": "Rejected Transaction",
+  "uid": "7A347bF7z",
+  "version": 3
 }
