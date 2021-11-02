@@ -1,3 +1,5 @@
+use crate::ckb_types::packed::{Byte32, ProposalShortId};
+
 /// Peer info
 #[derive(Clone, Debug)]
 pub struct Peer {
@@ -48,4 +50,53 @@ pub struct BlockTransaction {
     pub total_data_size: i32,
     pub proposal_id: String,
     pub hash: String,
+}
+
+/// Subscribed New Transaction Info
+#[derive(Clone, Debug)]
+pub struct SubscribedNewTransaction {
+    pub network: String,
+    pub time: chrono::NaiveDateTime,
+    pub size: u64,
+    pub cycles: u64,
+    pub fee: u64,
+    pub n_inputs: usize,
+    pub n_outputs: usize,
+    pub n_header_deps: usize,
+    pub n_cell_deps: usize,
+    pub proposal_id: ProposalShortId,
+    pub hash: Byte32,
+}
+
+/// Subscribed Proposed Transaction Info
+#[derive(Clone, Debug)]
+pub struct SubscribedProposedTransaction {
+    pub network: String,
+    pub time: chrono::NaiveDateTime,
+    pub size: u64,
+    pub cycles: u64,
+    pub fee: u64,
+    pub n_inputs: usize,
+    pub n_outputs: usize,
+    pub n_header_deps: usize,
+    pub n_cell_deps: usize,
+    pub proposal_id: ProposalShortId,
+    pub hash: Byte32,
+}
+
+/// Subscribed Rejected Transaction Info
+#[derive(Clone, Debug)]
+pub struct SubscribedRejectedTransaction {
+    pub network: String,
+    pub time: chrono::NaiveDateTime,
+    pub reason: String,
+    pub size: u64,
+    pub cycles: u64,
+    pub fee: u64,
+    pub n_inputs: usize,
+    pub n_outputs: usize,
+    pub n_header_deps: usize,
+    pub n_cell_deps: usize,
+    pub proposal_id: ProposalShortId,
+    pub hash: Byte32,
 }

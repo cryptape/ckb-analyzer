@@ -319,10 +319,10 @@ dependencies = [
  "ckb-logger-service",
  "ckb-network",
  "ckb-testkit",
- "ckb-types 0.100.0-pre",
  "ckb-util",
  "clap",
  "crossbeam",
+ "futures 0.3.17",
  "ipinfo",
  "log",
  "simple_logger",
@@ -813,8 +813,9 @@ dependencies = [
 [[package]]
 name = "ckb-testkit"
 version = "0.0.1"
-source = "git+https://github.com/nervosnetwork/ckb-integration-test?rev=6062924b0e2243a5dea7400b9d9ae6f83072c7a6#6062924b0e2243a5dea7400b9d9ae6f83072c7a6"
+source = "git+https://github.com/nervosnetwork/ckb-integration-test?rev=e1fdc72a54bd6f5b8e1d372f72b1bbd7b77d6888#e1fdc72a54bd6f5b8e1d372f72b1bbd7b77d6888"
 dependencies = [
+ "bytes 1.1.0",
  "ckb-crypto",
  "ckb-error 0.100.0-pre",
  "ckb-hash 0.100.0-pre",
@@ -823,12 +824,17 @@ dependencies = [
  "ckb-jsonrpc-types 0.43.2",
  "ckb-types 0.100.0-pre",
  "fs_extra",
+ "futures 0.3.17",
  "jsonrpc-core 14.2.0",
  "lazy_static",
  "log",
  "reqwest 0.10.10",
+ "serde",
+ "serde_derive",
  "serde_json",
  "tempfile",
+ "tokio 1.12.0",
+ "tokio-util 0.6.8",
  "version-compare",
 ]
 

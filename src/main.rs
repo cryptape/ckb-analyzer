@@ -1,4 +1,7 @@
-use crate::topic::{ChainCrawler, ChainTransactionCrawler, PeerCrawler, PeerScanner, PoolCrawler};
+use crate::topic::{
+    ChainCrawler, ChainTransactionCrawler, PeerCrawler, PeerScanner, PoolCrawler,
+    SubscribeNewTransaction, SubscribeProposedTransaction, SubscribeRejectedTransaction,
+};
 use crate::util::crossbeam_channel_to_tokio_channel;
 use ckb_testkit::Node;
 use clap::{crate_version, value_t_or_exit, values_t_or_exit, App, Arg};
@@ -9,6 +12,9 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 pub use ckb_async_runtime::tokio;
+pub use ckb_testkit::ckb_jsonrpc_types;
+pub use ckb_testkit::ckb_types;
+use std::net::SocketAddr;
 
 mod entry;
 mod topic;
@@ -25,12 +31,12 @@ async fn run(async_handle: ckb_async_runtime::Handle) {
 
     let matches = clap_app().get_matches();
     let rpc_url = value_t_or_exit!(matches, "node.rpc", String);
-    let subscription_url = value_t_or_exit!(matches, "node.subscription", String);
+    let subscription_addr = value_t_or_exit!(matches, "node.subscription", SocketAddr);
     let topics = values_t_or_exit!(matches, "topics", String);
     log::info!(
         "CKBAnalyzer parameters: node.rpc={}, node.subscription={}, topics: {:?}",
         rpc_url,
-        subscription_url,
+        subscription_addr,
         topics
     );
 
@@ -128,6 +134,26 @@ async fn run(async_handle: ckb_async_runtime::Handle) {
                     handler.run(last_block_number).await;
                 });
             }
+            "SubscribeNewTransaction" => {
+                let mut handler = SubscribeNewTransaction::new(node.clone(), query_sender.clone());
+                tokio::spawn(async move {
+                    handler.run(subscription_addr.clone()).await;
+                });
+            }
+            "SubscribeProposedTransaction" => {
+                let mut handler =
+                    SubscribeProposedTransaction::new(node.clone(), query_sender.clone());
+                tokio::spawn(async move {
+                    handler.run(subscription_addr.clone()).await;
+                });
+            }
+            "SubscribeRejectedTransaction" => {
+                let mut handler =
+                    SubscribeRejectedTransaction::new(node.clone(), query_sender.clone());
+                tokio::spawn(async move {
+                    handler.run(subscription_addr.clone()).await;
+                });
+            }
             _ => unreachable!(),
         }
     }
@@ -191,11 +217,11 @@ pub fn clap_app() -> App<'static, 'static> {
         .arg(
             Arg::with_name("node.subscription")
                 .long("node.subscription")
-                .value_name("URL")
+                .value_name("SOCKET_ADDR")
                 .required(true)
                 .takes_value(true)
                 .validator(|s| {
-                    url::Url::parse(&s)
+                    s.parse::<SocketAddr>()
                         .map(|_| ())
                         .map_err(|err| err.to_string())
                 }),
@@ -209,7 +235,7 @@ pub fn clap_app() -> App<'static, 'static> {
                 .multiple(true)
                 .use_delimiter(true)
                 .default_value(
-                    "PeerCrawler,PeerScanner,ChainCrawler,PoolCrawler,ChainTransactionCrawler",
+                    "PeerCrawler,PeerScanner,ChainCrawler,PoolCrawler,ChainTransactionCrawler,SubscribeNewTransaction,SubscribeProposedTransaction,SubscribeRejectedTransaction",
                 )
                 .possible_values(&[
                     "PeerCrawler",
@@ -217,6 +243,9 @@ pub fn clap_app() -> App<'static, 'static> {
                     "ChainCrawler",
                     "PoolCrawler",
                     "ChainTransactionCrawler",
+                    "SubscribeNewTransaction",
+                    "SubscribeProposedTransaction",
+                    "SubscribeRejectedTransaction",
                 ]),
         )
 }

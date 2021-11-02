@@ -11,7 +11,6 @@ homepage = "https://github.com/keroro520/ckb-analyzer"
 ckb-network = { git = "https://github.com/nervosnetwork/ckb", rev = "bba9f083c42c2df8c87f2e7cea2caadc84afe74f" }
 ckb-util = { git = "https://github.com/nervosnetwork/ckb", rev = "bba9f083c42c2df8c87f2e7cea2caadc84afe74f" }
 ckb-logger = { git = "https://github.com/nervosnetwork/ckb", rev = "bba9f083c42c2df8c87f2e7cea2caadc84afe74f" }
-ckb-types = { git = "https://github.com/nervosnetwork/ckb", rev = "bba9f083c42c2df8c87f2e7cea2caadc84afe74f" }
 ckb-app-config = { git = "https://github.com/nervosnetwork/ckb", rev = "bba9f083c42c2df8c87f2e7cea2caadc84afe74f" }
 ckb-async-runtime = { git = "https://github.com/nervosnetwork/ckb", rev = "bba9f083c42c2df8c87f2e7cea2caadc84afe74f" }
 ckb-logger-config = { git = "https://github.com/nervosnetwork/ckb", rev = "bba9f083c42c2df8c87f2e7cea2caadc84afe74f" }
@@ -24,6 +23,7 @@ log = { version = "0.4.11" }
 simple_logger = { version = "1.11.0", default-features = false }
 tokio-postgres = { version = "0.7.0", features = ["with-chrono-0_4", "runtime"] }
 ipinfo = { version = "0.2.0" }
-ckb-testkit = { git = "https://github.com/nervosnetwork/ckb-integration-test", rev = "6062924b0e2243a5dea7400b9d9ae6f83072c7a6" }
+ckb-testkit = { git = "https://github.com/nervosnetwork/ckb-integration-test", rev = "e1fdc72a54bd6f5b8e1d372f72b1bbd7b77d6888", features = ["with_subscribe"] }
 clap = { version = "2" }
 url = "1.7.2"
+futures = "0.3"
