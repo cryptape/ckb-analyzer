@@ -1,11 +1,12 @@
 use crate::topic::{
-    ChainCrawler, ChainTransactionCrawler, PeerCrawler, PeerScanner, PoolCrawler,
+    ChainCrawler, ChainTransactionCrawler, EpochCrawler, PeerCrawler, PeerScanner, PoolCrawler,
     SubscribeNewTransaction, SubscribeProposedTransaction, SubscribeRejectedTransaction,
 };
 use crate::util::crossbeam_channel_to_tokio_channel;
 use ckb_testkit::Node;
 use clap::{crate_version, value_t_or_exit, values_t_or_exit, App, Arg};
 use std::env;
+use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::thread;
@@ -14,7 +15,6 @@ use std::time::{Duration, Instant};
 pub use ckb_async_runtime::tokio;
 pub use ckb_testkit::ckb_jsonrpc_types;
 pub use ckb_testkit::ckb_types;
-use std::net::SocketAddr;
 
 mod entry;
 mod topic;
@@ -100,6 +100,32 @@ async fn run(async_handle: ckb_async_runtime::Handle) {
                 let handler = ChainCrawler::new(node.clone(), query_sender.clone());
                 tokio::spawn(async move {
                     handler.run(last_block_number).await;
+                });
+            }
+            "EpochCrawler" => {
+                let last_epoch_number = {
+                    match pg
+                        .query_opt(
+                            format!(
+                                "SELECT number FROM {}.epoch ORDER BY start_time DESC LIMIT 1",
+                                node.consensus().id,
+                            )
+                            .as_str(),
+                            &[],
+                        )
+                        .await
+                        .expect("query last epoch number")
+                    {
+                        None => 0,
+                        Some(raw) => {
+                            let number: i64 = raw.get(0);
+                            number as u64
+                        }
+                    }
+                };
+                let handler = EpochCrawler::new(node.clone(), query_sender.clone());
+                tokio::spawn(async move {
+                    handler.run(last_epoch_number).await;
                 });
             }
             "PoolCrawler" => {
@@ -235,12 +261,13 @@ pub fn clap_app() -> App<'static, 'static> {
                 .multiple(true)
                 .use_delimiter(true)
                 .default_value(
-                    "PeerCrawler,PeerScanner,ChainCrawler,PoolCrawler,ChainTransactionCrawler,SubscribeNewTransaction,SubscribeProposedTransaction,SubscribeRejectedTransaction",
+                    "PeerCrawler,PeerScanner,ChainCrawler,PoolCrawler,ChainTransactionCrawler,SubscribeNewTransaction,SubscribeProposedTransaction,SubscribeRejectedTransaction,EpochCrawler",
                 )
                 .possible_values(&[
                     "PeerCrawler",
                     "PeerScanner",
                     "ChainCrawler",
+                    "EpochCrawler",
                     "PoolCrawler",
                     "ChainTransactionCrawler",
                     "SubscribeNewTransaction",
