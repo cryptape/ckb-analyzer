@@ -76,6 +76,13 @@ CREATE TABLE IF NOT EXISTS ckb.subscribed_rejected_transaction (
     proposal_id         VARCHAR ( 66 )  NOT NULL,
     hash                VARCHAR ( 66 )  NOT NULL
 );
+CREATE TABLE IF NOT EXISTS ckb.epoch (
+    start_time          TIMESTAMP       NOT NULL,
+    end_time            TIMESTAMP       NOT NULL,
+    number              BIGINT          NOT NULL,
+    length              BIGINT          NOT NULL,
+    start_number        BIGINT          NOT NULL
+);
 
 CREATE TABLE IF NOT EXISTS ckb_testnet.peer (
     id                  SERIAL,
@@ -149,9 +156,17 @@ CREATE TABLE IF NOT EXISTS ckb_testnet.subscribed_rejected_transaction (
     proposal_id         VARCHAR ( 66 )  NOT NULL,
     hash                VARCHAR ( 66 )  NOT NULL
 );
+CREATE TABLE IF NOT EXISTS ckb_testnet.epoch (
+    start_time          TIMESTAMP       NOT NULL,
+    end_time            TIMESTAMP       NOT NULL,
+    number              BIGINT          NOT NULL,
+    length              BIGINT          NOT NULL,
+    start_number        BIGINT          NOT NULL
+);
 
 SELECT create_hypertable('ckb.peer', 'time', migrate_data => true);
 SELECT create_hypertable('ckb.block', 'time', migrate_data => true);
+SELECT create_hypertable('ckb.epoch', 'start_time', migrate_data => true);
 SELECT create_hypertable('ckb.tx_pool_info', 'time', migrate_data => true);
 SELECT create_hypertable('ckb.block_transaction', 'time', migrate_data => true);
 SELECT create_hypertable('ckb.subscribed_new_transaction', 'time', migrate_data => true);
@@ -159,6 +174,7 @@ SELECT create_hypertable('ckb.subscribed_proposed_transaction', 'time', migrate_
 SELECT create_hypertable('ckb.subscribed_rejected_transaction', 'time', migrate_data => true);
 SELECT create_hypertable('ckb_testnet.peer', 'time', migrate_data => true);
 SELECT create_hypertable('ckb_testnet.block', 'time', migrate_data => true);
+SELECT create_hypertable('ckb_testnet.epoch', 'start_time', migrate_data => true);
 SELECT create_hypertable('ckb_testnet.tx_pool_info', 'time', migrate_data => true);
 SELECT create_hypertable('ckb_testnet.block_transaction', 'time', migrate_data => true);
 SELECT create_hypertable('ckb_testnet.subscribed_new_transaction', 'time', migrate_data => true);

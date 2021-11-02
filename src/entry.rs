@@ -24,6 +24,17 @@ pub struct Block {
     pub interval: Option<i64>, // ms
 }
 
+/// Epoch Info
+#[derive(Clone, Debug)]
+pub struct Epoch {
+    pub network: String,
+    pub start_time: chrono::NaiveDateTime,
+    pub end_time: chrono::NaiveDateTime,
+    pub number: u64,
+    pub length: u64,
+    pub start_number: u64,
+}
+
 /// Tx Pool Info
 #[derive(Clone, Debug)]
 pub struct TxPoolInfo {
