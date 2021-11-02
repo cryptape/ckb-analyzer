@@ -2,10 +2,6 @@
 
 The purpose of CKBAnalyzer is to facilitate observation of the CKB network.
 
-The program does several things:
-  - Crawl the CKB network to gather the nodes information
-  - Store the main-chain blocks
-
 CKBAnalyzer is still working in progress rapidly.
 
 ## Storage
@@ -14,13 +10,17 @@ CKBAnalyzer acts as a metrics agent and stores the data into [Timescaldb](https:
 
 ## Visualization
 
-We visualize data using [Grafana](https://grafana.com/). Our Grafana dashboards are maintained in this repository.
+We visualize data using [Grafana](https://grafana.com/). Our Grafana dashboards are maintained in [dashboard/](https://github.com/keroro520/ckb-analyzer/tree/main/dashboard/grafana) directory.
 
 ## Install
 
 Download from [releases](https://github.com/keroro520/ckb-analyzer/releases).
 
 ## Usage
+
+### Database Schema
+
+[`schema.sql`](https://github.com/keroro520/ckb-analyzer/blob/main/src/schema.sql)
 
 ### Environment Variables
 
@@ -33,23 +33,14 @@ Download from [releases](https://github.com/keroro520/ckb-analyzer/releases).
 
 ```shell
 USAGE:
-    ckb-analyzer [OPTIONS] --node.rpc <URL> --node.subscription <URL>
-
-FLAGS:
-    -h, --help       Prints help information
-    -V, --version    Prints version information
-
-OPTIONS:
-        --node.rpc <URL>
-        --node.subscription <URL>
-        --topics <TOPIC>...           [default: PeerCrawler,PeerScanner]  [possible values: PeerCrawler, PeerScanner]
+    ckb-analyzer [OPTIONS] --node.rpc <URL> --node.subscription <SOCKET_ADDR>
 ```
 
 ### Example
 
 ```shell
-CKB_ANALYZER_POSTGRES="postgres://postgres:postgres@localhost:5432/ckbraw" \
-ckb-analyzer --node.rpc="http://127.0.0.1:8111" --node.subscription="http://127.0.0.1:18114"
+CKB_ANALYZER_POSTGRES="postgres://postgres:postgres@localhost:5432/ckb" \
+ckb-analyzer --node.rpc="http://127.0.0.1:8111" --node.subscription="127.0.0.1:18114"
 ```
 
 License: MIT
