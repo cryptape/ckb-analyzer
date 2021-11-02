@@ -39,6 +39,43 @@ CREATE TABLE IF NOT EXISTS ckb.block_transaction (
     proposal_id         VARCHAR ( 66 )  NOT NULL,
     hash                VARCHAR ( 66 )  NOT NULL
 );
+CREATE TABLE IF NOT EXISTS ckb.subscribed_new_transaction (
+    time                TIMESTAMP       NOT NULL,
+    size                INT             NOT NULL,
+    cycles              INT             NOT NULL,
+    fee                 INT             NOT NULL,
+    n_inputs            INT             NOT NULL,
+    n_outputs           INT             NOT NULL,
+    n_header_deps       INT             NOT NULL,
+    n_cell_deps         INT             NOT NULL,
+    proposal_id         VARCHAR ( 66 )  NOT NULL,
+    hash                VARCHAR ( 66 )  NOT NULL
+);
+CREATE TABLE IF NOT EXISTS ckb.subscribed_proposed_transaction (
+    time                TIMESTAMP       NOT NULL,
+    size                INT             NOT NULL,
+    cycles              INT             NOT NULL,
+    fee                 INT             NOT NULL,
+    n_inputs            INT             NOT NULL,
+    n_outputs           INT             NOT NULL,
+    n_header_deps       INT             NOT NULL,
+    n_cell_deps         INT             NOT NULL,
+    proposal_id         VARCHAR ( 66 )  NOT NULL,
+    hash                VARCHAR ( 66 )  NOT NULL
+);
+CREATE TABLE IF NOT EXISTS ckb.subscribed_rejected_transaction (
+    time                TIMESTAMP       NOT NULL,
+    reason              VARCHAR ( 60 )  NOT NULL,
+    size                INT             NOT NULL,
+    cycles              INT             NOT NULL,
+    fee                 INT             NOT NULL,
+    n_inputs            INT             NOT NULL,
+    n_outputs           INT             NOT NULL,
+    n_header_deps       INT             NOT NULL,
+    n_cell_deps         INT             NOT NULL,
+    proposal_id         VARCHAR ( 66 )  NOT NULL,
+    hash                VARCHAR ( 66 )  NOT NULL
+);
 
 CREATE TABLE IF NOT EXISTS ckb_testnet.peer (
     id                  SERIAL,
@@ -75,12 +112,55 @@ CREATE TABLE IF NOT EXISTS ckb_testnet.block_transaction (
     proposal_id         VARCHAR ( 66 )  NOT NULL,
     hash                VARCHAR ( 66 )  NOT NULL
 );
+CREATE TABLE IF NOT EXISTS ckb_testnet.subscribed_new_transaction (
+    time                TIMESTAMP       NOT NULL,
+    size                INT             NOT NULL,
+    cycles              INT             NOT NULL,
+    fee                 INT             NOT NULL,
+    n_inputs            INT             NOT NULL,
+    n_outputs           INT             NOT NULL,
+    n_header_deps       INT             NOT NULL,
+    n_cell_deps         INT             NOT NULL,
+    proposal_id         VARCHAR ( 66 )  NOT NULL,
+    hash                VARCHAR ( 66 )  NOT NULL
+);
+CREATE TABLE IF NOT EXISTS ckb_testnet.subscribed_proposed_transaction (
+    time                TIMESTAMP       NOT NULL,
+    size                INT             NOT NULL,
+    cycles              INT             NOT NULL,
+    fee                 INT             NOT NULL,
+    n_inputs            INT             NOT NULL,
+    n_outputs           INT             NOT NULL,
+    n_header_deps       INT             NOT NULL,
+    n_cell_deps         INT             NOT NULL,
+    proposal_id         VARCHAR ( 66 )  NOT NULL,
+    hash                VARCHAR ( 66 )  NOT NULL
+);
+CREATE TABLE IF NOT EXISTS ckb_testnet.subscribed_rejected_transaction (
+    time                TIMESTAMP       NOT NULL,
+    reason              VARCHAR ( 60 )  NOT NULL,
+    size                INT             NOT NULL,
+    cycles              INT             NOT NULL,
+    fee                 INT             NOT NULL,
+    n_inputs            INT             NOT NULL,
+    n_outputs           INT             NOT NULL,
+    n_header_deps       INT             NOT NULL,
+    n_cell_deps         INT             NOT NULL,
+    proposal_id         VARCHAR ( 66 )  NOT NULL,
+    hash                VARCHAR ( 66 )  NOT NULL
+);
 
 SELECT create_hypertable('ckb.peer', 'time', migrate_data => true);
 SELECT create_hypertable('ckb.block', 'time', migrate_data => true);
 SELECT create_hypertable('ckb.tx_pool_info', 'time', migrate_data => true);
 SELECT create_hypertable('ckb.block_transaction', 'time', migrate_data => true);
+SELECT create_hypertable('ckb.subscribed_new_transaction', 'time', migrate_data => true);
+SELECT create_hypertable('ckb.subscribed_proposed_transaction', 'time', migrate_data => true);
+SELECT create_hypertable('ckb.subscribed_rejected_transaction', 'time', migrate_data => true);
 SELECT create_hypertable('ckb_testnet.peer', 'time', migrate_data => true);
 SELECT create_hypertable('ckb_testnet.block', 'time', migrate_data => true);
 SELECT create_hypertable('ckb_testnet.tx_pool_info', 'time', migrate_data => true);
 SELECT create_hypertable('ckb_testnet.block_transaction', 'time', migrate_data => true);
+SELECT create_hypertable('ckb_testnet.subscribed_new_transaction', 'time', migrate_data => true);
+SELECT create_hypertable('ckb_testnet.subscribed_proposed_transaction', 'time', migrate_data => true);
+SELECT create_hypertable('ckb_testnet.subscribed_rejected_transaction', 'time', migrate_data => true);
