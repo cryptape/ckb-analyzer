@@ -23,7 +23,7 @@
   "gnetId": null,
   "graphTooltip": 0,
   "id": 5,
-  "iteration": 1635845580513,
+  "iteration": 1635911558730,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -321,13 +321,13 @@
               }
             ]
           },
-          "unit": "bits"
+          "unit": "percent"
         },
         "overrides": []
       },
       "gridPos": {
-        "h": 10,
-        "w": 24,
+        "h": 7,
+        "w": 12,
         "x": 0,
         "y": 10
       },
@@ -350,7 +350,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n  time AS \"time\",\n  total_tx_size as \"Total Transaction Size\"\nFROM $network.tx_pool_info\nWHERE\n  $__timeFilter(time)\nORDER BY 1",
+          "rawSql": "SELECT\n  time AS \"time\",\n  total_tx_size::float / 20000000.0 * 100 as \"Total Transaction Size\"\nFROM $network.tx_pool_info\nWHERE\n  $__timeFilter(time)\nORDER BY 1",
           "refId": "A",
           "select": [
             [
@@ -372,14 +372,87 @@
               "type": "macro"
             }
           ]
+        }
+      ],
+      "title": "Total Transaction Size ( total_tx_size / 20_000_000)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "PostgreSQL-ckb",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "percent"
         },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 10
+      },
+      "id": 6,
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "displayMode": "table",
+          "placement": "right"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "targets": [
         {
           "format": "time_series",
           "group": [],
           "hide": false,
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n  time AS \"time\",\n  total_tx_cycles as \"Total Transaction Cycles\"\nFROM $network.tx_pool_info\nWHERE\n  $__timeFilter(time)\nORDER BY 1",
+          "rawSql": "SELECT\n  time AS \"time\",\n  total_tx_cycles::float / 200000000000.0 * 100 as \"Total Transaction Cycles\"\nFROM $network.tx_pool_info\nWHERE\n  $__timeFilter(time)\nORDER BY 1",
           "refId": "B",
           "select": [
             [
@@ -403,7 +476,7 @@
           ]
         }
       ],
-      "title": "Pool Stat",
+      "title": "Total Transaction Cycles ( total_tx_cycles / 200_000_000_000 )",
       "type": "timeseries"
     },
     {
@@ -439,7 +512,7 @@
         "h": 4,
         "w": 24,
         "x": 0,
-        "y": 20
+        "y": 17
       },
       "id": 4,
       "options": {
@@ -595,12 +668,12 @@
     ]
   },
   "time": {
-    "from": "2021-10-29T07:06:06.601Z",
-    "to": "2021-10-29T16:52:20.387Z"
+    "from": "now-15m",
+    "to": "now"
   },
   "timepicker": {},
   "timezone": "",
   "title": "Pool",
   "uid": "pxjU-4Knk",
-  "version": 8
+  "version": 9
 }
