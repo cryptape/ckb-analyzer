@@ -23,7 +23,7 @@ log = { version = "0.4.11" }
 simple_logger = { version = "1.11.0", default-features = false }
 tokio-postgres = { version = "0.7.0", features = ["with-chrono-0_4", "runtime"] }
 ipinfo = { version = "0.2.0" }
-ckb-testkit = { git = "https://github.com/nervosnetwork/ckb-integration-test", rev = "e1fdc72a54bd6f5b8e1d372f72b1bbd7b77d6888", features = ["with_subscribe"] }
+ckb-testkit = { git = "https://github.com/nervosnetwork/ckb-integration-test", rev = "f8cce148d6a86c8b0924a9b4afa93eeba13d5631", features = ["with_subscribe"] }
 clap = { version = "2" }
 url = "1.7.2"
 futures = "0.3"

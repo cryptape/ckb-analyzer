@@ -111,3 +111,11 @@ pub struct SubscribedRejectedTransaction {
     pub proposal_id: ProposalShortId,
     pub hash: Byte32,
 }
+
+/// Retention Transaction Info
+#[derive(Clone, Debug)]
+pub struct RetentionTransaction {
+    pub network: String,
+    pub time: chrono::NaiveDateTime,
+    pub hash: Byte32,
+}
