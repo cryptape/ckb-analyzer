@@ -31,8 +31,6 @@ impl ChainCrawler {
             let json_block = self.node.get_block_by_number(current_number);
             let block: BlockView = json_block.into();
             self.analyze_block(&block).await;
-            // self.analyze_block_uncles(&block).await;
-            // self.analyze_block_transactions(&block).await;
 
             current_number += 1;
         }
