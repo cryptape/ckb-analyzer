@@ -309,7 +309,7 @@ dependencies = [
 
 [[package]]
 name = "ckb-analyzer"
-version = "0.0.10"
+version = "0.0.12"
 dependencies = [
  "chrono",
  "ckb-app-config",
