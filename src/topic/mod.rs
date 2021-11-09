@@ -1,3 +1,4 @@
+mod cell_crawler;
 mod chain_crawler;
 mod chain_transaction_crawler;
 mod epoch_crawler;
@@ -9,6 +10,7 @@ mod subscribe_new_transaction;
 mod subscribe_proposed_transaction;
 mod subscribe_rejected_transaction;
 
+pub(crate) use cell_crawler::CellCrawler;
 pub(crate) use chain_crawler::ChainCrawler;
 pub(crate) use chain_transaction_crawler::ChainTransactionCrawler;
 pub(crate) use epoch_crawler::EpochCrawler;

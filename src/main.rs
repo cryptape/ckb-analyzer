@@ -1,7 +1,7 @@
 use crate::topic::{
-    ChainCrawler, ChainTransactionCrawler, EpochCrawler, PeerCrawler, PeerScanner, PoolCrawler,
-    RetentionTransactionCrawler, SubscribeNewTransaction, SubscribeProposedTransaction,
-    SubscribeRejectedTransaction,
+    CellCrawler, ChainCrawler, ChainTransactionCrawler, EpochCrawler, PeerCrawler, PeerScanner,
+    PoolCrawler, RetentionTransactionCrawler, SubscribeNewTransaction,
+    SubscribeProposedTransaction, SubscribeRejectedTransaction,
 };
 use crate::util::crossbeam_channel_to_tokio_channel;
 use ckb_testkit::Node;
@@ -187,6 +187,32 @@ async fn run(async_handle: ckb_async_runtime::Handle) {
                     handler.run().await;
                 });
             }
+            "CellCrawler" => {
+                let last_cell_block_number = {
+                    match pg
+                        .query_opt(
+                            format!(
+                                "SELECT creating_number FROM {}.cell ORDER BY creating_time DESC LIMIT 1",
+                                node.consensus().id,
+                            )
+                            .as_str(),
+                            &[],
+                        )
+                        .await
+                        .expect("query last block number")
+                    {
+                        None => 0,
+                        Some(raw) => {
+                            let number: i64 = raw.get(0);
+                            number as u64
+                        }
+                    }
+                };
+                let handler = CellCrawler::new(node.clone(), query_sender.clone());
+                tokio::spawn(async move {
+                    handler.run(last_cell_block_number).await;
+                });
+            }
             _ => unreachable!(),
         }
     }
@@ -268,7 +294,7 @@ pub fn clap_app() -> App<'static, 'static> {
                 .multiple(true)
                 .use_delimiter(true)
                 .default_value(
-                    "PeerCrawler,PeerScanner,ChainCrawler,PoolCrawler,ChainTransactionCrawler,SubscribeNewTransaction,SubscribeProposedTransaction,SubscribeRejectedTransaction,EpochCrawler,RetentionTransactionCrawler",
+                    "PeerCrawler,PeerScanner,ChainCrawler,PoolCrawler,ChainTransactionCrawler,SubscribeNewTransaction,SubscribeProposedTransaction,SubscribeRejectedTransaction,EpochCrawler,RetentionTransactionCrawler,CellCrawler",
                 )
                 .possible_values(&[
                     "PeerCrawler",
@@ -281,6 +307,7 @@ pub fn clap_app() -> App<'static, 'static> {
                     "SubscribeProposedTransaction",
                     "SubscribeRejectedTransaction",
                     "RetentionTransactionCrawler",
+                    "CellCrawler",
                 ]),
         )
 }

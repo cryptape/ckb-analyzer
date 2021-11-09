@@ -1,3 +1,4 @@
+use crate::ckb_types::bytes::Bytes;
 use crate::ckb_types::packed::{Byte32, ProposalShortId};
 
 /// Peer info
@@ -118,4 +119,18 @@ pub struct RetentionTransaction {
     pub network: String,
     pub time: chrono::NaiveDateTime,
     pub hash: Byte32,
+}
+
+/// Cell Info
+#[derive(Clone, Debug)]
+pub struct Cell {
+    pub network: String,
+    pub creating_time: chrono::NaiveDateTime,
+    pub consuming_time: Option<chrono::NaiveDateTime>,
+    pub creating_number: u64,
+    pub tx_hash: Byte32,
+    pub index: usize,
+    pub lock_code_hash: Byte32,
+    pub lock_args: Option<Bytes>,
+    pub type_code_hash: Option<Byte32>,
 }
