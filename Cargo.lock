@@ -813,7 +813,7 @@ dependencies = [
 [[package]]
 name = "ckb-testkit"
 version = "0.0.1"
-source = "git+https://github.com/nervosnetwork/ckb-integration-test?rev=e1fdc72a54bd6f5b8e1d372f72b1bbd7b77d6888#e1fdc72a54bd6f5b8e1d372f72b1bbd7b77d6888"
+source = "git+https://github.com/nervosnetwork/ckb-integration-test?rev=f8cce148d6a86c8b0924a9b4afa93eeba13d5631#f8cce148d6a86c8b0924a9b4afa93eeba13d5631"
 dependencies = [
  "bytes 1.1.0",
  "ckb-crypto",

@@ -1,6 +1,7 @@
 use crate::topic::{
     ChainCrawler, ChainTransactionCrawler, EpochCrawler, PeerCrawler, PeerScanner, PoolCrawler,
-    SubscribeNewTransaction, SubscribeProposedTransaction, SubscribeRejectedTransaction,
+    RetentionTransactionCrawler, SubscribeNewTransaction, SubscribeProposedTransaction,
+    SubscribeRejectedTransaction,
 };
 use crate::util::crossbeam_channel_to_tokio_channel;
 use ckb_testkit::Node;
@@ -180,6 +181,12 @@ async fn run(async_handle: ckb_async_runtime::Handle) {
                     handler.run(subscription_addr.clone()).await;
                 });
             }
+            "RetentionTransactionCrawler" => {
+                let handler = RetentionTransactionCrawler::new(node.clone(), query_sender.clone());
+                tokio::spawn(async move {
+                    handler.run().await;
+                });
+            }
             _ => unreachable!(),
         }
     }
@@ -261,7 +268,7 @@ pub fn clap_app() -> App<'static, 'static> {
                 .multiple(true)
                 .use_delimiter(true)
                 .default_value(
-                    "PeerCrawler,PeerScanner,ChainCrawler,PoolCrawler,ChainTransactionCrawler,SubscribeNewTransaction,SubscribeProposedTransaction,SubscribeRejectedTransaction,EpochCrawler",
+                    "PeerCrawler,PeerScanner,ChainCrawler,PoolCrawler,ChainTransactionCrawler,SubscribeNewTransaction,SubscribeProposedTransaction,SubscribeRejectedTransaction,EpochCrawler,RetentionTransactionCrawler",
                 )
                 .possible_values(&[
                     "PeerCrawler",
@@ -273,6 +280,7 @@ pub fn clap_app() -> App<'static, 'static> {
                     "SubscribeNewTransaction",
                     "SubscribeProposedTransaction",
                     "SubscribeRejectedTransaction",
+                    "RetentionTransactionCrawler",
                 ]),
         )
 }

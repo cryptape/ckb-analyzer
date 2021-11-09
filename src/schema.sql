@@ -83,6 +83,10 @@ CREATE TABLE IF NOT EXISTS ckb.epoch (
     length              BIGINT          NOT NULL,
     start_number        BIGINT          NOT NULL
 );
+CREATE TABLE IF NOT EXISTS ckb.retention_transaction (
+    time                TIMESTAMP       NOT NULL,
+    hash                VARCHAR ( 66 )  NOT NULL
+);
 
 CREATE TABLE IF NOT EXISTS ckb_testnet.peer (
     id                  SERIAL,
@@ -163,6 +167,10 @@ CREATE TABLE IF NOT EXISTS ckb_testnet.epoch (
     length              BIGINT          NOT NULL,
     start_number        BIGINT          NOT NULL
 );
+CREATE TABLE IF NOT EXISTS ckb_testnet.retention_transaction (
+    time                TIMESTAMP       NOT NULL,
+    hash                VARCHAR ( 66 )  NOT NULL
+);
 
 SELECT create_hypertable('ckb.peer', 'time', migrate_data => true);
 SELECT create_hypertable('ckb.block', 'time', migrate_data => true);
@@ -172,6 +180,8 @@ SELECT create_hypertable('ckb.block_transaction', 'time', migrate_data => true);
 SELECT create_hypertable('ckb.subscribed_new_transaction', 'time', migrate_data => true);
 SELECT create_hypertable('ckb.subscribed_proposed_transaction', 'time', migrate_data => true);
 SELECT create_hypertable('ckb.subscribed_rejected_transaction', 'time', migrate_data => true);
+SELECT create_hypertable('ckb.retention_transaction', 'time', migrate_data => true);
+
 SELECT create_hypertable('ckb_testnet.peer', 'time', migrate_data => true);
 SELECT create_hypertable('ckb_testnet.block', 'time', migrate_data => true);
 SELECT create_hypertable('ckb_testnet.epoch', 'start_time', migrate_data => true);
@@ -180,3 +190,4 @@ SELECT create_hypertable('ckb_testnet.block_transaction', 'time', migrate_data =
 SELECT create_hypertable('ckb_testnet.subscribed_new_transaction', 'time', migrate_data => true);
 SELECT create_hypertable('ckb_testnet.subscribed_proposed_transaction', 'time', migrate_data => true);
 SELECT create_hypertable('ckb_testnet.subscribed_rejected_transaction', 'time', migrate_data => true);
+SELECT create_hypertable('ckb_testnet.retention_transaction', 'time', migrate_data => true);
