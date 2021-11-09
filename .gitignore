@@ -3,3 +3,6 @@
 /data
 /network
 *.swp
+*.env
+/docker/postgresql/var/
+/docker/grafana/var/
