@@ -24,7 +24,7 @@ impl CellCrawler {
         loop {
             // Keep `BLOCK_CONFIRMATION` distance with node's tip
             if current_number >= tip_number - BLOCK_CONFIRMATION {
-                tokio::time::sleep(Duration::from_secs(1)).await;
+                tokio::time::sleep(Duration::from_secs(10)).await;
                 tip_number = self.node.get_tip_block_number();
                 continue;
             }
@@ -42,7 +42,6 @@ impl CellCrawler {
             (block.timestamp() / 1000) as i64,
             (block.timestamp() % 1000 * 1000) as u32,
         );
-        let mut queries = Vec::new();
         for tx in block.transactions() {
             let tx_hash = tx.hash();
             for input in tx.input_pts_iter() {
@@ -54,7 +53,7 @@ impl CellCrawler {
                     input.tx_hash(),
                     index,
                 );
-                queries.push(update_raw_query);
+                self.query_sender.send(update_raw_query).unwrap();
             }
 
             let mut index = 0;
@@ -83,13 +82,10 @@ impl CellCrawler {
                     entry.lock_args.map(|h| format!("{:#x}", h)).unwrap_or_default(),
                     entry.type_code_hash.map(|h| format!("{:#x}", h)).unwrap_or_default(),
                 );
-                queries.push(raw_query);
+                self.query_sender.send(raw_query).unwrap();
 
                 index += 1;
             }
         }
-
-        let batch_query = queries.join(";");
-        self.query_sender.send(batch_query).unwrap();
     }
 }
