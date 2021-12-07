@@ -2,35 +2,24 @@
 
 The purpose of CKBAnalyzer is to facilitate observation of the CKB network.
 
-CKBAnalyzer is still working in progress rapidly.
-
-## Storage
-
-CKBAnalyzer acts as a metrics agent and stores the data into [Timescaledb](https://docs.timescale.com/).
-
-## Visualization
-
-We visualize data using [Grafana](https://grafana.com/). Our Grafana dashboards are maintained in [dashboard/](https://github.com/keroro520/ckb-analyzer/tree/main/dashboard/grafana) directory.
-
-## Install
-
-Download from [releases](https://github.com/keroro520/ckb-analyzer/releases).
+CKBAnalyzer acts as a metrics agent and stores the data into [Timescaledb](https://docs.timescale.com/), then visualize using [Grafana](https://grafana.com/). Free to use our maintained [dashboards](https://github.com/keroro520/ckb-analyzer/tree/main/dashboards).
 
 ## Getting Started
 
 ### Setup TimescaleDB and Grafana services via docker-compose
 
 ```shell
-$ cd docker
+$ cp docker/.env.example docker/.env
 
-$ cp .env.example .env
+$ docker-compose -f docker/docker-compose.yaml up -d
 
-$ docker-compose up -d
-
-$ source .env
-
-$ psql "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@127.0.0.1:5432/${POSTGRES_DB}" -f ../src/schema.sql
+$ source docker/.env && psql "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@127.0.0.1:5432/${POSTGRES_DB}" -f src/schema.sql
 ```
+
+### Install CKBAnalyzer
+
+Download from [releases](https://github.com/keroro520/ckb-analyzer/releases).
+
 
 ### Run CKBAnalyzer
 
