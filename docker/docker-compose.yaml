@@ -13,6 +13,7 @@ services:
   grafana:
     container_name: ckb-analyzer-grafana
     image: grafana/grafana:latest
+    env_file: .env
     user: root
     ports:
       - "3000:3000"

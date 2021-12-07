@@ -11,15 +11,14 @@ datasources:
     # <int> org id. will default to orgId 1 if not specified
     orgId: 1
     # <string> url
-    url: postgresql:5432 # defined in docker-compose.yaml
-    # <string> Deprecated, use secureJsonData.password
-    password: ckb
+    # defined service in docker-compose.yaml
+    url: postgresql:5432
     # <string> database user, if used
-    user: ckb
+    user: $POSTGRES_USER
     # <string> database name, if used
-    database: ckb
+    database: $POSTGRES_DB
     secureJsonData:
-      password: 'ckb'
+      password: $POSTGRES_PASSWORD
     isDefault:
     # <bool> allow users to edit datasources from the UI.
     editable: true
