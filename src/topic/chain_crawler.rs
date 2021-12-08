@@ -1,4 +1,8 @@
-use crate::ckb_types::core::{BlockNumber, BlockView};
+use crate::ckb_types::{
+    core::{BlockNumber, BlockView},
+    packed,
+    prelude::*,
+};
 use crate::entry;
 use crate::tokio;
 use ckb_testkit::Node;
@@ -45,6 +49,7 @@ impl ChainCrawler {
         let n_transactions = block.transactions().len() as u32;
         let n_proposals = block.union_proposal_ids().len() as u32;
         let n_uncles = block.uncles().hashes().len() as u32;
+        let cellbase_message = extract_client_version_from_cellbase(block);
         let entry = entry::Block {
             network: self.node.consensus().id.clone(),
             time,
@@ -52,7 +57,7 @@ impl ChainCrawler {
             n_transactions: n_transactions as i32,
             n_proposals: n_proposals as i32,
             n_uncles: n_uncles as i32,
-            cellbase_message: None,
+            cellbase_message,
             interval: None,
         };
         self.retry_send_entry_query(&entry).await;
@@ -60,12 +65,6 @@ impl ChainCrawler {
 
     async fn retry_send_entry_query(&self, entry: &entry::Block) {
         let query = if let Some(ref cellbase_message) = entry.cellbase_message {
-            log::debug!(
-                "block #{} Some({}) {:?}",
-                entry.number,
-                cellbase_message,
-                cellbase_message
-            );
             format!(
             "INSERT INTO {}.block(time, number, n_transactions, n_proposals, n_uncles, cellbase_message) \
             VALUES ('{}', {}, {}, {}, {}, '{}')",
@@ -99,4 +98,22 @@ impl ChainCrawler {
             }
         }
     }
+}
+
+fn extract_client_version_from_cellbase(block: &BlockView) -> Option<String> {
+    let cellbase = block.transaction(0).unwrap();
+    let witness = cellbase.witnesses().get(0).unwrap().raw_data();
+    let cellbase_witness = packed::CellbaseWitness::from_slice(witness.as_ref()).unwrap();
+    if cellbase_witness.message().is_empty() {
+        return None;
+    }
+
+    let raw_data = cellbase_witness.message().raw_data();
+    let contents = raw_data.split(|byte| *byte == b" "[0]).collect::<Vec<_>>();
+    if contents.is_empty() {
+        return None;
+    }
+
+    let version = String::from_utf8_lossy(contents[0]).to_string();
+    Some(version)
 }
