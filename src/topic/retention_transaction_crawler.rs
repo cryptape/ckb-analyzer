@@ -1,7 +1,6 @@
 use crate::ckb_jsonrpc_types::{RawTxPool, TxPoolIds};
 use crate::ckb_types::{prelude::*, H256};
 use crate::entry;
-use crate::tokio;
 use ckb_testkit::Node;
 use std::collections::HashSet;
 use std::time::Duration;
