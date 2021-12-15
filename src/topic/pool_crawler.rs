@@ -1,5 +1,4 @@
 use crate::entry;
-use crate::tokio;
 use ckb_testkit::Node;
 use std::time::Duration;
 

@@ -33,6 +33,7 @@ impl SubscribeRejectedTransaction {
                 PoolTransactionReject::Malformed(_) => "Malformed",
                 PoolTransactionReject::Resolve(_) => "Resolve",
                 PoolTransactionReject::Verification(_) => "Verification",
+                PoolTransactionReject::DeclaredWrongCycles(_) => "DeclaredWrongCycles",
             };
             let entry = entry::SubscribedRejectedTransaction {
                 network: self.node.consensus().id.clone(),

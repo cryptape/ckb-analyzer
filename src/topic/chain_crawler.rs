@@ -4,7 +4,6 @@ use crate::ckb_types::{
     prelude::*,
 };
 use crate::entry;
-use crate::tokio;
 use ckb_testkit::Node;
 use std::cmp::max;
 use std::time::Duration;

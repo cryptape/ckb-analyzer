@@ -1,19 +1,18 @@
 use crate::topic::{
-    CellCrawler, ChainCrawler, ChainTransactionCrawler, EpochCrawler, PeerCrawler, PeerScanner,
+    CellCrawler, ChainCrawler, ChainTransactionCrawler, EpochCrawler, NetworkCrawler, PeerScanner,
     PoolCrawler, RetentionTransactionCrawler, SubscribeNewTransaction,
     SubscribeProposedTransaction, SubscribeRejectedTransaction,
 };
 use crate::util::crossbeam_channel_to_tokio_channel;
-use ckb_testkit::Node;
+use ckb_testkit::{connector::SharedState, ConnectorBuilder, Node};
 use clap::{crate_version, value_t_or_exit, values_t_or_exit, App, Arg};
 use std::env;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::str::FromStr;
-use std::thread;
+use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
 
-pub use ckb_async_runtime::tokio;
 pub use ckb_testkit::ckb_jsonrpc_types;
 pub use ckb_testkit::ckb_types;
 
@@ -21,12 +20,8 @@ mod entry;
 mod topic;
 mod util;
 
-fn main() {
-    let (async_handle, _exit_handler) = ckb_async_runtime::new_global_runtime();
-    async_handle.block_on(run(async_handle.clone()));
-}
-
-async fn run(async_handle: ckb_async_runtime::Handle) {
+#[tokio::main]
+async fn main() {
     let _logger_guard = init_logger();
     log::info!("CKBAnalyzer starting");
 
@@ -64,13 +59,9 @@ async fn run(async_handle: ckb_async_runtime::Handle) {
     let (query_sender, mut query_receiver) =
         crossbeam_channel_to_tokio_channel::channel::<String>(5000);
     let node = Node::init_from_url(&rpc_url, PathBuf::new());
+    let mut _connectors = Vec::new();
     for topic in topics {
         match topic.as_str() {
-            "PeerCrawler" => {
-                let handler =
-                    PeerCrawler::new(node.clone(), query_sender.clone(), async_handle.clone());
-                thread::spawn(move || handler.run());
-            }
             "PeerScanner" => {
                 let mut handler = PeerScanner::new(&pg_config, node.consensus().id.clone()).await;
                 tokio::spawn(async move {
@@ -213,7 +204,22 @@ async fn run(async_handle: ckb_async_runtime::Handle) {
                     handler.run(last_cell_block_number).await;
                 });
             }
-            _ => unreachable!(),
+            "NetworkCrawler" => {
+                let shared = Arc::new(RwLock::new(SharedState::new()));
+                let network_crawler =
+                    NetworkCrawler::new(node.clone(), query_sender.clone(), Arc::clone(&shared));
+                // workaround for Rust lifetime
+                _connectors.push(
+                    ConnectorBuilder::new()
+                        .protocol_metas(network_crawler.build_protocol_metas())
+                        .listening_addresses(vec![])
+                        .build(network_crawler, shared),
+                );
+            }
+            _ => {
+                ckb_testkit::error!("Unknown topic \"{}\"", topic);
+                unreachable!()
+            }
         }
     }
 
@@ -294,10 +300,9 @@ pub fn clap_app() -> App<'static, 'static> {
                 .multiple(true)
                 .use_delimiter(true)
                 .default_value(
-                    "PeerCrawler,PeerScanner,ChainCrawler,PoolCrawler,ChainTransactionCrawler,SubscribeNewTransaction,SubscribeProposedTransaction,SubscribeRejectedTransaction,EpochCrawler,RetentionTransactionCrawler,CellCrawler",
+                    "PeerScanner,ChainCrawler,PoolCrawler,ChainTransactionCrawler,SubscribeNewTransaction,SubscribeProposedTransaction,SubscribeRejectedTransaction,EpochCrawler,RetentionTransactionCrawler,NetworkCrawler",
                 )
                 .possible_values(&[
-                    "PeerCrawler",
                     "PeerScanner",
                     "ChainCrawler",
                     "EpochCrawler",
@@ -308,6 +313,7 @@ pub fn clap_app() -> App<'static, 'static> {
                     "SubscribeRejectedTransaction",
                     "RetentionTransactionCrawler",
                     "CellCrawler",
+                    "NetworkCrawler",
                 ]),
         )
 }

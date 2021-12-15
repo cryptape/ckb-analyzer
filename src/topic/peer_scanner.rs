@@ -1,4 +1,3 @@
-use crate::tokio;
 use std::env;
 use std::time::Duration;
 
@@ -28,8 +27,8 @@ impl PeerScanner {
         };
         let ipinfo = ipinfo::IpInfo::new(ipinfo::IpInfoConfig {
             token: ipinfo_io_token,
-            cache_size: 1000,
-            timeout: ::std::time::Duration::from_secs(2 * 60),
+            cache_size: 10000,
+            timeout: ::std::time::Duration::from_secs(1 * 365 * 24 * 60 * 60),
         })
         .expect("connect to https://ipinfo.io");
 

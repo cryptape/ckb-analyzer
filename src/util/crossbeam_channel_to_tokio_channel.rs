@@ -1,5 +1,3 @@
-use crate::tokio;
-
 /// Create a middleware channel of which sender is crossbeam sender
 /// and receiver is tokio receiver.
 ///
@@ -8,7 +6,7 @@ pub fn channel<T: Send + 'static>(
     cap: usize,
 ) -> (
     crossbeam::channel::Sender<T>,
-    crate::tokio::sync::mpsc::Receiver<T>,
+    tokio::sync::mpsc::Receiver<T>,
 ) {
     let (crossbeam_sender, crossbeam_receiver) = crossbeam::channel::bounded(cap);
     let (tokio_sender, tokio_receiver) = tokio::sync::mpsc::channel(cap);
