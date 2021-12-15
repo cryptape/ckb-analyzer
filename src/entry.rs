@@ -8,6 +8,7 @@ pub struct Peer {
     pub time: chrono::NaiveDateTime,
     pub version: String,
     pub ip: String,
+    pub n_reachable: i32,
     pub country: Option<String>,
 }
 

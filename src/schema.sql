@@ -8,7 +8,8 @@ CREATE TABLE IF NOT EXISTS ckb.peer (
     time                TIMESTAMP       NOT NULL,
     version             VARCHAR ( 200 ) NOT NULL,
     ip                  VARCHAR ( 46 )  NOT NULL,
-    country             VARCHAR ( 20 )  NULL
+    country             VARCHAR ( 20 )  NULL,
+    n_reachable         INT             NOT NULL DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS ckb.block (
     time                TIMESTAMP       NOT NULL,
@@ -30,20 +31,20 @@ CREATE TABLE IF NOT EXISTS ckb.tx_pool_info (
 CREATE TABLE IF NOT EXISTS ckb.block_transaction (
     time                TIMESTAMP       NOT NULL,
     number              BIGINT          NOT NULL,
-    size                INT             NOT NULL,
+    size                BIGINT          NOT NULL,
     n_inputs            INT             NOT NULL,
     n_outputs           INT             NOT NULL,
     n_header_deps       INT             NOT NULL,
     n_cell_deps         INT             NOT NULL,
-    total_data_size     INT             NOT NULL,
+    total_data_size     BIGINT          NOT NULL,
     proposal_id         VARCHAR ( 66 )  NOT NULL,
     hash                VARCHAR ( 66 )  NOT NULL
 );
 CREATE TABLE IF NOT EXISTS ckb.subscribed_new_transaction (
     time                TIMESTAMP       NOT NULL,
-    size                INT             NOT NULL,
-    cycles              INT             NOT NULL,
-    fee                 INT             NOT NULL,
+    size                BIGINT          NOT NULL,
+    cycles              BIGINT          NOT NULL,
+    fee                 BIGINT          NOT NULL,
     n_inputs            INT             NOT NULL,
     n_outputs           INT             NOT NULL,
     n_header_deps       INT             NOT NULL,
@@ -53,9 +54,9 @@ CREATE TABLE IF NOT EXISTS ckb.subscribed_new_transaction (
 );
 CREATE TABLE IF NOT EXISTS ckb.subscribed_proposed_transaction (
     time                TIMESTAMP       NOT NULL,
-    size                INT             NOT NULL,
-    cycles              INT             NOT NULL,
-    fee                 INT             NOT NULL,
+    size                BIGINT          NOT NULL,
+    cycles              BIGINT          NOT NULL,
+    fee                 BIGINT          NOT NULL,
     n_inputs            INT             NOT NULL,
     n_outputs           INT             NOT NULL,
     n_header_deps       INT             NOT NULL,
@@ -66,9 +67,9 @@ CREATE TABLE IF NOT EXISTS ckb.subscribed_proposed_transaction (
 CREATE TABLE IF NOT EXISTS ckb.subscribed_rejected_transaction (
     time                TIMESTAMP       NOT NULL,
     reason              VARCHAR ( 60 )  NOT NULL,
-    size                INT             NOT NULL,
-    cycles              INT             NOT NULL,
-    fee                 INT             NOT NULL,
+    size                BIGINT          NOT NULL,
+    cycles              BIGINT          NOT NULL,
+    fee                 BIGINT          NOT NULL,
     n_inputs            INT             NOT NULL,
     n_outputs           INT             NOT NULL,
     n_header_deps       INT             NOT NULL,
@@ -104,7 +105,8 @@ CREATE TABLE IF NOT EXISTS ckb_testnet.peer (
     time                TIMESTAMP       NOT NULL,
     version             VARCHAR ( 200 ) NOT NULL,
     ip                  VARCHAR ( 46 )  NOT NULL,
-    country             VARCHAR ( 20 )  NULL
+    country             VARCHAR ( 20 )  NULL,
+    n_reachable         INT             NOT NULL DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS ckb_testnet.block (
     time                TIMESTAMP       NOT NULL,
@@ -125,20 +127,20 @@ CREATE TABLE IF NOT EXISTS ckb_testnet.tx_pool_info (
 CREATE TABLE IF NOT EXISTS ckb_testnet.block_transaction (
     time                TIMESTAMP       NOT NULL,
     number              BIGINT          NOT NULL,
-    size                INT             NOT NULL,
+    size                BIGINT          NOT NULL,
     n_inputs            INT             NOT NULL,
     n_outputs           INT             NOT NULL,
     n_header_deps       INT             NOT NULL,
     n_cell_deps         INT             NOT NULL,
-    total_data_size     INT             NOT NULL,
+    total_data_size     BIGINT          NOT NULL,
     proposal_id         VARCHAR ( 66 )  NOT NULL,
     hash                VARCHAR ( 66 )  NOT NULL
 );
 CREATE TABLE IF NOT EXISTS ckb_testnet.subscribed_new_transaction (
     time                TIMESTAMP       NOT NULL,
-    size                INT             NOT NULL,
-    cycles              INT             NOT NULL,
-    fee                 INT             NOT NULL,
+    size                BIGINT          NOT NULL,
+    cycles              BIGINT          NOT NULL,
+    fee                 BIGINT          NOT NULL,
     n_inputs            INT             NOT NULL,
     n_outputs           INT             NOT NULL,
     n_header_deps       INT             NOT NULL,
@@ -148,9 +150,9 @@ CREATE TABLE IF NOT EXISTS ckb_testnet.subscribed_new_transaction (
 );
 CREATE TABLE IF NOT EXISTS ckb_testnet.subscribed_proposed_transaction (
     time                TIMESTAMP       NOT NULL,
-    size                INT             NOT NULL,
-    cycles              INT             NOT NULL,
-    fee                 INT             NOT NULL,
+    size                BIGINT          NOT NULL,
+    cycles              BIGINT          NOT NULL,
+    fee                 BIGINT          NOT NULL,
     n_inputs            INT             NOT NULL,
     n_outputs           INT             NOT NULL,
     n_header_deps       INT             NOT NULL,
@@ -161,9 +163,9 @@ CREATE TABLE IF NOT EXISTS ckb_testnet.subscribed_proposed_transaction (
 CREATE TABLE IF NOT EXISTS ckb_testnet.subscribed_rejected_transaction (
     time                TIMESTAMP       NOT NULL,
     reason              VARCHAR ( 60 )  NOT NULL,
-    size                INT             NOT NULL,
-    cycles              INT             NOT NULL,
-    fee                 INT             NOT NULL,
+    size                BIGINT          NOT NULL,
+    cycles              BIGINT          NOT NULL,
+    fee                 BIGINT          NOT NULL,
     n_inputs            INT             NOT NULL,
     n_outputs           INT             NOT NULL,
     n_header_deps       INT             NOT NULL,
