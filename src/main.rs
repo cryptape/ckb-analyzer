@@ -1,7 +1,7 @@
 use crate::topic::{
-    CellCrawler, ChainCrawler, ChainTransactionCrawler, EpochCrawler, NetworkCrawler, PeerScanner,
-    PoolCrawler, RetentionTransactionCrawler, SubscribeNewTransaction,
-    SubscribeProposedTransaction, SubscribeRejectedTransaction,
+    CellCrawler, ChainCrawler, ChainTransactionCrawler, EpochCrawler, NetworkCrawler, PoolCrawler,
+    RetentionTransactionCrawler, SubscribeNewTransaction, SubscribeProposedTransaction,
+    SubscribeRejectedTransaction,
 };
 use crate::util::crossbeam_channel_to_tokio_channel;
 use ckb_testkit::{connector::SharedState, ConnectorBuilder, Node};
@@ -62,12 +62,6 @@ async fn main() {
     let mut _connectors = Vec::new();
     for topic in topics {
         match topic.as_str() {
-            "PeerScanner" => {
-                let mut handler = PeerScanner::new(&pg_config, node.consensus().id.clone()).await;
-                tokio::spawn(async move {
-                    handler.run().await;
-                });
-            }
             "ChainCrawler" => {
                 let last_block_number = {
                     match pg
@@ -300,10 +294,9 @@ pub fn clap_app() -> App<'static, 'static> {
                 .multiple(true)
                 .use_delimiter(true)
                 .default_value(
-                    "PeerScanner,ChainCrawler,PoolCrawler,ChainTransactionCrawler,SubscribeNewTransaction,SubscribeProposedTransaction,SubscribeRejectedTransaction,EpochCrawler,RetentionTransactionCrawler,NetworkCrawler",
+                    "ChainCrawler,PoolCrawler,ChainTransactionCrawler,SubscribeNewTransaction,SubscribeProposedTransaction,SubscribeRejectedTransaction,EpochCrawler,RetentionTransactionCrawler,NetworkCrawler",
                 )
                 .possible_values(&[
-                    "PeerScanner",
                     "ChainCrawler",
                     "EpochCrawler",
                     "PoolCrawler",
