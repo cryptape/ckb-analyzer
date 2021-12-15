@@ -8,8 +8,15 @@ CREATE TABLE IF NOT EXISTS ckb.peer (
     time                TIMESTAMP       NOT NULL,
     version             VARCHAR ( 200 ) NOT NULL,
     ip                  VARCHAR ( 46 )  NOT NULL,
-    country             VARCHAR ( 20 )  NULL,
     n_reachable         INT             NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS ckb.ipinfo (
+    ip                  VARCHAR ( 46 )  PRIMARY KEY NOT NULL,
+    country             VARCHAR ( 20 )  NULL,
+    city                VARCHAR ( 100 )  NULL,
+    loc                 VARCHAR ( 100 )  NULL,
+    region              VARCHAR ( 100 )  NULL,
+    company             VARCHAR ( 100 )  NULL
 );
 CREATE TABLE IF NOT EXISTS ckb.block (
     time                TIMESTAMP       NOT NULL,
@@ -105,8 +112,15 @@ CREATE TABLE IF NOT EXISTS ckb_testnet.peer (
     time                TIMESTAMP       NOT NULL,
     version             VARCHAR ( 200 ) NOT NULL,
     ip                  VARCHAR ( 46 )  NOT NULL,
-    country             VARCHAR ( 20 )  NULL,
     n_reachable         INT             NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS ckb_testnet.ipinfo (
+    ip                  VARCHAR ( 46 )  PRIMARY KEY NOT NULL,
+    country             VARCHAR ( 20 )  NULL,
+    city                VARCHAR ( 100 )  NULL,
+    loc                 VARCHAR ( 100 )  NULL,
+    region              VARCHAR ( 100 )  NULL,
+    company             VARCHAR ( 100 )  NULL
 );
 CREATE TABLE IF NOT EXISTS ckb_testnet.block (
     time                TIMESTAMP       NOT NULL,

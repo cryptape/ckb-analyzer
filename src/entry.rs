@@ -9,7 +9,17 @@ pub struct Peer {
     pub version: String,
     pub ip: String,
     pub n_reachable: i32,
-    pub country: Option<String>,
+}
+
+/// IP info
+#[derive(Clone, Debug)]
+pub struct IpInfo {
+    pub network: String,
+    pub ip: String,
+    pub country: String,
+    pub city: String,
+    pub region: String,
+    pub company: String,
 }
 
 /// Block Info

@@ -62,6 +62,12 @@ pub struct NetworkCrawler {
 
     // #{ ip => peer_info }
     online: Arc<RwLock<HashMap<Ip, PeerInfo>>>,
+
+    // IpInfo instance
+    ipinfo: ipinfo::IpInfo,
+
+    // already known iP
+    known_ips: HashSet<String>,
 }
 
 pub type Ip = String;
@@ -82,6 +88,8 @@ impl Clone for NetworkCrawler {
             shared: Arc::clone(&self.shared),
             observed_addresses: Arc::clone(&self.observed_addresses),
             online: Arc::clone(&self.online),
+            ipinfo: create_ipinfo(),
+            known_ips: self.known_ips.clone(),
         }
     }
 }
@@ -93,6 +101,7 @@ impl NetworkCrawler {
         query_sender: crossbeam::channel::Sender<String>,
         shared: Arc<RwLock<SharedState>>,
     ) -> Self {
+        let ipinfo = create_ipinfo();
         let bootnode = match node.consensus().id.as_str() {
             "ckb" => {
                 "/ip4/47.110.15.57/tcp/8114/p2p/QmXS4Kbc9HEeykHUTJCm2tNmqghbvWyYpUp6BtE5b6VrAU"
@@ -125,6 +134,8 @@ impl NetworkCrawler {
                     })
                     .collect(),
             )),
+            ipinfo,
+            known_ips: Default::default(),
         }
     }
 
@@ -408,7 +419,6 @@ impl P2PServiceProtocol for NetworkCrawler {
                                     version: peer_info.client_version.clone(),
                                     ip: ip.clone(),
                                     n_reachable: n_reachable as i32,
-                                    country: None,
                                 };
                                 entries.push(entry);
                             }
@@ -423,6 +433,39 @@ impl P2PServiceProtocol for NetworkCrawler {
                         entry.network, entry.time, entry.version, entry.ip, entry.n_reachable,
                     );
                     self.query_sender.send(raw_query).unwrap();
+
+                    if !self.known_ips.contains(&entry.ip) {
+                        if let Ok(info_map) = self.ipinfo.lookup(&[entry.ip.as_str()]) {
+                            let ipinfo::IpDetails {
+                                ip,
+                                country,
+                                city,
+                                region,
+                                company,
+                                ..
+                            } = info_map[&entry.ip].to_owned();
+                            let entry = crate::entry::IpInfo {
+                                network: entry.network,
+                                ip,
+                                country,
+                                city,
+                                region,
+                                company: company.map(|company| company.name).unwrap_or_default(),
+                            };
+                            let raw_query = format!(
+                                "INSERT INTO {}.ipinfo(ip, country, city, region, company) \
+                                VALUES ('{}', '{}', '{}', '{}', '{}') ON CONFLICT DO NOTHING",
+                                entry.network,
+                                entry.ip,
+                                entry.country,
+                                entry.city,
+                                entry.region,
+                                entry.company,
+                            );
+                            self.known_ips.insert(entry.ip);
+                            self.query_sender.send(raw_query).unwrap();
+                        }
+                    }
                 }
             }
             PRUNE_OFFLINE_ADDRESSES_TOKEN => {
@@ -529,4 +572,20 @@ fn addr_to_ip(addr: &Multiaddr) -> Ip {
             let socket_addr = multiaddr_to_socketaddr(&addr).unwrap();
             socket_addr.ip().to_string()
         })
+}
+
+fn create_ipinfo() -> ipinfo::IpInfo {
+    let ipinfo_io_token = match ::std::env::var("IPINFO_IO_TOKEN") {
+        Ok(token) if !token.is_empty() => Some(token),
+        _ => {
+            log::warn!("miss environment variable \"IPINFO_IO_TOKEN\", use empty value");
+            None
+        }
+    };
+    ipinfo::IpInfo::new(ipinfo::IpInfoConfig {
+        token: ipinfo_io_token,
+        cache_size: 10000,
+        timeout: ::std::time::Duration::from_secs(1 * 365 * 24 * 60 * 60),
+    })
+    .expect("connect to https://ipinfo.io")
 }
