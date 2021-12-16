@@ -13,7 +13,7 @@ $ cp docker/.env.example docker/.env
 
 $ docker-compose -f docker/docker-compose.yaml up -d
 
-$ source docker/.env && psql "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@127.0.0.1:5432/${POSTGRES_DB}" -f src/schema.sql
+$ source docker/.env && psql -f src/schema.sql
 ```
 
 ### Install CKBAnalyzer
