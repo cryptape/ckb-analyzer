@@ -1,6 +1,6 @@
 [package]
 name = "ckb-analyzer"
-version = "0.0.12"
+version = "0.0.13"
 license = "MIT"
 authors = ["keroro <keroroxx520@gmail.com>"]
 edition = "2018"
