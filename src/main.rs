@@ -294,7 +294,16 @@ pub fn clap_app() -> App<'static, 'static> {
                 .multiple(true)
                 .use_delimiter(true)
                 .default_value(
-                    "ChainCrawler,PoolCrawler,ChainTransactionCrawler,SubscribeNewTransaction,SubscribeProposedTransaction,SubscribeRejectedTransaction,EpochCrawler,RetentionTransactionCrawler,NetworkCrawler",
+                    "ChainCrawler,\
+                    EpochCrawler,\
+                    PoolCrawler,\
+                    ChainTransactionCrawler,\
+                    SubscribeNewTransaction,\
+                    SubscribeProposedTransaction,\
+                    SubscribeRejectedTransaction,\
+                    RetentionTransactionCrawler,\
+                    CellCrawler,\
+                    NetworkCrawler",
                 )
                 .possible_values(&[
                     "ChainCrawler",

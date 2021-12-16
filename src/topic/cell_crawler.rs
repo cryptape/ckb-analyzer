@@ -1,5 +1,8 @@
-use crate::ckb_types::core::{BlockNumber, BlockView};
-use crate::ckb_types::prelude::*;
+use crate::ckb_types::{
+    core::{BlockNumber, BlockView},
+    h256,
+    prelude::*,
+};
 use crate::entry;
 use ckb_testkit::Node;
 use std::cmp::max;
@@ -44,17 +47,17 @@ impl CellCrawler {
         let mut queries = Vec::new();
         for tx in block.transactions() {
             let tx_hash = tx.hash();
-            for input in tx.input_pts_iter() {
-                let index: usize = input.index().unpack();
-                let update_raw_query = format!(
-                    "UPDATE {}.cell SET consuming_time = '{}' WHERE tx_hash = '{:#x}' AND index = {}",
-                    self.node.consensus().id,
-                    time,
-                    input.tx_hash(),
-                    index,
-                );
-                queries.push(update_raw_query);
-            }
+            // for input in tx.input_pts_iter() {
+            //     let index: usize = input.index().unpack();
+            //     let update_raw_query = format!(
+            //         "UPDATE {}.cell SET consuming_time = '{}' WHERE tx_hash = '{:#x}' AND index = {}",
+            //         self.node.consensus().id,
+            //         time,
+            //         input.tx_hash(),
+            //         index,
+            //     );
+            //     queries.push(update_raw_query);
+            // }
 
             let mut index = 0;
             for output in tx.outputs() {
@@ -67,10 +70,10 @@ impl CellCrawler {
                     index,
                     lock_code_hash: output.lock().code_hash(),
                     lock_args: {
-                        if output.lock().args().total_size() > 100 {
-                            None
-                        } else {
+                        if output.lock().code_hash() == h256!("0x9bd7e06f3ecf4be0f2fcd2188b23f1b9fcc88e5d4b65a8637b17723bbda3cce8").pack() {
                             Some(output.lock().args().raw_data())
+                        } else {
+                            None
                         }
                     },
                     type_code_hash: output.type_().to_opt().map(|script| script.code_hash()),
