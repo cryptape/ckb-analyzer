@@ -47,6 +47,7 @@ impl CellCrawler {
         let mut queries = Vec::new();
         for tx in block.transactions() {
             let tx_hash = tx.hash();
+            // TODO This UPDATE query costs too much memory. Optimize it first.
             // for input in tx.input_pts_iter() {
             //     let index: usize = input.index().unpack();
             //     let update_raw_query = format!(

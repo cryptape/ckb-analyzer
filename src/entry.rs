@@ -45,6 +45,8 @@ pub struct Epoch {
     pub number: u64,
     pub length: u64,
     pub start_number: u64,
+    pub n_uncles: i32,
+    pub difficulty: String,
 }
 
 /// Tx Pool Info
