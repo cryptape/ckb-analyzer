@@ -23,7 +23,7 @@
   "gnetId": null,
   "graphTooltip": 0,
   "id": 1,
-  "iteration": 1635435675230,
+  "iteration": 1639820316869,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -35,47 +35,13 @@
             "mode": "palette-classic"
           },
           "custom": {
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
             "hideFrom": {
               "legend": false,
               "tooltip": false,
               "viz": false
-            },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
             }
           },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
+          "mappings": []
         },
         "overrides": []
       },
@@ -85,14 +51,24 @@
         "x": 0,
         "y": 0
       },
-      "id": 2,
+      "id": 8,
       "options": {
+        "displayLabels": [],
         "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "values": [
+            "percent",
+            "value"
+          ]
+        },
+        "pieType": "pie",
+        "reduceOptions": {
           "calcs": [
             "lastNotNull"
           ],
-          "displayMode": "table",
-          "placement": "right"
+          "fields": "",
+          "values": false
         },
         "tooltip": {
           "mode": "single"
@@ -102,9 +78,10 @@
         {
           "format": "time_series",
           "group": [],
+          "hide": false,
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "WITH peer_ip_country AS (\n    SELECT DISTINCT ON (\n        bucket,\n        ip)\n        time_bucket (INTERVAL '$interval', time) AS bucket,\n        ip,\n        country\n    FROM\n        $network.peer\n    WHERE country IS NOT NULL\n)\nSELECT\n    p.bucket AS time,\n    p.country AS metric,\n    count(*) AS value\nFROM\n    peer_ip_country AS p\nWHERE\n    $__timeFilter(p.bucket)\nGROUP BY\n    p.bucket,\n    p.country\nORDER BY\n    p.bucket;\n\n",
+          "rawSql": "WITH time_filtered_peer_record AS (\n    SELECT *\n    FROM $network.peer\n    -- WHERE time BETWEEN '2021-12-16T09:04:29.452Z' AND '2021-12-16T10:04:29.453Z'\n    WHERE $__timeFilter(time)\n),\nsorted_peer_record AS (\n    SELECT peer.*,\n           ROW_NUMBER() OVER (PARTITION BY ip ORDER BY time DESC) AS rn\n    FROM time_filtered_peer_record AS peer\n),\nlast_peer_record AS (\n    SELECT * FROM sorted_peer_record WHERE rn = 1\n)\nSELECT now() AS time, version AS measurement, COUNT(DISTINCT ipinfo.ip) AS \" \"\nFROM last_peer_record peer INNER JOIN $network.ipinfo ipinfo USING (ip)\nGROUP BY version;\n",
           "refId": "A",
           "select": [
             [
@@ -116,9 +93,86 @@
               }
             ]
           ],
-          "table": "peer",
           "timeColumn": "time",
-          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "Version Distribution",
+      "type": "piechart"
+    },
+    {
+      "datasource": "PostgreSQL-ckb",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
+      "id": 6,
+      "options": {
+        "displayLabels": [],
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "values": [
+            "percent",
+            "value"
+          ]
+        },
+        "pieType": "pie",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "targets": [
+        {
+          "format": "time_series",
+          "group": [],
+          "hide": false,
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "\nWITH time_filtered_peer_record AS (\n    SELECT *\n    FROM $network.peer\n    -- WHERE time BETWEEN '2021-12-16T09:04:29.452Z' AND '2021-12-16T10:04:29.453Z'\n    WHERE $__timeFilter(time)\n),\nsorted_peer_record AS (\n    SELECT peer.*,\n           ROW_NUMBER() OVER (PARTITION BY ip ORDER BY time DESC) AS rn\n    FROM time_filtered_peer_record AS peer\n),\nlast_peer_record AS (\n    SELECT * FROM sorted_peer_record WHERE rn = 1\n)\nSELECT now() AS time, ipinfo.country AS measurement, COUNT(DISTINCT ipinfo.ip) AS \" \"\nFROM last_peer_record peer INNER JOIN $network.ipinfo ipinfo USING (ip)\nGROUP BY ipinfo.country;\n",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "timeColumn": "time",
           "where": [
             {
               "name": "$__timeFilter",
@@ -129,7 +183,7 @@
         }
       ],
       "title": "Country Distribution",
-      "type": "timeseries"
+      "type": "piechart"
     },
     {
       "datasource": "PostgreSQL-ckb",
@@ -186,10 +240,10 @@
       "gridPos": {
         "h": 8,
         "w": 12,
-        "x": 12,
-        "y": 0
+        "x": 0,
+        "y": 8
       },
-      "id": 3,
+      "id": 7,
       "options": {
         "legend": {
           "calcs": [
@@ -206,10 +260,67 @@
         {
           "format": "time_series",
           "group": [],
+          "hide": true,
           "metricColumn": "none",
           "rawQuery": true,
           "rawSql": "WITH peer_ip_version AS (\n    SELECT DISTINCT ON (\n        bucket,\n        ip)\n        time_bucket (INTERVAL '$interval', time) AS bucket,\n        ip,\n        version\n    FROM\n        $network.peer\n)\nSELECT\n    p.bucket AS time,\n    p.version AS metric,\n    count(*) AS value\nFROM\n    peer_ip_version AS p\nWHERE\n    $__timeFilter(p.bucket)\nGROUP BY\n    p.bucket,\n    p.version\nORDER BY\n    p.bucket;\n\n",
           "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "peer",
+          "timeColumn": "time",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        },
+        {
+          "format": "time_series",
+          "group": [],
+          "hide": true,
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT \n  $__timeGroup(time, $interval),\n  count(distinct(ip)),\n  version\nFROM\n  $network.peer\nWHERE\n  $__timeFilter(time)\nGROUP BY 1, version\n",
+          "refId": "simple_sql_with_piechart",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "timeColumn": "time",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        },
+        {
+          "format": "time_series",
+          "group": [],
+          "hide": false,
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "WITH timed_peer AS (\n    SELECT\n        ip,\n        version,\n        time_bucket(INTERVAL '$interval', time) AS bucket\n    FROM $network.peer\n    -- WHERE time BETWEEN '2021-12-16T09:04:29.452Z' AND '2021-12-16T10:04:29.453Z'\n    WHERE $__timeFilter(time)\n),\ncounted_peer AS (\n    SELECT\n        COUNT(DISTINCT ip) AS value,\n        bucket,\n        version\n    FROM timed_peer\n    GROUP BY bucket, version\n)\nSELECT\n    bucket AS time,\n    version AS metric,\n    value\nFROM counted_peer;\n",
+          "refId": "B",
           "select": [
             [
               {
@@ -289,8 +400,8 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 24,
-        "x": 0,
+        "w": 12,
+        "x": 12,
         "y": 8
       },
       "id": 4,
@@ -312,7 +423,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "WITH peer_ip AS (\n    SELECT DISTINCT ON (bucket, ip) time_bucket(INTERVAL '$interval', time) as bucket,\n                                             ip\n    FROM $network.peer\n)\nSELECT p.bucket as time,\n       count(*)  AS \"number of nodes\"\nFROM peer_ip as p\nWHERE $__timeFilter(p.bucket)\nGROUP BY p.bucket\nORDER BY p.bucket;\n",
+          "rawSql": "WITH peer_ip AS (\n    SELECT DISTINCT ON (bucket, ip) time_bucket(INTERVAL '$interval', time) as bucket,\n                                             ip\n    FROM $network.peer\n)\nSELECT p.bucket as time,\n       count(*)  AS \"Nodes\"\nFROM peer_ip as p\nWHERE $__timeFilter(p.bucket)\nGROUP BY p.bucket\nORDER BY p.bucket;\n",
           "refId": "A",
           "select": [
             [
@@ -334,10 +445,137 @@
               "type": "macro"
             }
           ]
+        },
+        {
+          "format": "time_series",
+          "group": [],
+          "hide": true,
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  $__timeGroup(time,$interval),\n  count(distinct(ip)) AS \"count of nodes\"\nFROM $network.peer\nWHERE\n  $__timeFilter(time)\nGROUP BY 1\nORDER BY 1",
+          "refId": "simple_sql",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "timeColumn": "time",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
         }
       ],
       "title": "Total Nodes",
       "type": "timeseries"
+    },
+    {
+      "datasource": "PostgreSQL-ckb",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "displayMode": "auto"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "time"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 249
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 16
+      },
+      "id": 10,
+      "options": {
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "reachable"
+          }
+        ]
+      },
+      "pluginVersion": "8.2.2",
+      "targets": [
+        {
+          "format": "table",
+          "group": [],
+          "hide": false,
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "WITH timed_peer AS (\n    SELECT\n        time AS \"time\",\n        ip,\n        version,\n        n_reachable\n    FROM ckb.peer\n    -- FROM $network.peer\n    WHERE\n        time BETWEEN '2021-12-17T09:27:28.289Z' AND '2021-12-18T09:27:28.289Z'\n        -- $__timeFilter(time)\n),\nsorted_peer AS (\n    SELECT\n        timed_peer.*,\n        ROW_NUMBER() OVER (PARTITION BY ip ORDER BY n_reachable) AS rn\n    FROM timed_peer\n),\nmax_peer AS (\n    SELECT *\n    FROM sorted_peer\n    WHERE rn = 1\n),\ncountry_peer AS (\n    SELECT peer.*, ipinfo.country  FROM max_peer peer INNER JOIN $network.ipinfo ipinfo USING (ip)\n)\nSELECT \n    ip,\n    version,\n    country,\n    n_reachable AS reachable\nFROM country_peer\nORDER BY time;\n",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "ip"
+                ],
+                "type": "column"
+              }
+            ],
+            [
+              {
+                "params": [
+                  "n_reachable"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "$network.peer",
+          "timeColumn": "time",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "Reachable (How many public nodes this peer can reach)",
+      "type": "table"
     }
   ],
   "refresh": "",
@@ -350,8 +588,8 @@
         "allValue": null,
         "current": {
           "selected": true,
-          "text": "ckb_testnet",
-          "value": "ckb_testnet"
+          "text": "ckb",
+          "value": "ckb"
         },
         "description": "CKB network name",
         "error": null,
@@ -362,12 +600,12 @@
         "name": "network",
         "options": [
           {
-            "selected": false,
+            "selected": true,
             "text": "ckb",
             "value": "ckb"
           },
           {
-            "selected": true,
+            "selected": false,
             "text": "ckb_testnet",
             "value": "ckb_testnet"
           }
@@ -457,12 +695,12 @@
     ]
   },
   "time": {
-    "from": "now-6h",
+    "from": "now-24h",
     "to": "now"
   },
   "timepicker": {},
   "timezone": "",
   "title": "Peer",
   "uid": "ab3L8ZF7k",
-  "version": 14
+  "version": 23
 }
