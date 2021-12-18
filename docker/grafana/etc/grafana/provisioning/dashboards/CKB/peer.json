@@ -23,7 +23,7 @@
   "gnetId": null,
   "graphTooltip": 0,
   "id": 1,
-  "iteration": 1639820316869,
+  "iteration": 1639821718042,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -542,7 +542,7 @@
           "hide": false,
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "WITH timed_peer AS (\n    SELECT\n        time AS \"time\",\n        ip,\n        version,\n        n_reachable\n    FROM ckb.peer\n    -- FROM $network.peer\n    WHERE\n        time BETWEEN '2021-12-17T09:27:28.289Z' AND '2021-12-18T09:27:28.289Z'\n        -- $__timeFilter(time)\n),\nsorted_peer AS (\n    SELECT\n        timed_peer.*,\n        ROW_NUMBER() OVER (PARTITION BY ip ORDER BY n_reachable) AS rn\n    FROM timed_peer\n),\nmax_peer AS (\n    SELECT *\n    FROM sorted_peer\n    WHERE rn = 1\n),\ncountry_peer AS (\n    SELECT peer.*, ipinfo.country  FROM max_peer peer INNER JOIN $network.ipinfo ipinfo USING (ip)\n)\nSELECT \n    ip,\n    version,\n    country,\n    n_reachable AS reachable\nFROM country_peer\nORDER BY time;\n",
+          "rawSql": "WITH timed_peer AS (\n    SELECT\n        time AS \"time\",\n        ip,\n        version,\n        n_reachable\n    -- FROM ckb.peer\n    FROM $network.peer\n    WHERE\n        -- time BETWEEN '2021-12-17T09:27:28.289Z' AND '2021-12-18T09:27:28.289Z'\n        $__timeFilter(time)\n),\nsorted_peer AS (\n    SELECT\n        timed_peer.*,\n        ROW_NUMBER() OVER (PARTITION BY ip ORDER BY n_reachable) AS rn\n    FROM timed_peer\n),\nmax_peer AS (\n    SELECT *\n    FROM sorted_peer\n    WHERE rn = 1\n),\ncountry_peer AS (\n    SELECT peer.*, ipinfo.country  FROM max_peer peer INNER JOIN $network.ipinfo ipinfo USING (ip)\n)\nSELECT \n    ip,\n    version,\n    country,\n    n_reachable AS reachable\nFROM country_peer\nORDER BY time;\n",
           "refId": "A",
           "select": [
             [
@@ -702,5 +702,5 @@
   "timezone": "",
   "title": "Peer",
   "uid": "ab3L8ZF7k",
-  "version": 23
+  "version": 24
 }
