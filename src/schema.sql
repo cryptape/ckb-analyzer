@@ -89,7 +89,9 @@ CREATE TABLE IF NOT EXISTS ckb.epoch (
     end_time            TIMESTAMP       NOT NULL,
     number              BIGINT          NOT NULL,
     length              BIGINT          NOT NULL,
-    start_number        BIGINT          NOT NULL
+    start_number        BIGINT          NOT NULL,
+    n_uncles            INT             NOT NULL,
+    difficulty          NUMERIC         NOT NULL
 );
 CREATE TABLE IF NOT EXISTS ckb.retention_transaction (
     time                TIMESTAMP       NOT NULL,
@@ -192,7 +194,9 @@ CREATE TABLE IF NOT EXISTS ckb_testnet.epoch (
     end_time            TIMESTAMP       NOT NULL,
     number              BIGINT          NOT NULL,
     length              BIGINT          NOT NULL,
-    start_number        BIGINT          NOT NULL
+    start_number        BIGINT          NOT NULL,
+    n_uncles            INT             NOT NULL,
+    difficulty          NUMERIC         NOT NULL
 );
 CREATE TABLE IF NOT EXISTS ckb_testnet.retention_transaction (
     time                TIMESTAMP       NOT NULL,
