@@ -31,9 +31,10 @@ pub struct Block {
     pub n_transactions: i32,
     pub n_proposals: i32,
     pub n_uncles: i32,
-    pub cellbase_message: Option<String>,
-
-    pub interval: Option<i64>, // ms
+    pub cellbase_client_version: String,
+    pub cellbase_miner_source: String,
+    pub miner_lock_args: String,
+    pub interval: i64, // ms
 }
 
 /// Epoch Info
