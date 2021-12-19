@@ -19,13 +19,15 @@ CREATE TABLE IF NOT EXISTS ckb.ipinfo (
     company             VARCHAR ( 100 )  NULL
 );
 CREATE TABLE IF NOT EXISTS ckb.block (
-    time                TIMESTAMP       NOT NULL,
-    number              BIGINT          NOT NULL,
-    n_transactions      INT             NOT NULL,
-    n_proposals         INT             NOT NULL,
-    n_uncles            INT             NOT NULL,
-    cellbase_message    VARCHAR ( 50 )  NULL,
-    interval            BIGINT          NULL
+    time                        TIMESTAMP       NOT NULL,
+    number                      BIGINT          NOT NULL,
+    n_transactions              INT             NOT NULL,
+    n_proposals                 INT             NOT NULL,
+    n_uncles                    INT             NOT NULL,
+    miner_lock_args             VARCHAR ( 100 ) NULL,
+    cellbase_client_version     VARCHAR ( 50 )  NULL,
+    cellbase_miner_source       VARCHAR ( 50 )  NULL,
+    interval                    BIGINT          NOT NULL
 );
 CREATE TABLE IF NOT EXISTS ckb.tx_pool_info (
     time                TIMESTAMP       NOT NULL,
@@ -125,12 +127,15 @@ CREATE TABLE IF NOT EXISTS ckb_testnet.ipinfo (
     company             VARCHAR ( 100 )  NULL
 );
 CREATE TABLE IF NOT EXISTS ckb_testnet.block (
-    time                TIMESTAMP       NOT NULL,
-    number              BIGINT          NOT NULL,
-    n_transactions      INT             NOT NULL,
-    n_proposals         INT             NOT NULL,
-    n_uncles            INT             NOT NULL,
-    cellbase_message    VARCHAR ( 50 )  NULL
+    time                        TIMESTAMP       NOT NULL,
+    number                      BIGINT          NOT NULL,
+    n_transactions              INT             NOT NULL,
+    n_proposals                 INT             NOT NULL,
+    n_uncles                    INT             NOT NULL,
+    miner_lock_args             VARCHAR ( 100 ) NULL,
+    cellbase_client_version     VARCHAR ( 50 )  NULL,
+    cellbase_miner_source       VARCHAR ( 50 )  NULL,
+    interval                    BIGINT          NOT NULL
 );
 CREATE TABLE IF NOT EXISTS ckb_testnet.tx_pool_info (
     time                TIMESTAMP       NOT NULL,
