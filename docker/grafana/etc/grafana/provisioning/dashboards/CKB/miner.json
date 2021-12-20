@@ -23,7 +23,7 @@
   "gnetId": null,
   "graphTooltip": 0,
   "id": 15,
-  "iteration": 1639822169480,
+  "iteration": 1639974772371,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -77,9 +77,10 @@
         {
           "format": "time_series",
           "group": [],
+          "hide": false,
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "WITH timed_block AS (\n    SELECT\n        cellbase_message\n    FROM $network.block\n    WHERE $__timeFilter(time)\n)\n    SELECT\n        now() AS time,\n        cellbase_message AS metric,\n        COUNT(*) AS cellbase_version\n    FROM timed_block\n    GROUP BY cellbase_message\n",
+          "rawSql": "WITH timed_block AS (\n    SELECT\n        cellbase_client_version\n    FROM $network.block\n    WHERE $__timeFilter(time)\n)\n    SELECT\n        now() AS time,\n        cellbase_client_version AS metric,\n        COUNT(*) AS cellbase_version\n    FROM timed_block\n    GROUP BY cellbase_client_version\n",
           "refId": "A",
           "select": [
             [
@@ -101,7 +102,7 @@
           ]
         }
       ],
-      "title": "Block Cellbase Message Version",
+      "title": "Cellbase Message Version",
       "transformations": [
         {
           "id": "organize",
@@ -195,7 +196,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "WITH timed_block AS (\n    SELECT\n        time_bucket(INTERVAL '$interval', time) AS bucket,\n        cellbase_message\n    FROM $network.block\n    WHERE $__timeFilter(time)\n)\n    SELECT\n        bucket AS time,\n        cellbase_message AS metric,\n        COUNT(*) AS cellbase_version\n    FROM timed_block\n    GROUP BY bucket, cellbase_message\n    ORDER BY bucket\n",
+          "rawSql": "WITH timed_block AS (\n    SELECT\n        time_bucket(INTERVAL '$interval', time) AS bucket,\n        cellbase_client_version\n    FROM $network.block\n    WHERE $__timeFilter(time)\n)\n    SELECT\n        bucket AS time,\n        cellbase_client_version AS metric,\n        COUNT(*) AS version\n    FROM timed_block\n    GROUP BY bucket, cellbase_client_version\n    ORDER BY bucket\n",
           "refId": "A",
           "select": [
             [
@@ -219,7 +220,7 @@
       ],
       "timeFrom": null,
       "timeShift": null,
-      "title": "Block Cellbase Message Version",
+      "title": "Cellbase Message Version",
       "transformations": [
         {
           "id": "organize",
@@ -234,8 +235,100 @@
         }
       ],
       "type": "timeseries"
+    },
+    {
+      "datasource": "PostgreSQL-ckb",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 9,
+        "x": 0,
+        "y": 9
+      },
+      "id": 4,
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "values": [
+            "percent",
+            "value"
+          ]
+        },
+        "pieType": "pie",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "targets": [
+        {
+          "format": "time_series",
+          "group": [],
+          "hide": false,
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "WITH timed_block AS (\n    SELECT\n        cellbase_miner_source\n    FROM $network.block\n    WHERE $__timeFilter(time)\n)\n    SELECT\n        now() AS time,\n        cellbase_miner_source AS metric,\n        COUNT(*)\n    FROM timed_block\n    GROUP BY cellbase_miner_source\n",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "timeColumn": "time",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "Miner",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {},
+            "indexByName": {},
+            "renameByName": {
+              "\u00124Vx�": "unknown",
+              "Value": "none"
+            }
+          }
+        }
+      ],
+      "type": "piechart"
     }
   ],
+  "refresh": false,
   "schemaVersion": 31,
   "style": "dark",
   "tags": [],
@@ -244,9 +337,9 @@
       {
         "allValue": null,
         "current": {
-          "selected": true,
-          "text": "ckb",
-          "value": "ckb"
+          "selected": false,
+          "text": "ckb_testnet",
+          "value": "ckb_testnet"
         },
         "description": "The Network Name",
         "error": null,
@@ -257,12 +350,12 @@
         "name": "network",
         "options": [
           {
-            "selected": true,
+            "selected": false,
             "text": "ckb",
             "value": "ckb"
           },
           {
-            "selected": false,
+            "selected": true,
             "text": "ckb_testnet",
             "value": "ckb_testnet"
           }
@@ -278,8 +371,8 @@
         "auto_min": "10s",
         "current": {
           "selected": true,
-          "text": "6h",
-          "value": "6h"
+          "text": "1d",
+          "value": "1d"
         },
         "description": "Time Interval to Aggregate Data",
         "error": null,
@@ -308,7 +401,7 @@
             "value": "1h"
           },
           {
-            "selected": true,
+            "selected": false,
             "text": "6h",
             "value": "6h"
           },
@@ -318,7 +411,7 @@
             "value": "12h"
           },
           {
-            "selected": false,
+            "selected": true,
             "text": "1d",
             "value": "1d"
           },
@@ -347,12 +440,12 @@
     ]
   },
   "time": {
-    "from": "now-7d",
-    "to": "now"
+    "from": "2020-08-29T21:23:33.869Z",
+    "to": "2021-01-18T00:49:50.958Z"
   },
   "timepicker": {},
   "timezone": "",
   "title": "Miner",
   "uid": "ZPpJHDonz",
-  "version": 4
+  "version": 8
 }

@@ -322,6 +322,7 @@ dependencies = [
  "ipinfo",
  "log",
  "rand 0.8.4",
+ "regex",
  "simple_logger",
  "tentacle",
  "tokio 1.14.0",
