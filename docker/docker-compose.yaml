@@ -10,6 +10,19 @@ services:
     volumes:
       - "./postgresql/var/lib/postgresql/data:/var/lib/postgresql/data"
 
+  # This short service is used to import database schema.
+  # Schema file locates at "../src/schema.sql"
+  postgresql-init-schema:
+    container_name: ckb-analyzer-postgresql-init-schema
+    image: timescale/timescaledb:latest-pg12
+    env_file: .env
+    volumes:
+      - "../src/schema.sql:/var/lib/postgresql/data/schema.sql"
+    entrypoint: [ "bash", "-c", "sleep 3 && psql postgres://ckb:ckb@postgresql:5432 -f /var/lib/postgresql/data/schema.sql" ]
+    restart: "no"
+    depends_on:
+      - postgresql
+
   grafana:
     container_name: ckb-analyzer-grafana
     image: grafana/grafana:latest
