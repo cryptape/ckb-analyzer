@@ -122,30 +122,9 @@ fn extract_cellbase_message(block: &BlockView) -> (String, String) {
     let cellbase = block.transaction(0).unwrap();
     let witness = cellbase.witnesses().get(0).unwrap().raw_data();
     let cellbase_witness = packed::CellbaseWitness::from_slice(witness.as_ref()).unwrap();
-    if cellbase_witness.message().is_empty() {
-        return ("-".to_string(), "-".to_string());
-    }
-
-    let raw_data = cellbase_witness.message().raw_data();
-    let raw_string = String::from_utf8(raw_data.as_ref().to_vec())
-        .map(|s| s.trim_matches('\0').to_string())
-        .unwrap_or_default();
-    let contents = raw_string.split(' ').collect::<Vec<_>>();
-    if contents.is_empty() {
-        return ("-".to_string(), "-".to_string());
-    }
-
-    let mut version = "-";
-    let mut identifier = "-";
-    for content in contents.iter() {
-        if content.starts_with("0.") && version == "-" {
-            version = content;
-        } else if identifier == "-" {
-            identifier = content;
-        }
-    }
-
-    (version.to_string(), identifier.to_string())
+    let message =
+        String::from_utf8(cellbase_witness.message().raw_data().to_vec()).unwrap_or_default();
+    parse_cellbase_message(&message)
 }
 
 fn extract_miner_lock_from_cellbase(block: &BlockView) -> packed::Script {
@@ -153,4 +132,42 @@ fn extract_miner_lock_from_cellbase(block: &BlockView) -> packed::Script {
     let witness = cellbase.witnesses().get(0).unwrap().raw_data();
     let cellbase_witness = packed::CellbaseWitness::from_slice(witness.as_ref()).unwrap();
     cellbase_witness.lock()
+}
+
+// Return (version, source)
+fn parse_cellbase_message(message: &str) -> (String, String) {
+    let r = regex::Regex::new(r"^(?P<version>\d+\.\d+\.\d+)?(-pre)?( )?(\(.*\) )?(?P<source>\w+)?")
+        .unwrap();
+    let mut version = Default::default();
+    let mut source = Default::default();
+    if let Some(captures) = r.captures(message) {
+        version = captures
+            .name("version")
+            .map(|cap| cap.as_str())
+            .unwrap_or_default();
+        source = captures
+            .name("source")
+            .map(|cap| cap.as_str())
+            .unwrap_or_default();
+    }
+    (version.to_string(), source.to_string())
+}
+
+#[test]
+fn test_parse_cellbase_message() {
+    let cases = vec![
+        ("\0", "", ""),
+        ("pool", "", "pool"),
+        ("0.102.0", "0.102.0", ""),
+        ("0.102.0 pool", "0.102.0", "pool"),
+        ("0.102.0-pre (5597cbd 2021-12-13) pool", "0.102.0", "pool"),
+    ];
+    for (message, expected_version, expected_source) in cases {
+        assert_eq!(
+            (expected_version.to_string(), expected_source.to_string()),
+            parse_cellbase_message(message),
+            "raw message: {}",
+            message,
+        );
+    }
 }

@@ -25,3 +25,4 @@ p2p = { version="0.4.0-alpha.2", package="tentacle", features = ["upnp", "parkin
 rand = "0.8.4"
 tokio = { version = "1", features = ["full"] }
 tokio-util = { version = "0.6", features = ["codec"] }
+regex = "1.5.4"
