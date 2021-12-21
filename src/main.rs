@@ -9,7 +9,6 @@ use clap::{crate_version, value_t_or_exit, values_t_or_exit, App, Arg};
 use std::env;
 use std::net::SocketAddr;
 use std::path::PathBuf;
-use std::str::FromStr;
 use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
 
@@ -37,14 +36,42 @@ async fn main() {
     );
 
     let pg_config = {
-        let postgres_str = env::var_os("CKB_ANALYZER_POSTGRES")
-            .expect("requires environment variable \"CKB_ANALYZER_POSTGRES\"")
+        let host = env::var_os("PGHOST")
+            .expect("requires environment variable \"PGHOST\"")
             .to_string_lossy()
             .to_string();
-        tokio_postgres::Config::from_str(&postgres_str)
-            .expect("failed to parse \"CKB_ANALYZER_POSTGRES\"")
+        let port = env::var_os("PGPORT")
+            .map(|raw| {
+                raw.to_string_lossy()
+                    .to_string()
+                    .parse::<u16>()
+                    .expect("invalid environment variable \"PGPORT\"")
+            })
+            .expect("requires environment variable \"PGPORT\"");
+        let database = env::var_os("PGDATABASE")
+            .expect("requires environment variable \"PGDATABASE\"")
+            .to_string_lossy()
+            .to_string();
+        let user = env::var_os("PGUSER")
+            .expect("requires environment variable \"PGUSER\"")
+            .to_string_lossy()
+            .to_string();
+        let password = env::var_os("PGPASSWORD")
+            .expect("requires environment variable \"PGPASSWORD\"")
+            .to_string_lossy()
+            .to_string();
+        let mut config = tokio_postgres::Config::new();
+        config
+            .host(&host)
+            .port(port)
+            .dbname(&database)
+            .user(&user)
+            .password(&password)
+            .application_name("CKBAnalyzer");
+        config
     };
     let pg = {
+        log::info!("Connecting to Postgres, {:?}", pg_config);
         let (pg, conn) = pg_config.connect(tokio_postgres::NoTls).await.unwrap();
         tokio::spawn(async move {
             if let Err(err) = conn.await {
@@ -53,7 +80,6 @@ async fn main() {
         });
         pg
     };
-    log::info!("connected to Postgres");
 
     // start handlers
     let (query_sender, mut query_receiver) =
@@ -223,7 +249,7 @@ async fn main() {
     let mut batch: Vec<String> = Vec::with_capacity(max_batch_size);
     let mut last_batch_instant = Instant::now();
     while let Some(query) = query_receiver.recv().await {
-        log::debug!("push new query: {}", query);
+        log::debug!("new query: {}", query);
         batch.push(query);
 
         if batch.len() >= max_batch_size || last_batch_instant.elapsed() >= max_batch_timeout {
@@ -261,6 +287,18 @@ fn init_logger() -> ckb_logger_service::LoggerInitGuard {
 pub fn clap_app() -> App<'static, 'static> {
     App::new("ckb-analyzer")
         .version(crate_version!())
+        .arg(
+            Arg::with_name("envfile")
+                .long("envfile")
+                .value_name("FILEPATH")
+                .required(false)
+                .takes_value(true)
+                .validator(|filepath| {
+                    dotenv::from_path(&filepath)
+                        .map(|_| ())
+                        .map_err(|err| err.to_string())
+                }),
+        )
         .arg(
             Arg::with_name("node.rpc")
                 .long("node.rpc")

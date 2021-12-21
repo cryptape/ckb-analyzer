@@ -18,19 +18,21 @@ $ docker-compose -f docker/docker-compose.yaml up -d
 
 Download from [releases](https://github.com/keroro520/ckb-analyzer/releases).
 
-
 ### Run CKBAnalyzer
 
-Environment variables:
+The following environment variables are required by CKBAnalyzer. They are mostly declared inside [`docker/.env.example`](./docker/.env.example). You can specify an environment file with `--envfile`.
 
 | variable | required | description |
 | :--- | :--- | :--- |
-| `IPINFO_IO_TOKEN` | false | [ipinfo.io](https://ipinfo.ip) authentication token, is used by [`PeerScanner`](./src/topics/peer_scanner.rs) to look up the geographical location by nodes' ip. |
-| `CKB_ANALYZER_POSTGRES` | true | Postgres login key |
+| `IPINFO_IO_TOKEN` | false | [ipinfo.io](https://ipinfo.ip) authentication token, is used to look up the geographical location by nodes' ip. |
+| `PGHOST` | true | Postgres host |
+| `PGPORT` | true | Postgres port |
+| `PGDATABASE` | true | Postgres database |
+| `PGUSER` | true | Postgres username |
+| `PGPASSWORD` | true | Postgres password |
 
 ```shell
-CKB_ANALYZER_POSTGRES="postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@127.0.0.1:5432/${POSTGRES_DB}" \
-ckb-analyzer --node.rpc="http://127.0.0.1:8111" --node.subscription="127.0.0.1:18114"
+ckb-analyzer --node.rpc="http://127.0.0.1:8111" --node.subscription="127.0.0.1:18114" --envfile docker/.env
 ```
 
 ---
