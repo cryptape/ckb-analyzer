@@ -32,7 +32,10 @@ The following environment variables are required by CKBAnalyzer. They are mostly
 | `PGPASSWORD` | true | Postgres password |
 
 ```shell
-ckb-analyzer --node.rpc="http://127.0.0.1:8111" --node.subscription="127.0.0.1:18114" --envfile docker/.env
+ckb-analyzer \
+    --node.rpc="http://127.0.0.1:8111" \
+    --node.subscription="127.0.0.1:18114" \
+    --envfile docker/.env
 ```
 
 ---

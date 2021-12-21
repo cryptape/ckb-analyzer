@@ -110,6 +110,11 @@ CREATE TABLE IF NOT EXISTS ckb.cell (
     type_code_hash                  VARCHAR ( 66 )
 );
 CREATE INDEX ckb_cell_out_point ON ckb.cell(tx_hash, index);
+CREATE TABLE IF NOT EXISTS ckb.compact_block_first_seen (
+    time                        TIMESTAMP       NOT NULL,
+    block_number                BIGINT          NOT NULL,
+    ip                          VARCHAR ( 46 )  NOT NULL
+);
 
 CREATE TABLE IF NOT EXISTS ckb_testnet.peer (
     id                  SERIAL,
@@ -218,6 +223,11 @@ CREATE TABLE IF NOT EXISTS ckb_testnet.cell (
     type_code_hash                  VARCHAR ( 66 )
 );
 CREATE INDEX ckb_testnet_cell_out_point ON ckb_testnet.cell(tx_hash, index);
+CREATE TABLE IF NOT EXISTS ckb_testnet.compact_block_first_seen (
+    time                        TIMESTAMP       NOT NULL,
+    block_number                BIGINT          NOT NULL,
+    ip                          VARCHAR ( 46 )  NOT NULL
+);
 
 SELECT create_hypertable('ckb.peer', 'time', migrate_data => true);
 SELECT create_hypertable('ckb.block', 'time', migrate_data => true);
@@ -229,6 +239,7 @@ SELECT create_hypertable('ckb.subscribed_proposed_transaction', 'time', migrate_
 SELECT create_hypertable('ckb.subscribed_rejected_transaction', 'time', migrate_data => true);
 SELECT create_hypertable('ckb.retention_transaction', 'time', migrate_data => true);
 SELECT create_hypertable('ckb.cell', 'creating_time', migrate_data => true);
+SELECT create_hypertable('ckb.compact_block_first_seen', 'time', migrate_data => true);
 
 SELECT create_hypertable('ckb_testnet.peer', 'time', migrate_data => true);
 SELECT create_hypertable('ckb_testnet.block', 'time', migrate_data => true);
@@ -240,3 +251,4 @@ SELECT create_hypertable('ckb_testnet.subscribed_proposed_transaction', 'time', 
 SELECT create_hypertable('ckb_testnet.subscribed_rejected_transaction', 'time', migrate_data => true);
 SELECT create_hypertable('ckb_testnet.retention_transaction', 'time', migrate_data => true);
 SELECT create_hypertable('ckb_testnet.cell', 'creating_time', migrate_data => true);
+SELECT create_hypertable('ckb_testnet.compact_block_first_seen', 'time', migrate_data => true);

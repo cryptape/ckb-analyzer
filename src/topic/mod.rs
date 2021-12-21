@@ -1,6 +1,7 @@
 mod cell_crawler;
 mod chain_crawler;
 mod chain_transaction_crawler;
+mod compact_block_crawler;
 mod epoch_crawler;
 mod network_crawler;
 mod pool_crawler;
@@ -12,6 +13,7 @@ mod subscribe_rejected_transaction;
 pub(crate) use cell_crawler::CellCrawler;
 pub(crate) use chain_crawler::ChainCrawler;
 pub(crate) use chain_transaction_crawler::ChainTransactionCrawler;
+pub(crate) use compact_block_crawler::CompactBlockCrawler;
 pub(crate) use epoch_crawler::EpochCrawler;
 pub(crate) use network_crawler::NetworkCrawler;
 pub(crate) use pool_crawler::PoolCrawler;

@@ -148,3 +148,12 @@ pub struct Cell {
     pub lock_args: Option<Bytes>,
     pub type_code_hash: Option<Byte32>,
 }
+
+/// Compact block first received from
+#[derive(Clone, Debug)]
+pub struct CompactBlockFirstSeen {
+    pub network: String,
+    pub time: chrono::NaiveDateTime,
+    pub block_number: u64,
+    pub ip: String,
+}
