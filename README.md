@@ -12,8 +12,6 @@ CKBAnalyzer acts as a metrics agent and stores the data into [Timescaledb](https
 $ cp docker/.env.example docker/.env
 
 $ docker-compose -f docker/docker-compose.yaml up -d
-
-$ source docker/.env && psql -f src/schema.sql
 ```
 
 ### Install CKBAnalyzer
