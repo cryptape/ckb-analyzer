@@ -1,7 +1,7 @@
 use crate::topic::{
-    CellCrawler, ChainCrawler, ChainTransactionCrawler, EpochCrawler, NetworkCrawler, PoolCrawler,
-    RetentionTransactionCrawler, SubscribeNewTransaction, SubscribeProposedTransaction,
-    SubscribeRejectedTransaction,
+    CellCrawler, ChainCrawler, ChainTransactionCrawler, CompactBlockCrawler, EpochCrawler,
+    NetworkCrawler, PoolCrawler, RetentionTransactionCrawler, SubscribeNewTransaction,
+    SubscribeProposedTransaction, SubscribeRejectedTransaction,
 };
 use crate::util::crossbeam_channel_to_tokio_channel;
 use ckb_testkit::{connector::SharedState, ConnectorBuilder, Node};
@@ -236,6 +236,21 @@ async fn main() {
                         .build(network_crawler, shared),
                 );
             }
+            "CompactBlockCrawler" => {
+                let shared = Arc::new(RwLock::new(SharedState::new()));
+                let peer_state_crawler = CompactBlockCrawler::new(
+                    node.clone(),
+                    query_sender.clone(),
+                    Arc::clone(&shared),
+                );
+                // workaround for Rust lifetime
+                _connectors.push(
+                    ConnectorBuilder::new()
+                        .protocol_metas(peer_state_crawler.build_protocol_metas())
+                        .listening_addresses(vec![])
+                        .build(peer_state_crawler, shared),
+                );
+            }
             _ => {
                 ckb_testkit::error!("Unknown topic \"{}\"", topic);
                 unreachable!()
@@ -341,7 +356,8 @@ pub fn clap_app() -> App<'static, 'static> {
                     SubscribeRejectedTransaction,\
                     RetentionTransactionCrawler,\
                     CellCrawler,\
-                    NetworkCrawler",
+                    NetworkCrawler,\
+                    CompactBlockCrawler",
                 )
                 .possible_values(&[
                     "ChainCrawler",
@@ -354,6 +370,7 @@ pub fn clap_app() -> App<'static, 'static> {
                     "RetentionTransactionCrawler",
                     "CellCrawler",
                     "NetworkCrawler",
+                    "CompactBlockCrawler",
                 ]),
         )
 }

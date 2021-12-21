@@ -197,14 +197,14 @@ impl NetworkCrawler {
                         }
                     }
                     Err(err) => {
-                        ckb_testkit::error!("NetworkCrawler received invalid Identify Payload, session: {:?}, error: {:?}", context.session, err);
+                        ckb_testkit::error!("NetworkCrawler received invalid Identify Payload, address: {}, error: {:?}", context.session.address, err);
                     }
                 }
             }
             Err(err) => {
                 ckb_testkit::error!(
-                    "NetworkCrawler received invalid IdentifyMessage, session: {:?}, error: {:?}",
-                    context.session,
+                    "NetworkCrawler received invalid IdentifyMessage, address: {}, error: {:?}",
+                    context.session.address,
                     err
                 );
             }
@@ -217,8 +217,8 @@ impl NetworkCrawler {
                 match message.payload().to_enum() {
                     packed::DiscoveryPayloadUnion::Nodes(discovery_nodes) => {
                         ckb_testkit::debug!(
-                            "NetworkCrawler received DiscoveryMessages Nodes, session: {:?}, nodes.len: {}",
-                            context.session,
+                            "NetworkCrawler received DiscoveryMessages Nodes, address: {}, nodes.len: {}",
+                            context.session.address,
                             discovery_nodes.items().len(),
                         );
 
@@ -274,8 +274,8 @@ impl NetworkCrawler {
                     Ok(Some(frame)) => self.received_discovery(context, frame.freeze()),
                     _ => {
                         ckb_testkit::error!(
-                            "NetworkCrawler received invalid DiscoveryMessage, session: {:?}, error: {:?}",
-                            context.session,
+                            "NetworkCrawler received invalid DiscoveryMessage, address: {}, error: {:?}",
+                            context.session.address,
                             err
                         );
                     }
@@ -309,15 +309,6 @@ impl NetworkCrawler {
             let message_bytes = discovery_get_node_message.as_bytes();
             context.send_message(message_bytes).unwrap();
         }
-    }
-
-    fn connected_identify(&mut self, context: P2PProtocolContextMutRef, _protocol_version: &str) {
-        ckb_testkit::debug!(
-            "NetworkCrawler open Identify protocol, session: {:?}",
-            context.session
-        );
-        // It's okay for us that don't send IdentifyMessage to peer.
-        // Just discard it.
     }
 }
 
@@ -370,7 +361,15 @@ impl P2PServiceProtocol for NetworkCrawler {
                         .get(random_index)
                         .cloned()
                         .unwrap();
-                    let _ = context.dial((*random_address).clone(), P2PTargetProtocol::All);
+                    if self
+                        .shared
+                        .read()
+                        .unwrap()
+                        .get_session(random_address)
+                        .is_none()
+                    {
+                        let _ = context.dial((*random_address).clone(), P2PTargetProtocol::All);
+                    }
                 };
             }
             DISCONNECT_TIMEOUT_SESSION_TOKEN => {
@@ -476,6 +475,15 @@ impl P2PServiceProtocol for NetworkCrawler {
     }
 
     fn connected(&mut self, context: P2PProtocolContextMutRef, protocol_version: &str) {
+        ckb_testkit::debug!(
+            "NetworkCrawler open protocol, protocol_name: {} address: {}",
+            context
+                .protocols()
+                .get(&context.proto_id())
+                .map(|p| p.name.as_str())
+                .unwrap_or_default(),
+            context.session.address
+        );
         if let Ok(mut shared) = self.shared.write() {
             shared.add_protocol(context.session, context.proto_id);
         }
@@ -483,7 +491,7 @@ impl P2PServiceProtocol for NetworkCrawler {
         if context.proto_id() == SupportProtocols::Discovery.protocol_id() {
             self.connected_discovery(context, protocol_version)
         } else if context.proto_id() == SupportProtocols::Identify.protocol_id() {
-            self.connected_identify(context, protocol_version)
+            // discard
         } else if context.proto_id() == SupportProtocols::Sync.protocol_id() {
             // discard
         } else {
@@ -492,6 +500,15 @@ impl P2PServiceProtocol for NetworkCrawler {
     }
 
     fn disconnected(&mut self, context: P2PProtocolContextMutRef) {
+        ckb_testkit::debug!(
+            "NetworkCrawler close protocol, protocol_name: {}, address: {:?}",
+            context
+                .protocols()
+                .get(&context.proto_id())
+                .map(|p| p.name.as_str())
+                .unwrap_or_default(),
+            context.session.address
+        );
         if let Ok(mut shared) = self.shared.write() {
             shared.remove_protocol(&context.session.id, &context.proto_id());
         }
