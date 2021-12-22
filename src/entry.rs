@@ -157,3 +157,15 @@ pub struct CompactBlockFirstSeen {
     pub block_number: u64,
     pub ip: String,
 }
+
+/// Peer's last sent compact block
+///
+/// Note: This table is not time-serie. It should be indexed by ip and keep update in place.
+#[derive(Clone, Debug)]
+pub struct PeerLastCompactBlock {
+    pub network: String,
+    pub ip: String,
+    pub block_hash: Byte32,
+    pub block_number: u64,
+    pub time: chrono::NaiveDateTime,
+}

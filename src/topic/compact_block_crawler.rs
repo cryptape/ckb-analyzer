@@ -34,15 +34,6 @@ use tokio_util::codec::{length_delimited::LengthDelimitedCodec, Decoder, Encoder
 const DIAL_ONLINE_ADDRESSES_INTERVAL: Duration = Duration::from_secs(1);
 const DIAL_ONLINE_ADDRESSES_TOKEN: u64 = 1;
 
-/// Creates a connector that
-///   - opens Relay protocol,
-///   - connects peers as many as possible,
-///   - records the block and the peer that first one propagates.
-///
-/// We need to implement some behavior to make the CKB full node keeping connections with us:
-///   - Identify protocol: response an acceptable identify
-///   - Sync protocol: consider of eviction mechanism
-///
 /// NOTE: CKB full node eviction mechanism only faces to outbound peers. We don't need to care
 /// about the mechanism evict us.
 pub struct CompactBlockCrawler {
@@ -150,7 +141,7 @@ impl CompactBlockCrawler {
                 match message.payload().to_enum() {
                     packed::DiscoveryPayloadUnion::Nodes(discovery_nodes) => {
                         ckb_testkit::debug!(
-                            "PeerStateCrawler received DiscoveryMessages Nodes, address: {}, nodes.len: {}",
+                            "CompactBlockCrawler received DiscoveryMessages Nodes, address: {}, nodes.len: {}",
                             context.session.address,
                             discovery_nodes.items().len(),
                         );
@@ -162,7 +153,7 @@ impl CompactBlockCrawler {
                                     {
                                         if observed_addresses.insert(addr.clone()) {
                                             ckb_testkit::debug!(
-                                                "PeerStateCrawler observed new address: {}",
+                                                "CompactBlockCrawler observed new address: {}",
                                                 addr
                                             );
                                         }
@@ -184,7 +175,7 @@ impl CompactBlockCrawler {
                     Ok(Some(frame)) => self.received_discovery(context, frame.freeze()),
                     _ => {
                         ckb_testkit::error!(
-                            "PeerStateCrawler received invalid DiscoveryMessage, address: {}, error: {:?}",
+                            "CompactBlockCrawler received invalid DiscoveryMessage, address: {}, error: {:?}",
                             context.session.address,
                             err
                         );
@@ -199,65 +190,15 @@ impl CompactBlockCrawler {
             Ok(message) => {
                 match message.to_enum() {
                     packed::RelayMessageUnion::CompactBlock(block) => {
-                        let block_hash = block.calc_header_hash();
-                        let block_number = block.header().raw().number().unpack();
-                        let compact_blocks = self.compact_blocks.as_mut().unwrap();
-                        if !compact_blocks.contains(&block_hash) {
-                            let ip = addr_to_ip(&context.session.address);
-                            compact_blocks.put(block_hash, ip.clone());
-
-                            let entry = crate::entry::CompactBlockFirstSeen {
-                                network: self.node.consensus().id.to_string(),
-                                time: chrono::Utc::now().naive_utc(),
-                                block_number,
-                                ip,
-                            };
-                            let raw_query = format!(
-                                "INSERT INTO {}.compact_block_first_seen(time, block_number, ip) VALUES ('{}', {}, '{}')",
-                                entry.network, entry.time, entry.block_number, entry.ip
-                            );
-                            self.query_sender.send(raw_query).unwrap();
-
-                            if !self.known_ips.contains(&entry.ip) {
-                                if let Ok(info_map) = self.ipinfo.lookup(&[entry.ip.as_str()]) {
-                                    let ipinfo::IpDetails {
-                                        ip,
-                                        country,
-                                        city,
-                                        region,
-                                        company,
-                                        ..
-                                    } = info_map[&entry.ip].to_owned();
-                                    let entry = crate::entry::IpInfo {
-                                        network: entry.network,
-                                        ip,
-                                        country,
-                                        city,
-                                        region,
-                                        company: company
-                                            .map(|company| company.name)
-                                            .unwrap_or_default(),
-                                    };
-                                    let raw_query = format!(
-                                        "INSERT INTO {}.ipinfo(ip, country, city, region, company) \
-                                VALUES ('{}', '{}', '{}', '{}', '{}') ON CONFLICT DO NOTHING",
-                                        entry.network,
-                                        entry.ip,
-                                        entry.country,
-                                        entry.city,
-                                        entry.region,
-                                        entry.company,
-                                    );
-                                    self.known_ips.insert(entry.ip);
-                                    self.query_sender.send(raw_query).unwrap();
-                                }
-                            }
-                        }
+                        let ip = addr_to_ip(&context.session.address);
+                        self.insert_ipinfo(&ip);
+                        self.update_peer_last_compact_block(ip.clone(), &block);
+                        self.insert_compact_block_first_seen(ip.clone(), &block);
                     }
                     packed::RelayMessageUnion::RelayTransactionHashes(_) => { /* discard */ }
                     item => {
                         ckb_testkit::warn!(
-                            "PeerStateCrawler received unexpected message \"{}\"",
+                            "CompactBlockCrawler received unexpected message \"{}\"",
                             item.item_name()
                         );
                     }
@@ -265,7 +206,7 @@ impl CompactBlockCrawler {
             }
             Err(err) => {
                 ckb_testkit::error!(
-                    "PeerStateCrawler received invalid RelayMessage, address: {}, error: {:?}",
+                    "CompactBlockCrawler received invalid RelayMessage, address: {}, error: {:?}",
                     context.session.address,
                     err
                 );
@@ -305,6 +246,79 @@ impl CompactBlockCrawler {
             observed_address,
         );
         context.send_message(message.as_bytes()).unwrap();
+    }
+
+    fn insert_ipinfo(&mut self, ip: &Ip) {
+        if self.known_ips.contains(ip) {
+            return;
+        }
+
+        if let Ok(info_map) = self.ipinfo.lookup(&[ip.as_str()]) {
+            let ipinfo::IpDetails {
+                ip,
+                country,
+                city,
+                region,
+                company,
+                ..
+            } = info_map[ip].to_owned();
+            let entry = crate::entry::IpInfo {
+                network: self.node.consensus().id.clone(),
+                ip,
+                country,
+                city,
+                region,
+                company: company.map(|company| company.name).unwrap_or_default(),
+            };
+            let raw_query = format!(
+                "INSERT INTO {}.ipinfo(ip, country, city, region, company) \
+                VALUES ('{}', '{}', '{}', '{}', '{}') ON CONFLICT DO NOTHING",
+                entry.network, entry.ip, entry.country, entry.city, entry.region, entry.company,
+            );
+            self.known_ips.insert(entry.ip);
+            self.query_sender.send(raw_query).unwrap();
+        }
+    }
+
+    fn insert_compact_block_first_seen(&mut self, ip: Ip, block: &packed::CompactBlock) {
+        let block_number = block.header().raw().number().unpack();
+        let block_hash = block.header().calc_header_hash();
+        let compact_blocks = self.compact_blocks.as_mut().unwrap();
+        if !compact_blocks.contains(&block_hash) {
+            compact_blocks.put(block_hash, ip.clone());
+
+            let entry = crate::entry::CompactBlockFirstSeen {
+                network: self.node.consensus().id.to_string(),
+                time: chrono::Utc::now().naive_utc(),
+                block_number,
+                ip,
+            };
+            let raw_query = format!(
+                "INSERT INTO {}.compact_block_first_seen(time, block_number, ip) VALUES ('{}', {}, '{}')",
+                entry.network, entry.time, entry.block_number, entry.ip
+            );
+            self.query_sender.send(raw_query).unwrap();
+        }
+    }
+
+    fn update_peer_last_compact_block(&self, ip: Ip, block: &packed::CompactBlock) {
+        let block_number = block.header().raw().number().unpack();
+        let block_hash = block.header().calc_header_hash();
+        let entry = crate::entry::PeerLastCompactBlock {
+            network: self.node.consensus().id.clone(),
+            ip,
+            block_number,
+            block_hash,
+            time: chrono::Utc::now().naive_utc(),
+        };
+        let raw_query = format!(
+            "INSERT INTO {}.peer_last_compact_block (ip, block_number, block_hash, time) \
+            VALUES ('{}', {}, '{:#x}', '{}') \
+            ON CONFLICT ( ip ) \
+            DO UPDATE SET (block_number, block_hash, time) = (EXCLUDED.block_number, EXCLUDED.block_hash, EXCLUDED.time)",
+            entry.network, entry.ip, entry.block_number, entry.block_hash, entry.time,
+        );
+        self.query_sender.send(raw_query).unwrap();
     }
 }
 
@@ -355,7 +369,7 @@ impl P2PServiceProtocol for CompactBlockCrawler {
 
     fn connected(&mut self, context: P2PProtocolContextMutRef, protocol_version: &str) {
         ckb_testkit::debug!(
-            "PeerStateCrawler open protocol, protocol_name: {} address: {}",
+            "CompactBlockCrawler open protocol, protocol_name: {} address: {}",
             context.protocols().get(&context.proto_id()).unwrap().name,
             context.session.address
         );
@@ -417,7 +431,10 @@ impl P2PServiceHandle for CompactBlockCrawler {
                 // discard
             }
             _ => {
-                ckb_testkit::error!("PeerStateCrawler detect service error, error: {:?}", error);
+                ckb_testkit::error!(
+                    "CompactBlockCrawler detect service error, error: {:?}",
+                    error
+                );
             }
         }
     }
@@ -428,7 +445,7 @@ impl P2PServiceHandle for CompactBlockCrawler {
             P2PServiceEvent::SessionOpen {
                 session_context: session,
             } => {
-                ckb_testkit::debug!("PeerStateCrawler open session: {:?}", session);
+                ckb_testkit::debug!("CompactBlockCrawler open session: {:?}", session);
                 let _ = self
                     .shared
                     .write()
@@ -437,7 +454,7 @@ impl P2PServiceHandle for CompactBlockCrawler {
             P2PServiceEvent::SessionClose {
                 session_context: session,
             } => {
-                ckb_testkit::debug!("PeerStateCrawler close session: {:?}", session);
+                ckb_testkit::debug!("CompactBlockCrawler close session: {:?}", session);
                 let _ = self
                     .shared
                     .write()

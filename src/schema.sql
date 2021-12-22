@@ -115,6 +115,12 @@ CREATE TABLE IF NOT EXISTS ckb.compact_block_first_seen (
     block_number                BIGINT          NOT NULL,
     ip                          VARCHAR ( 46 )  NOT NULL
 );
+CREATE TABLE IF NOT EXISTS ckb.peer_last_compact_block (
+    ip                          VARCHAR ( 46 )  PRIMARY KEY NOT NULL,
+    time                        TIMESTAMP       NOT NULL,
+    block_number                BIGINT          NOT NULL,
+    block_hash                  VARCHAR ( 66 )  NOT NULL
+);
 
 CREATE TABLE IF NOT EXISTS ckb_testnet.peer (
     id                  SERIAL,
@@ -227,6 +233,12 @@ CREATE TABLE IF NOT EXISTS ckb_testnet.compact_block_first_seen (
     time                        TIMESTAMP       NOT NULL,
     block_number                BIGINT          NOT NULL,
     ip                          VARCHAR ( 46 )  NOT NULL
+);
+CREATE TABLE IF NOT EXISTS ckb_testnet.peer_last_compact_block (
+    ip                          VARCHAR ( 46 )  PRIMARY KEY NOT NULL,
+    time                        TIMESTAMP       NOT NULL,
+    block_number                BIGINT          NOT NULL,
+    block_hash                  VARCHAR ( 66 )  NOT NULL
 );
 
 SELECT create_hypertable('ckb.peer', 'time', migrate_data => true);
