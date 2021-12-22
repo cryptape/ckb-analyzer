@@ -2,7 +2,9 @@
 
 The purpose of CKBAnalyzer is to facilitate observation of the CKB network.
 
-CKBAnalyzer acts as a metrics agent and stores the data into [Timescaledb](https://docs.timescale.com/), then visualize using [Grafana](https://grafana.com/). Free to use our maintained [dashboards](https://github.com/keroro520/ckb-analyzer/tree/main/dashboards).
+CKBAnalyzer acts as a metrics agent and stores the data into [Timescaledb](https://docs.timescale.com/), then visualize using [Grafana](https://grafana.com/).
+
+Visit the online dashboards at [https://ckbmonitor.bit.host/], and you can use the [maintained dashboards](https://github.com/keroro520/ckb-analyzer/tree/main/dashboards).
 
 ## Getting Started
 
