@@ -310,7 +310,7 @@ dependencies = [
 
 [[package]]
 name = "ckb-analyzer"
-version = "0.0.13"
+version = "0.1.0"
 dependencies = [
  "chrono",
  "ckb-logger-config",
@@ -677,7 +677,7 @@ dependencies = [
 [[package]]
 name = "ckb-testkit"
 version = "0.0.1"
-source = "git+https://github.com/nervosnetwork/ckb-integration-test?branch=add-messages-0#85fe15f18a2b8495c67e7dd2bfb2325f75c96b16"
+source = "git+https://github.com/nervosnetwork/ckb-integration-test?branch=main#73a990bc961d546b2077fbd33846977bae81ebbb"
 dependencies = [
  "bytes 1.1.0",
  "ckb-crypto",
