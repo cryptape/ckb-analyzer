@@ -59,8 +59,8 @@ impl EpochCrawler {
                         number: epoch.number.value(),
                         length: epoch.length.value(),
                         start_number: epoch.start_number.value(),
-                        start_time: start_time,
-                        end_time: end_time,
+                        start_time,
+                        end_time,
                         n_uncles: n_uncles as i32,
                         difficulty: difficulty.to_string(),
                     };

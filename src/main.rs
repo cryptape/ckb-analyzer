@@ -175,21 +175,21 @@ async fn main() {
             "SubscribeNewTransaction" => {
                 let mut handler = SubscribeNewTransaction::new(node.clone(), query_sender.clone());
                 tokio::spawn(async move {
-                    handler.run(subscription_addr.clone()).await;
+                    handler.run(subscription_addr).await;
                 });
             }
             "SubscribeProposedTransaction" => {
                 let mut handler =
                     SubscribeProposedTransaction::new(node.clone(), query_sender.clone());
                 tokio::spawn(async move {
-                    handler.run(subscription_addr.clone()).await;
+                    handler.run(subscription_addr).await;
                 });
             }
             "SubscribeRejectedTransaction" => {
                 let mut handler =
                     SubscribeRejectedTransaction::new(node.clone(), query_sender.clone());
                 tokio::spawn(async move {
-                    handler.run(subscription_addr.clone()).await;
+                    handler.run(subscription_addr).await;
                 });
             }
             "RetentionTransactionCrawler" => {
@@ -285,7 +285,7 @@ async fn main() {
 fn init_logger() -> ckb_logger_service::LoggerInitGuard {
     let filter = match env::var("RUST_LOG") {
         Ok(filter) if filter.is_empty() => Some("info".to_string()),
-        Ok(filter) => Some(filter.to_string()),
+        Ok(filter) => Some(filter),
         Err(_) => Some("info".to_string()),
     };
     let config = ckb_logger_config::Config {

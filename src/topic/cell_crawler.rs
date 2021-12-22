@@ -31,8 +31,7 @@ impl CellCrawler {
                 continue;
             }
 
-            let json_block = self.node.get_block_by_number(current_number);
-            let block: BlockView = json_block.into();
+            let block = self.node.get_block_by_number(current_number);
             self.analyze_block_cells(&block).await;
 
             current_number += 1;
@@ -60,8 +59,7 @@ impl CellCrawler {
             //     queries.push(update_raw_query);
             // }
 
-            let mut index = 0;
-            for output in tx.outputs() {
+            for (index, output) in tx.outputs().into_iter().enumerate() {
                 let entry = entry::Cell {
                     network: self.node.consensus().id.clone(),
                     creating_time: time,
@@ -91,8 +89,6 @@ impl CellCrawler {
                     entry.type_code_hash.map(|h| format!("{:#x}", h)).unwrap_or_default(),
                 );
                 queries.push(raw_query);
-
-                index += 1;
             }
         }
 
