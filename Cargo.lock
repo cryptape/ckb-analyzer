@@ -321,6 +321,7 @@ dependencies = [
  "dotenv",
  "futures 0.3.17",
  "ipinfo",
+ "lazy_static",
  "log",
  "lru",
  "rand 0.8.4",

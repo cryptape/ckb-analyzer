@@ -28,3 +28,4 @@ tokio-util = { version = "0.6", features = ["codec"] }
 regex = "1.5.4"
 dotenv = "0.15.0"
 lru = "0.6"
+lazy_static = "1.4"

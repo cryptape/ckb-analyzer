@@ -1,3 +1,4 @@
+use crate::util::{bootnodes::bootnodes, ipinfo::lookup_ipinfo, multiaddr::addr_to_ip};
 use ckb_testkit::{
     ckb_types::{packed, prelude::*},
     compress,
@@ -5,7 +6,6 @@ use ckb_testkit::{
     connector::SharedState,
     decompress, Node, SupportProtocols,
 };
-use ipinfo::IpInfo;
 use lru::LruCache;
 use p2p::{
     builder::MetaBuilder as P2PMetaBuilder,
@@ -13,7 +13,6 @@ use p2p::{
     context::ProtocolContext as P2PProtocolContext,
     context::ProtocolContextMutRef as P2PProtocolContextMutRef,
     context::ServiceContext as P2PServiceContext,
-    multiaddr,
     multiaddr::Multiaddr,
     service::ProtocolHandle as P2PProtocolHandle,
     service::ProtocolMeta as P2PProtocolMeta,
@@ -22,7 +21,6 @@ use p2p::{
     service::TargetProtocol as P2PTargetProtocol,
     traits::ServiceHandle as P2PServiceHandle,
     traits::ServiceProtocol as P2PServiceProtocol,
-    utils::multiaddr_to_socketaddr,
 };
 use rand::{thread_rng, Rng};
 use std::collections::HashSet;
@@ -30,6 +28,8 @@ use std::convert::TryFrom;
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
 use tokio_util::codec::{length_delimited::LengthDelimitedCodec, Decoder, Encoder};
+
+type Ip = String;
 
 const DIAL_ONLINE_ADDRESSES_INTERVAL: Duration = Duration::from_secs(1);
 const DIAL_ONLINE_ADDRESSES_TOKEN: u64 = 1;
@@ -53,8 +53,6 @@ pub struct CompactBlockCrawler {
     compact_blocks: Option<LruCache<packed::Byte32, Ip>>,
 
     known_ips: HashSet<Ip>,
-
-    ipinfo: IpInfo,
 }
 
 impl Clone for CompactBlockCrawler {
@@ -67,7 +65,6 @@ impl Clone for CompactBlockCrawler {
             client_version: self.client_version.clone(),
             compact_blocks: None,
             known_ips: HashSet::new(),
-            ipinfo: create_ipinfo(),
         }
     }
 }
@@ -89,7 +86,6 @@ impl CompactBlockCrawler {
             client_version,
             compact_blocks: Default::default(),
             known_ips: Default::default(),
-            ipinfo: create_ipinfo(),
         }
     }
 
@@ -254,15 +250,15 @@ impl CompactBlockCrawler {
             return;
         }
 
-        if let Ok(info_map) = self.ipinfo.lookup(&[ip]) {
-            let ipinfo::IpDetails {
-                ip,
-                country,
-                city,
-                region,
-                company,
-                ..
-            } = info_map[ip].to_owned();
+        if let Ok(ipinfo::IpDetails {
+            ip,
+            country,
+            city,
+            region,
+            company,
+            ..
+        }) = lookup_ipinfo(ip)
+        {
             let entry = crate::entry::IpInfo {
                 network: self.node.consensus().id.clone(),
                 ip,
@@ -403,7 +399,9 @@ impl P2PServiceProtocol for CompactBlockCrawler {
     fn received(&mut self, context: P2PProtocolContextMutRef, data: Bytes) {
         if context.proto_id == SupportProtocols::Discovery.protocol_id() {
             self.received_discovery(context, data)
-        } else if context.proto_id() == SupportProtocols::Relay.protocol_id() || context.proto_id() == SupportProtocols::RelayV2.protocol_id() {
+        } else if context.proto_id() == SupportProtocols::Relay.protocol_id()
+            || context.proto_id() == SupportProtocols::RelayV2.protocol_id()
+        {
             self.received_relay(context, data)
         }
     }
@@ -450,63 +448,4 @@ impl P2PServiceHandle for CompactBlockCrawler {
             }
         }
     }
-}
-
-#[allow(clippy::mutable_key_type)]
-fn bootnodes(node: &Node) -> HashSet<Multiaddr> {
-    let local_node_info = node.rpc_client().local_node_info();
-    if !local_node_info.addresses.is_empty() {
-        return local_node_info
-            .addresses
-            .into_iter()
-            .map(|addr| addr.address.parse().unwrap())
-            .collect();
-    }
-
-    let bootnode = match node.consensus().id.as_str() {
-        "ckb" => "/ip4/47.110.15.57/tcp/8114/p2p/QmXS4Kbc9HEeykHUTJCm2tNmqghbvWyYpUp6BtE5b6VrAU",
-        "ckb_testnet" => {
-            "/ip4/47.111.169.36/tcp/8111/p2p/QmNQ4jky6uVqLDrPU7snqxARuNGWNLgSrTnssbRuy3ij2W"
-        }
-        _ => unreachable!(),
-    };
-    let mut bootnodes = HashSet::new();
-    bootnodes.insert(bootnode.parse().unwrap());
-    bootnodes
-}
-
-type Ip = String;
-
-fn addr_to_ip(addr: &Multiaddr) -> Ip {
-    addr.iter()
-        .find_map(|protocol| match protocol {
-            multiaddr::Protocol::Ip4(ip4) => Some(ip4.to_string()),
-            multiaddr::Protocol::Ip6(ip6) => ip6
-                .to_ipv4()
-                .map(|ip4| ip4.to_string())
-                .or_else(|| Some(ip6.to_string())),
-            multiaddr::Protocol::Dns4(dns4) => Some(dns4.to_string()),
-            multiaddr::Protocol::Dns6(dns6) => Some(dns6.to_string()),
-            _ => None,
-        })
-        .unwrap_or_else(|| {
-            let socket_addr = multiaddr_to_socketaddr(&addr).unwrap();
-            socket_addr.ip().to_string()
-        })
-}
-
-fn create_ipinfo() -> ipinfo::IpInfo {
-    let ipinfo_io_token = match ::std::env::var("IPINFO_IO_TOKEN") {
-        Ok(token) if !token.is_empty() => Some(token),
-        _ => {
-            log::warn!("miss environment variable \"IPINFO_IO_TOKEN\", use empty value");
-            None
-        }
-    };
-    ipinfo::IpInfo::new(ipinfo::IpInfoConfig {
-        token: ipinfo_io_token,
-        cache_size: 10000,
-        timeout: ::std::time::Duration::from_secs(365 * 24 * 60 * 60),
-    })
-    .expect("connect to https://ipinfo.io")
 }
