@@ -27,8 +27,7 @@ impl ChainTransactionCrawler {
                 continue;
             }
 
-            let json_block = self.node.get_block_by_number(current_number);
-            let block: BlockView = json_block.into();
+            let block = self.node.get_block_by_number(current_number);
             self.analyze_block_transactions(&block).await;
 
             current_number += 1;

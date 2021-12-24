@@ -111,6 +111,7 @@ impl NetworkCrawler {
             }
             _ => unreachable!(),
         };
+        #[allow(clippy::mutable_key_type)]
         let mut bootnodes = HashSet::new();
         bootnodes.insert(bootnode.parse().unwrap());
         Self {
@@ -490,12 +491,6 @@ impl P2PServiceProtocol for NetworkCrawler {
 
         if context.proto_id() == SupportProtocols::Discovery.protocol_id() {
             self.connected_discovery(context, protocol_version)
-        } else if context.proto_id() == SupportProtocols::Identify.protocol_id() {
-            // discard
-        } else if context.proto_id() == SupportProtocols::Sync.protocol_id() {
-            // discard
-        } else {
-            unreachable!()
         }
     }
 
@@ -519,10 +514,6 @@ impl P2PServiceProtocol for NetworkCrawler {
             self.received_discovery(context, data)
         } else if context.proto_id == SupportProtocols::Identify.protocol_id() {
             self.received_identify(context, data)
-        } else if context.proto_id() == SupportProtocols::Sync.protocol_id() {
-            // discard
-        } else {
-            unreachable!()
         }
     }
 }
@@ -552,7 +543,7 @@ impl P2PServiceHandle for NetworkCrawler {
                     return;
                 }
 
-                let _ = self
+                let _add = self
                     .shared
                     .write()
                     .map(|mut shared| shared.add_session(session.as_ref().to_owned()));
@@ -561,7 +552,7 @@ impl P2PServiceHandle for NetworkCrawler {
                 session_context: session,
             } => {
                 ckb_testkit::debug!("NetworkCrawler close session: {:?}", session);
-                let _ = self
+                let _removed = self
                     .shared
                     .write()
                     .map(|mut shared| shared.remove_session(&session.id));
@@ -602,7 +593,7 @@ fn create_ipinfo() -> ipinfo::IpInfo {
     ipinfo::IpInfo::new(ipinfo::IpInfoConfig {
         token: ipinfo_io_token,
         cache_size: 10000,
-        timeout: ::std::time::Duration::from_secs(1 * 365 * 24 * 60 * 60),
+        timeout: ::std::time::Duration::from_secs(365 * 24 * 60 * 60),
     })
     .expect("connect to https://ipinfo.io")
 }

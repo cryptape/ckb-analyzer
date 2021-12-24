@@ -78,13 +78,14 @@ impl CompactBlockCrawler {
         query_sender: crossbeam::channel::Sender<String>,
         shared: Arc<RwLock<SharedState>>,
     ) -> Self {
+        #[allow(clippy::mutable_key_type)]
         let bootnodes = bootnodes(&node);
         let client_version = node.rpc_client().local_node_info().version;
         Self {
             node,
             query_sender,
             shared,
-            observed_addresses: Arc::new(RwLock::new(bootnodes.clone())),
+            observed_addresses: Arc::new(RwLock::new(bootnodes)),
             client_version,
             compact_blocks: Default::default(),
             known_ips: Default::default(),
@@ -193,7 +194,7 @@ impl CompactBlockCrawler {
                         let ip = addr_to_ip(&context.session.address);
                         self.insert_ipinfo(&ip);
                         self.update_peer_last_compact_block(ip.clone(), &block);
-                        self.insert_compact_block_first_seen(ip.clone(), &block);
+                        self.insert_compact_block_first_seen(ip, &block);
                     }
                     packed::RelayMessageUnion::RelayTransactionHashes(_) => { /* discard */ }
                     item => {
@@ -248,12 +249,12 @@ impl CompactBlockCrawler {
         context.send_message(message.as_bytes()).unwrap();
     }
 
-    fn insert_ipinfo(&mut self, ip: &Ip) {
+    fn insert_ipinfo(&mut self, ip: &str) {
         if self.known_ips.contains(ip) {
             return;
         }
 
-        if let Ok(info_map) = self.ipinfo.lookup(&[ip.as_str()]) {
+        if let Ok(info_map) = self.ipinfo.lookup(&[ip]) {
             let ipinfo::IpDetails {
                 ip,
                 country,
@@ -381,14 +382,6 @@ impl P2PServiceProtocol for CompactBlockCrawler {
             self.connected_discovery(context, protocol_version)
         } else if context.proto_id() == SupportProtocols::Identify.protocol_id() {
             self.connected_identify(context, protocol_version)
-        } else if context.proto_id() == SupportProtocols::Sync.protocol_id() {
-            // discard
-        } else if context.proto_id() == SupportProtocols::Relay.protocol_id() {
-            // discard
-        } else if context.proto_id() == SupportProtocols::RelayV2.protocol_id() {
-            // discard
-        } else {
-            unreachable!()
         }
     }
 
@@ -410,16 +403,8 @@ impl P2PServiceProtocol for CompactBlockCrawler {
     fn received(&mut self, context: P2PProtocolContextMutRef, data: Bytes) {
         if context.proto_id == SupportProtocols::Discovery.protocol_id() {
             self.received_discovery(context, data)
-        } else if context.proto_id == SupportProtocols::Identify.protocol_id() {
-            // discard
-        } else if context.proto_id() == SupportProtocols::Sync.protocol_id() {
-            // discard
-        } else if context.proto_id() == SupportProtocols::Relay.protocol_id() {
+        } else if context.proto_id() == SupportProtocols::Relay.protocol_id() || context.proto_id() == SupportProtocols::RelayV2.protocol_id() {
             self.received_relay(context, data)
-        } else if context.proto_id() == SupportProtocols::RelayV2.protocol_id() {
-            self.received_relay(context, data)
-        } else {
-            unreachable!()
         }
     }
 }
@@ -446,7 +431,7 @@ impl P2PServiceHandle for CompactBlockCrawler {
                 session_context: session,
             } => {
                 ckb_testkit::debug!("CompactBlockCrawler open session: {:?}", session);
-                let _ = self
+                let _add = self
                     .shared
                     .write()
                     .map(|mut shared| shared.add_session(session.as_ref().to_owned()));
@@ -455,7 +440,7 @@ impl P2PServiceHandle for CompactBlockCrawler {
                 session_context: session,
             } => {
                 ckb_testkit::debug!("CompactBlockCrawler close session: {:?}", session);
-                let _ = self
+                let _remove = self
                     .shared
                     .write()
                     .map(|mut shared| shared.remove_session(&session.id));
@@ -467,6 +452,7 @@ impl P2PServiceHandle for CompactBlockCrawler {
     }
 }
 
+#[allow(clippy::mutable_key_type)]
 fn bootnodes(node: &Node) -> HashSet<Multiaddr> {
     let local_node_info = node.rpc_client().local_node_info();
     if !local_node_info.addresses.is_empty() {
@@ -520,7 +506,7 @@ fn create_ipinfo() -> ipinfo::IpInfo {
     ipinfo::IpInfo::new(ipinfo::IpInfoConfig {
         token: ipinfo_io_token,
         cache_size: 10000,
-        timeout: ::std::time::Duration::from_secs(1 * 365 * 24 * 60 * 60),
+        timeout: ::std::time::Duration::from_secs(365 * 24 * 60 * 60),
     })
     .expect("connect to https://ipinfo.io")
 }
