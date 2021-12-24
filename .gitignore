@@ -7,3 +7,4 @@
 /docker/postgresql/var/
 /docker/grafana/var/
 *.log
+.DS_Store
