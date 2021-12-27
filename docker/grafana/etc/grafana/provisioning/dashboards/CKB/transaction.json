@@ -22,8 +22,8 @@
   "fiscalYearStartMonth": 0,
   "gnetId": null,
   "graphTooltip": 0,
-  "id": 6,
-  "iteration": 1635845411193,
+  "id": 10,
+  "iteration": 1640349219170,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -379,7 +379,7 @@
           "hide": false,
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "WITH v1 AS (\n    SELECT\n        time_bucket(INTERVAL '$interval', bt.time) AS \"committed_time\",\n        EXTRACT(MILLISECOND FROM (bt.time - snt.time)) AS \"seconds\"\n    FROM ckb.block_transaction bt JOIN ckb.subscribed_new_transaction snt\n    ON $__timeFilter(bt.time) AND bt.proposal_id = snt.proposal_id\n)\n\nSELECT\n  v1.committed_time AS time,\n  avg(v1.seconds) AS \"Pending to Committed\"\nFROM v1\nGROUP BY v1.committed_time\nORDER BY v1.committed_time;",
+          "rawSql": "WITH v1 AS (\n    SELECT\n        time_bucket(INTERVAL '$interval', bt.time) AS \"committed_time\",\n        EXTRACT(MILLISECOND FROM (bt.time - snt.time)) AS \"seconds\"\n    FROM $network.block_transaction bt JOIN $network.subscribed_new_transaction snt\n    ON $__timeFilter(bt.time) AND bt.proposal_id = snt.proposal_id\n)\n\nSELECT\n  v1.committed_time AS time,\n  avg(v1.seconds) AS \"Pending to Committed\"\nFROM v1\nGROUP BY v1.committed_time\nORDER BY v1.committed_time;",
           "refId": "A",
           "select": [
             [
@@ -416,7 +416,7 @@
           "hide": false,
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "WITH v1 AS (\n    SELECT\n        time_bucket(INTERVAL '$interval', bt.time) AS \"proposed_time\",\n        EXTRACT(MILLISECOND FROM (bt.time - snt.time)) AS \"seconds\"\n    FROM ckb.subscribed_proposed_transaction bt JOIN ckb.subscribed_new_transaction snt\n    ON $__timeFilter(bt.time) AND bt.proposal_id = snt.proposal_id\n)\n\nSELECT\n  v1.proposed_time AS time,\n  avg(v1.seconds) AS \"Pending to Proposed\"\nFROM v1\nGROUP BY v1.proposed_time\nORDER BY v1.proposed_time;",
+          "rawSql": "WITH v1 AS (\n    SELECT\n        time_bucket(INTERVAL '$interval', bt.time) AS \"proposed_time\",\n        EXTRACT(MILLISECOND FROM (bt.time - snt.time)) AS \"seconds\"\n    FROM $network.subscribed_proposed_transaction bt JOIN $network.subscribed_new_transaction snt\n    ON $__timeFilter(bt.time) AND bt.proposal_id = snt.proposal_id\n)\n\nSELECT\n  v1.proposed_time AS time,\n  avg(v1.seconds) AS \"Pending to Proposed\"\nFROM v1\nGROUP BY v1.proposed_time\nORDER BY v1.proposed_time;",
           "refId": "B",
           "select": [
             [
@@ -465,7 +465,7 @@
           "hide": false,
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "WITH v1 AS (\n    SELECT\n        time_bucket(INTERVAL '$interval', bt.time) AS \"committed_time\",\n        EXTRACT(MILLISECOND FROM (bt.time - snt.time)) AS \"seconds\"\n    FROM ckb.block_transaction bt JOIN ckb.subscribed_proposed_transaction snt\n    ON $__timeFilter(bt.time) AND bt.proposal_id = snt.proposal_id AND bt.time > snt.time\n)\n\nSELECT\n  v1.committed_time AS time,\n  avg(v1.seconds) AS \"Proposed to Committed\"\nFROM v1\nGROUP BY v1.committed_time\nORDER BY v1.committed_time;",
+          "rawSql": "WITH v1 AS (\n    SELECT\n        time_bucket(INTERVAL '$interval', bt.time) AS \"committed_time\",\n        EXTRACT(MILLISECOND FROM (bt.time - snt.time)) AS \"seconds\"\n    FROM $network.block_transaction bt JOIN $network.subscribed_proposed_transaction snt\n    ON $__timeFilter(bt.time) AND bt.proposal_id = snt.proposal_id AND bt.time > snt.time\n)\n\nSELECT\n  v1.committed_time AS time,\n  avg(v1.seconds) AS \"Proposed to Committed\"\nFROM v1\nGROUP BY v1.committed_time\nORDER BY v1.committed_time;",
           "refId": "C",
           "select": [
             [
@@ -514,9 +514,9 @@
       {
         "allValue": null,
         "current": {
-          "selected": false,
-          "text": "ckb",
-          "value": "ckb"
+          "selected": true,
+          "text": "ckb_testnet",
+          "value": "ckb_testnet"
         },
         "description": "CKB network name",
         "error": null,
@@ -527,17 +527,23 @@
         "name": "network",
         "options": [
           {
-            "selected": true,
+            "selected": false,
             "text": "ckb",
             "value": "ckb"
           },
           {
-            "selected": false,
+            "selected": true,
             "text": "ckb_testnet",
             "value": "ckb_testnet"
+          },
+          {
+            "selected": false,
+            "text": "ckb_staging",
+            "value": "ckb_staging"
           }
         ],
-        "query": "ckb,ckb_testnet",
+        "query": "ckb,ckb_testnet,ckb_staging",
+        "queryValue": "",
         "skipUrlSync": false,
         "type": "custom"
       },
@@ -627,5 +633,5 @@
   "timezone": "",
   "title": "Transaction",
   "uid": "xFILwHKnz",
-  "version": 10
+  "version": 3
 }
