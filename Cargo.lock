@@ -478,8 +478,9 @@ dependencies = [
 
 [[package]]
 name = "ckb-indexer"
-version = "0.3.1"
-source = "git+https://github.com/nervosnetwork/ckb-indexer#8f2986445d6950c9537aa37a384ec31fd25bdfc9"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0c300476eeace7091f0bba74185c8ef232c1b5aafa68739be8b2ca6ee22b5ba5"
 dependencies = [
  "ckb-jsonrpc-types 0.101.3",
  "ckb-rocksdb",
@@ -678,7 +679,8 @@ dependencies = [
 [[package]]
 name = "ckb-testkit"
 version = "0.0.1"
-source = "git+https://github.com/nervosnetwork/ckb-integration-test?branch=main#73a990bc961d546b2077fbd33846977bae81ebbb"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8863e6347fc43832fddf3ebdba424c6dc245cb1e242b7a46fbb63393981c8c72"
 dependencies = [
  "bytes 1.1.0",
  "ckb-crypto",
@@ -702,8 +704,11 @@ dependencies = [
  "snap",
  "tempfile",
  "tentacle",
+ "tentacle-multiaddr",
+ "tentacle-secio",
  "tokio 1.14.0",
  "tokio-util 0.6.9",
+ "tokio-yamux",
  "version-compare",
 ]
 
