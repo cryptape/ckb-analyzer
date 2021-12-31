@@ -1,11 +1,13 @@
 use crate::ckb_types::{
     core::{BlockNumber, BlockView},
     h256,
+    packed::OutPoint,
     prelude::*,
 };
 use crate::entry;
 use ckb_testkit::Node;
 use std::cmp::max;
+use std::convert::TryInto;
 use std::time::Duration;
 
 const BLOCK_CONFIRMATION: BlockNumber = 10;
@@ -44,29 +46,38 @@ impl CellCrawler {
             (block.timestamp() % 1000 * 1000) as u32,
         );
         let mut queries = Vec::new();
-        for tx in block.transactions() {
+        for (tx_index, tx) in block.transactions().iter().enumerate() {
             let tx_hash = tx.hash();
-            // TODO This UPDATE query costs too much memory. Optimize it first.
-            // for input in tx.input_pts_iter() {
-            //     let index: usize = input.index().unpack();
-            //     let update_raw_query = format!(
-            //         "UPDATE {}.cell SET consuming_time = '{}' WHERE tx_hash = '{:#x}' AND index = {}",
-            //         self.node.consensus().id,
-            //         time,
-            //         input.tx_hash(),
-            //         index,
-            //     );
-            //     queries.push(update_raw_query);
-            // }
+            if tx_index != 0 {
+                for input in tx.input_pts_iter() {
+                    let entry = entry::SpentCell {
+                        network: self.node.consensus().id.clone(),
+                        time,
+                        block_number: block.number(),
+                        out_point: input,
+                    };
+                    let raw_query = format!(
+                        "INSERT INTO {}.spent_cell (time, block_number, tx_hash, index) \
+                    VALUES ('{}', {}, '{:#x}', {})",
+                        entry.network,
+                        entry.time,
+                        entry.block_number,
+                        entry.out_point.tx_hash(),
+                        Unpack::<u32>::unpack(&entry.out_point.index()),
+                    );
+                    queries.push(raw_query);
+                }
+            }
 
             for (index, output) in tx.outputs().into_iter().enumerate() {
-                let entry = entry::Cell {
+                let out_point = OutPoint::new(tx_hash.clone(), index as u32);
+                let entry = entry::CreatedCell {
                     network: self.node.consensus().id.clone(),
-                    creating_time: time,
-                    consuming_time: None,
-                    creating_number: block.number(),
-                    tx_hash: tx_hash.clone(),
-                    index,
+                    time,
+                    block_number: block.number(),
+                    tx_index,
+                    out_point,
+                    lock_hash_type: output.lock().hash_type().try_into().unwrap(),
                     lock_code_hash: output.lock().code_hash(),
                     lock_args: {
                         if output.lock().code_hash() == h256!("0x9bd7e06f3ecf4be0f2fcd2188b23f1b9fcc88e5d4b65a8637b17723bbda3cce8").pack() {
@@ -79,13 +90,20 @@ impl CellCrawler {
                             None
                         }
                     },
+                    type_hash_type: output
+                        .type_()
+                        .to_opt()
+                        .map(|script| script.hash_type().try_into().unwrap()),
                     type_code_hash: output.type_().to_opt().map(|script| script.code_hash()),
                 };
                 let raw_query = format!(
-                    "INSERT INTO {}.cell (creating_time, creating_number, tx_hash, index, lock_code_hash, lock_args, type_code_hash) \
-                    VALUES ('{}', {}, '{:#x}', {}, '{:#x}', '{}', '{}')",
-                    entry.network, entry.creating_time, entry.creating_number, entry.tx_hash, entry.index, entry.lock_code_hash,
+                    "INSERT INTO {}.created_cell (time, block_number, tx_index, tx_hash, index, lock_hash_type, lock_code_hash, lock_args, type_hash_type, type_code_hash) \
+                    VALUES ('{}', {}, {}, '{:#x}', {}, {}, '{:#x}', '{}', {}, '{}')",
+                    entry.network, entry.time, entry.block_number, entry.tx_index, entry.out_point.tx_hash(), Unpack::<u32>::unpack(&entry.out_point.index()),
+                    Into::<u8>::into(entry.lock_hash_type),
+                    entry.lock_code_hash,
                     entry.lock_args.map(|h| format!("{:#x}", h)).unwrap_or_default(),
+                    entry.type_hash_type.map(|t| Into::<u8>::into(t)).unwrap_or(u8::max_value()),
                     entry.type_code_hash.map(|h| format!("{:#x}", h)).unwrap_or_default(),
                 );
                 queries.push(raw_query);
