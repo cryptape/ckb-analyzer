@@ -97,6 +97,7 @@ impl NetworkCrawler {
         query_sender: crossbeam::channel::Sender<String>,
         shared: Arc<RwLock<SharedState>>,
     ) -> Self {
+        #[allow(clippy::mutable_key_type)]
         let bootnodes = bootnodes(&node);
         Self {
             node,

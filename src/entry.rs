@@ -1,5 +1,8 @@
-use crate::ckb_types::bytes::Bytes;
-use crate::ckb_types::packed::{Byte32, ProposalShortId};
+use crate::ckb_types::{
+    bytes::Bytes,
+    core::ScriptHashType,
+    packed::{Byte32, OutPoint, ProposalShortId},
+};
 
 /// Peer info
 #[derive(Clone, Debug)]
@@ -137,16 +140,26 @@ pub struct RetentionTransaction {
 
 /// Cell Info
 #[derive(Clone, Debug)]
-pub struct Cell {
+pub struct CreatedCell {
     pub network: String,
-    pub creating_time: chrono::NaiveDateTime,
-    pub consuming_time: Option<chrono::NaiveDateTime>,
-    pub creating_number: u64,
-    pub tx_hash: Byte32,
-    pub index: usize,
+    pub time: chrono::NaiveDateTime,
+    pub block_number: u64,
+    pub tx_index: usize,
+    pub out_point: OutPoint,
+
+    pub lock_hash_type: ScriptHashType,
     pub lock_code_hash: Byte32,
     pub lock_args: Option<Bytes>,
+    pub type_hash_type: Option<ScriptHashType>,
     pub type_code_hash: Option<Byte32>,
+}
+
+#[derive(Clone, Debug)]
+pub struct SpentCell {
+    pub network: String,
+    pub time: chrono::NaiveDateTime,
+    pub block_number: u64,
+    pub out_point: OutPoint,
 }
 
 /// Compact block first received from
