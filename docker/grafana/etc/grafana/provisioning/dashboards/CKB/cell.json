@@ -22,8 +22,8 @@
   "fiscalYearStartMonth": 0,
   "gnetId": null,
   "graphTooltip": 0,
-  "id": 11,
-  "iteration": 1640146242595,
+  "id": 23,
+  "iteration": 1641288150895,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -56,141 +56,29 @@
       "type": "row"
     },
     {
-      "datasource": "PostgreSQL-ckb",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            }
-          },
-          "mappings": []
-        },
-        "overrides": []
-      },
+      "collapsed": false,
+      "datasource": null,
       "gridPos": {
-        "h": 9,
-        "w": 12,
+        "h": 1,
+        "w": 24,
         "x": 0,
         "y": 2
       },
-      "id": 4,
-      "options": {
-        "displayLabels": [
-          "value"
-        ],
-        "legend": {
-          "displayMode": "table",
-          "placement": "bottom",
-          "values": [
-            "percent",
-            "value"
-          ]
-        },
-        "pieType": "pie",
-        "reduceOptions": {
-          "calcs": [
-            "sum"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "tooltip": {
-          "mode": "single"
-        }
-      },
-      "targets": [
-        {
-          "format": "time_series",
-          "group": [
-            {
-              "params": [
-                "$__interval",
-                "none"
-              ],
-              "type": "time"
-            }
-          ],
-          "metricColumn": "lock_code_hash",
-          "rawQuery": true,
-          "rawSql": "SELECT\n  $__timeGroupAlias(creating_time,$__interval),\n  concat('_', lock_code_hash) AS metric,\n  count(index) AS \"index\"\nFROM $network.cell\nWHERE\n  $__timeFilter(creating_time) AND consuming_time IS NULL\nGROUP BY 1,2\nORDER BY 1,2",
-          "refId": "A",
-          "select": [
-            [
-              {
-                "params": [
-                  "index"
-                ],
-                "type": "column"
-              },
-              {
-                "params": [
-                  "count"
-                ],
-                "type": "aggregate"
-              },
-              {
-                "params": [
-                  "index"
-                ],
-                "type": "alias"
-              }
-            ]
-          ],
-          "table": "$network.cell",
-          "timeColumn": "creating_time",
-          "timeColumnType": "timestamp",
-          "where": [
-            {
-              "name": "$__timeFilter",
-              "params": [],
-              "type": "macro"
-            }
-          ]
-        }
-      ],
-      "title": "Total Cells",
-      "type": "piechart"
+      "id": 16,
+      "panels": [],
+      "title": "hash_type != \"type\"",
+      "type": "row"
     },
     {
       "datasource": "PostgreSQL-ckb",
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "palette-classic"
+            "mode": "thresholds"
           },
           "custom": {
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
+            "align": "auto",
+            "displayMode": "auto"
           },
           "mappings": [],
           "thresholds": {
@@ -207,75 +95,64 @@
             ]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "type.code_hash"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 421
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "type.hash_type"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 111
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
-        "h": 9,
+        "h": 8,
         "w": 12,
-        "x": 12,
-        "y": 2
+        "x": 0,
+        "y": 3
       },
-      "id": 2,
+      "id": 17,
       "options": {
-        "legend": {
-          "calcs": [
-            "mean"
-          ],
-          "displayMode": "table",
-          "placement": "bottom"
-        },
-        "tooltip": {
-          "mode": "single"
-        }
+        "showHeader": true,
+        "sortBy": []
       },
+      "pluginVersion": "8.2.2",
       "targets": [
         {
-          "format": "time_series",
-          "group": [
-            {
-              "params": [
-                "$__interval",
-                "none"
-              ],
-              "type": "time"
-            }
-          ],
-          "metricColumn": "lock_code_hash",
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n  $__timeGroupAlias(creating_time,$__interval),\n  lock_code_hash AS metric,\n  avg(count(index)) OVER (PARTITION BY lock_code_hash ORDER BY $__timeGroup(creating_time,$__interval) ROWS 5 PRECEDING) AS \"index\"\nFROM $network.cell\nWHERE\n  $__timeFilter(creating_time) AND consuming_time IS NULL\nGROUP BY 1,2\nORDER BY 1,2",
+          "rawSql": "WITH non_type_cells AS (\n    SELECT * FROM $network.created_cell WHERE type_hash_type != 1 AND type_hash_type != 255\n)\nSELECT concat('_', type_code_hash) AS code_hash, type_hash_type AS hash_type, COUNT(*)\nFROM non_type_cells t1\nLEFT JOIN $network.spent_cell t2\nUSING (tx_hash, index)\nWHERE t2.tx_hash IS NULL\nGROUP BY type_code_hash, type_hash_type;\n\n",
           "refId": "A",
           "select": [
             [
               {
                 "params": [
-                  "index"
+                  "value"
                 ],
                 "type": "column"
-              },
-              {
-                "params": [
-                  "count"
-                ],
-                "type": "aggregate"
-              },
-              {
-                "params": [
-                  "avg",
-                  "5"
-                ],
-                "type": "moving_window"
-              },
-              {
-                "params": [
-                  "index"
-                ],
-                "type": "alias"
               }
             ]
           ],
-          "table": "$network.cell",
-          "timeColumn": "creating_time",
-          "timeColumnType": "timestamp",
+          "timeColumn": "time",
           "where": [
             {
               "name": "$__timeFilter",
@@ -285,11 +162,108 @@
           ]
         }
       ],
-      "title": "Total Cells",
-      "type": "timeseries"
+      "title": "Type Script",
+      "transformations": [],
+      "type": "table"
+    },
+    {
+      "datasource": "PostgreSQL-ckb",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "displayMode": "auto"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "type.code_hash"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 421
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "type.hash_type"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 111
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 3
+      },
+      "id": 18,
+      "options": {
+        "showHeader": true,
+        "sortBy": []
+      },
+      "pluginVersion": "8.2.2",
+      "targets": [
+        {
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "WITH non_type_cells AS (\n    SELECT * FROM $network.created_cell WHERE lock_hash_type != 1 AND lock_hash_type != 255\n)\nSELECT concat('_', lock_code_hash) AS code_hash, lock_hash_type AS hash_type, COUNT(*)\nFROM non_type_cells t1\nLEFT JOIN $network.spent_cell t2\nUSING (tx_hash, index)\nWHERE t2.tx_hash IS NULL\nGROUP BY lock_code_hash, lock_hash_type;\n",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "timeColumn": "time",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "Lock Script",
+      "type": "table"
     }
   ],
-  "refresh": false,
+  "refresh": "1d",
   "schemaVersion": 31,
   "style": "dark",
   "tags": [],
@@ -298,9 +272,9 @@
       {
         "allValue": null,
         "current": {
-          "selected": false,
-          "text": "ckb",
-          "value": "ckb"
+          "selected": true,
+          "text": "ckb_testnet",
+          "value": "ckb_testnet"
         },
         "description": "CKB network name",
         "error": null,
@@ -311,17 +285,18 @@
         "name": "network",
         "options": [
           {
-            "selected": true,
+            "selected": false,
             "text": "ckb",
             "value": "ckb"
           },
           {
-            "selected": false,
+            "selected": true,
             "text": "ckb_testnet",
             "value": "ckb_testnet"
           }
         ],
         "query": "ckb,ckb_testnet",
+        "queryValue": "",
         "skipUrlSync": false,
         "type": "custom"
       },
@@ -407,5 +382,5 @@
   "timezone": "",
   "title": "Cell",
   "uid": "zxreLM5nk",
-  "version": 4
+  "version": 7
 }
