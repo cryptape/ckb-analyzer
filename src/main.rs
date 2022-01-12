@@ -37,27 +37,32 @@ async fn main() {
 
     let pg_config = {
         let host = env::var_os("PGHOST")
-            .expect("requires environment variable \"PGHOST\"")
+            .or_else(|| env::var_os("POSTGRES_HOST"))
+            .expect("requires environment variable \"PGHOST\" or \"POSTGRES_HOST\"")
             .to_string_lossy()
             .to_string();
         let port = env::var_os("PGPORT")
+            .or_else(|| env::var_os("POSTGRES_PORT"))
             .map(|raw| {
                 raw.to_string_lossy()
                     .to_string()
                     .parse::<u16>()
-                    .expect("invalid environment variable \"PGPORT\"")
+                    .expect("invalid environment variable \"PGPORT\" or \"POSTGRES_PORT\"")
             })
-            .expect("requires environment variable \"PGPORT\"");
+            .expect("requires environment variable \"PGPORT\" or \"POSTGRES_PORT\"");
         let database = env::var_os("PGDATABASE")
-            .expect("requires environment variable \"PGDATABASE\"")
+            .or_else(|| env::var_os("POSTGRES_DB"))
+            .expect("requires environment variable \"PGDATABASE\" or \"POSTGRES_DB\"")
             .to_string_lossy()
             .to_string();
         let user = env::var_os("PGUSER")
-            .expect("requires environment variable \"PGUSER\"")
+            .or_else(|| env::var_os("POSTGRES_USER"))
+            .expect("requires environment variable \"PGUSER\" or \"POSTGRES_USER\"")
             .to_string_lossy()
             .to_string();
         let password = env::var_os("PGPASSWORD")
-            .expect("requires environment variable \"PGPASSWORD\"")
+            .or_else(|| env::var_os("POSTGRES_PASSWORD"))
+            .expect("requires environment variable \"PGPASSWORD\" or \"POSTGRES_PASSWORD\"")
             .to_string_lossy()
             .to_string();
         let mut config = tokio_postgres::Config::new();
