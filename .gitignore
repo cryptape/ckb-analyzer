@@ -8,3 +8,4 @@
 /docker/grafana/var/
 *.log
 .DS_Store
+/docker/prometheus/var/

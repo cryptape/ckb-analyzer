@@ -9,6 +9,7 @@ services:
       - "5432:5432"
     volumes:
       - "./postgresql/var/lib/postgresql/data:/var/lib/postgresql/data"
+    restart: always
 
   grafana:
     container_name: ckb-analyzer-grafana
@@ -22,3 +23,23 @@ services:
       - ./grafana/var/lib/grafana:/var/lib/grafana
     depends_on:
       - postgresql
+      - prometheus
+    restart: always
+
+  prometheus:
+    container_name: ckb-analyzer-prometheus
+    image: prom/prometheus:latest
+    volumes:
+      - ./prometheus/etc/prometheus:/etc/prometheus/
+      - ./prometheus/var/lib/prometheus:/var/lib/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/var/lib/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    ports:
+      - "9091:9090" # FIXME
+    extra_hosts:
+      # use `host.docker.internal` as host DNS name
+      - "host.docker.internal:host-gateway"
+    restart: always
