@@ -23,7 +23,7 @@
   "gnetId": null,
   "graphTooltip": 0,
   "id": 23,
-  "iteration": 1641288150895,
+  "iteration": 1641991445924,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -272,9 +272,9 @@
       {
         "allValue": null,
         "current": {
-          "selected": true,
-          "text": "ckb_testnet",
-          "value": "ckb_testnet"
+          "selected": false,
+          "text": "ckb",
+          "value": "ckb"
         },
         "description": "CKB network name",
         "error": null,
@@ -285,12 +285,12 @@
         "name": "network",
         "options": [
           {
-            "selected": false,
+            "selected": true,
             "text": "ckb",
             "value": "ckb"
           },
           {
-            "selected": true,
+            "selected": false,
             "text": "ckb_testnet",
             "value": "ckb_testnet"
           }

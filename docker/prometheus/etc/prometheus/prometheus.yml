@@ -20,12 +20,13 @@ rule_files:
 # Here it's Prometheus itself.
 scrape_configs:
   # The job name is added as a label `job=<job_name>` to any timeseries scraped from this config.
-  - job_name: "prometheus"
-
-    # metrics_path defaults to '/metrics'
+  - job_name: "ckb"
     metrics_path: '/'
-
-    # scheme defaults to 'http'.
-
     static_configs:
-      - targets: ["host.docker.internal:8100"]
+      - targets:
+        - "host.docker.internal:8100"
+
+  - job_name: "node-exporter"
+    static_configs:
+      - targets:
+        - "host.docker.internal:9100"
