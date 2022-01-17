@@ -29,6 +29,7 @@ services:
   prometheus:
     container_name: ckb-analyzer-prometheus
     image: prom/prometheus:latest
+    user: root
     volumes:
       - ./prometheus/etc/prometheus:/etc/prometheus/
       - ./prometheus/var/lib/prometheus:/var/lib/prometheus
