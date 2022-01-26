@@ -1,0 +1,70 @@
+version: '3'
+
+# TODO: all healthycheck on ckb-mainnet and ckb-testnet, then do healthcheck before starting ckb-analyzer
+
+services:
+  ckb-mainnet:
+    container_name: ckb-analyzer-ckb-mainnet
+    image: nervos/ckb:latest
+    environment:
+      CKB_CHAIN: mainnet
+    ports:
+      - "8200:8100"   # metrics
+      - "8214:8114"   # rpc
+      - "18214:18114" # subscription
+      - "8215:8115"   # network
+    volumes:
+      - ./ckb-mainnet:/var/lib/ckb
+    command: [ "run", "-C", "/var/lib/ckb" ]
+      # restart: always
+
+  ckb-testnet:
+    container_name: ckb-analyzer-ckb-testnet
+    image: nervos/ckb:latest
+    environment:
+      CKB_CHAIN: testnet
+    ports:
+      - "8300:8100"   # metrics
+      - "8314:8114"   # rpc
+      - "18314:18114" # subscription
+      - "8315:8115"   # network
+    volumes:
+      - ./ckb-testnet:/var/lib/ckb
+    command: [ "run", "-C", "/var/lib/ckb" ]
+      # restart: always
+
+  ckb-analyzer-mainnet:
+    container_name: ckb-analyzer-ckb-analyzer-mainnet
+    build: .
+    env_file: .env
+    depends_on:
+      - ckb-mainnet
+    command: 
+      - "/bin/ckb-analyzer"
+      - "--node.rpc"
+      - "http://ckb-mainnet:8114"
+      - "--node.subscription"
+      - "127.0.0.1:18114"
+      - "--topics"
+      - "ChainCrawler"
+    extra_hosts:
+      # use `host.docker.internal` as host DNS name
+      - "host.docker.internal:host-gateway"
+
+  ckb-analyzer-testnet:
+    container_name: ckb-analyzer-ckb-analyzer-testnet
+    build: .
+    env_file: .env
+    depends_on:
+      - ckb-testnet
+    command: 
+      - "/bin/ckb-analyzer"
+      - "--node.rpc"
+      - "http://ckb-testnet:8114"
+      - "--node.subscription"
+      - "127.0.0.1:18114"
+      - "--topics"
+      - "ChainCrawler"
+    extra_hosts:
+      # use `host.docker.internal` as host DNS name
+      - "host.docker.internal:host-gateway"
