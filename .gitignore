@@ -9,3 +9,5 @@
 *.log
 .DS_Store
 /docker/prometheus/var/
+/docker/ckb-mainnet/data/
+/docker/ckb-testnet/data/

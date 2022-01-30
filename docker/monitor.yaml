@@ -9,6 +9,11 @@ services:
       - "5432:5432"
     volumes:
       - "./postgresql/var/lib/postgresql/data:/var/lib/postgresql/data"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -p 5432"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     restart: always
 
   grafana:
@@ -58,5 +63,5 @@ services:
       - --collector.filesystem.ignored-mount-points
       - "^/(sys|proc|dev|host|etc|rootfs/var/lib/docker/containers|rootfs/var/lib/docker/overlay2|rootfs/run/docker/netns|rootfs/var/lib/docker/aufs)($$|/)"
     ports:
-      - 9100:9100
+      - "9100:9100"
     restart: always

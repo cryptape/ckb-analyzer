@@ -38,7 +38,7 @@ async fn main() {
     let pg_config = {
         let host = env::var_os("PGHOST")
             .or_else(|| env::var_os("POSTGRES_HOST"))
-            .expect("requires environment variable \"PGHOST\" or \"POSTGRES_HOST\"")
+            .unwrap_or("127.0.0.1".into())
             .to_string_lossy()
             .to_string();
         let port = env::var_os("PGPORT")
@@ -49,7 +49,7 @@ async fn main() {
                     .parse::<u16>()
                     .expect("invalid environment variable \"PGPORT\" or \"POSTGRES_PORT\"")
             })
-            .expect("requires environment variable \"PGPORT\" or \"POSTGRES_PORT\"");
+            .unwrap_or(5432);
         let database = env::var_os("PGDATABASE")
             .or_else(|| env::var_os("POSTGRES_DB"))
             .expect("requires environment variable \"PGDATABASE\" or \"POSTGRES_DB\"")
@@ -334,7 +334,7 @@ pub fn clap_app() -> App<'static, 'static> {
         .arg(
             Arg::with_name("node.subscription")
                 .long("node.subscription")
-                .value_name("SOCKET_ADDR")
+                .value_name("HOSTPORT")
                 .required(true)
                 .takes_value(true)
                 .validator(|s| {
