@@ -3,7 +3,7 @@ FROM ubuntu:20.04
 RUN apt update \
     && apt install -y wget
 
-RUN wget https://github.com/cryptape/ckb-analyzer/releases/download/v0.1.2/ckb-analyzer-linux-x86_64.tar.gz \
+RUN wget https://github.com/cryptape/ckb-analyzer/releases/download/rc-v0.1.3/ckb-analyzer-linux-x86_64.tar.gz \
     && tar xzf ckb-analyzer-linux-x86_64.tar.gz \
     && mv target/release/ckb-analyzer /bin/ckb-analyzer \
     && chmod +x /bin/ckb-analyzer \

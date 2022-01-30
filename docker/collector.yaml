@@ -41,12 +41,10 @@ services:
       - ckb-mainnet
     command: 
       - "/bin/ckb-analyzer"
-      - "--node.rpc"
+      - "--ckb-rpc-url"
       - "http://ckb-mainnet:8114"
-      - "--node.subscription"
-      - "127.0.0.1:18114"
-      - "--topics"
-      - "ChainCrawler"
+      - "--ckb-subscription-addr"
+      - "ckb-mainnet:18114"
     extra_hosts:
       # use `host.docker.internal` as host DNS name
       - "host.docker.internal:host-gateway"
@@ -59,12 +57,10 @@ services:
       - ckb-testnet
     command: 
       - "/bin/ckb-analyzer"
-      - "--node.rpc"
+      - "--ckb-rpc-url"
       - "http://ckb-testnet:8114"
-      - "--node.subscription"
-      - "127.0.0.1:18114"
-      - "--topics"
-      - "ChainCrawler"
+      - "--ckb-subscription-addr"
+      - "ckb-testnet:18114"
     extra_hosts:
       # use `host.docker.internal` as host DNS name
       - "host.docker.internal:host-gateway"
