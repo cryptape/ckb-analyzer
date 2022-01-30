@@ -7,7 +7,6 @@ use crate::util::crossbeam_channel_to_tokio_channel;
 use ckb_testkit::{connector::SharedState, ConnectorBuilder, Node};
 use clap::{crate_version, values_t_or_exit, App, Arg};
 use std::env;
-use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
@@ -39,22 +38,14 @@ async fn main() {
             .map_err(|err| panic!("Invalid CKB RPC url, url: \"{}\", error: {:?}", raw, err));
         raw
     };
-    let subscription_addr = {
-        let raw = match matches.value_of("ckb-subscription-addr") {
-            Some(raw) => raw.to_string(),
-            None => match env::var_os("CKB_SUBSCRIPTION_ADDR") {
-                Some(raw) => raw.to_string_lossy().to_string(),
-                None => {
-                    panic!("Miss CKB subscription addr via neither --ckb-subscription-addr nor environment variable \"CKB_SUBSCRIPTION_ADDR\"");
-                }
-            },
-        };
-        raw.parse::<SocketAddr>().unwrap_or_else(|err| {
-            panic!(
-                "Invalid CKB subscription addr, addr: \"{}\", error: {:?}",
-                raw, err
-            )
-        })
+    let subscription_addr = match matches.value_of("ckb-subscription-addr") {
+        Some(raw) => raw.to_string(),
+        None => match env::var_os("CKB_SUBSCRIPTION_ADDR") {
+            Some(raw) => raw.to_string_lossy().to_string(),
+            None => {
+                panic!("Miss CKB subscription addr via neither --ckb-subscription-addr nor environment variable \"CKB_SUBSCRIPTION_ADDR\"");
+            }
+        },
     };
     let topics = values_t_or_exit!(matches, "topics", String);
     log::info!("CKB CKB RPC: \"{}\"", rpc_url);
@@ -205,11 +196,13 @@ async fn main() {
             }
             "SubscribeNewTransaction" => {
                 let mut handler = SubscribeNewTransaction::new(node.clone(), query_sender.clone());
+                let subscription_addr = subscription_addr.clone();
                 tokio::spawn(async move {
                     handler.run(subscription_addr).await;
                 });
             }
             "SubscribeProposedTransaction" => {
+                let subscription_addr = subscription_addr.clone();
                 let mut handler =
                     SubscribeProposedTransaction::new(node.clone(), query_sender.clone());
                 tokio::spawn(async move {
@@ -217,6 +210,7 @@ async fn main() {
                 });
             }
             "SubscribeRejectedTransaction" => {
+                let subscription_addr = subscription_addr.clone();
                 let mut handler =
                     SubscribeRejectedTransaction::new(node.clone(), query_sender.clone());
                 tokio::spawn(async move {

@@ -679,7 +679,7 @@ dependencies = [
 [[package]]
 name = "ckb-testkit"
 version = "0.0.1"
-source = "git+https://github.com/keroro520/ckb-integration-test?rev=485fde9d108f49bcdb86806eae8fb3c9df0388c0#485fde9d108f49bcdb86806eae8fb3c9df0388c0"
+source = "git+https://github.com/keroro520/ckb-integration-test?rev=f915a032fe356d173c170c4b188d1675786dd776#f915a032fe356d173c170c4b188d1675786dd776"
 dependencies = [
  "bytes 1.1.0",
  "ckb-crypto",
