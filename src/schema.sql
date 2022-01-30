@@ -27,7 +27,9 @@ CREATE TABLE IF NOT EXISTS ckb.block (
     miner_lock_args             VARCHAR ( 100 ) NULL,
     cellbase_client_version     VARCHAR ( 50 )  NULL,
     cellbase_miner_source       VARCHAR ( 50 )  NULL,
-    interval                    BIGINT          NOT NULL
+    interval                    BIGINT          NOT NULL,
+    hash                        VARCHAR ( 66 )  NULL,
+    PRIMARY KEY (number)
 );
 CREATE TABLE IF NOT EXISTS ckb.tx_pool_info (
     time                TIMESTAMP       NOT NULL,
@@ -47,7 +49,8 @@ CREATE TABLE IF NOT EXISTS ckb.block_transaction (
     n_cell_deps         INT             NOT NULL,
     total_data_size     BIGINT          NOT NULL,
     proposal_id         VARCHAR ( 66 )  NOT NULL,
-    hash                VARCHAR ( 66 )  NOT NULL
+    hash                VARCHAR ( 66 )  NOT NULL,
+    PRIMARY KEY (number)
 );
 CREATE TABLE IF NOT EXISTS ckb.subscribed_new_transaction (
     time                TIMESTAMP       NOT NULL,
@@ -155,7 +158,9 @@ CREATE TABLE IF NOT EXISTS ckb_testnet.block (
     miner_lock_args             VARCHAR ( 100 ) NULL,
     cellbase_client_version     VARCHAR ( 50 )  NULL,
     cellbase_miner_source       VARCHAR ( 50 )  NULL,
-    interval                    BIGINT          NOT NULL
+    interval                    BIGINT          NOT NULL,
+    hash                        VARCHAR ( 66 )  NOT NULL,
+    PRIMARY KEY (number)
 );
 CREATE TABLE IF NOT EXISTS ckb_testnet.tx_pool_info (
     time                TIMESTAMP       NOT NULL,
@@ -175,7 +180,8 @@ CREATE TABLE IF NOT EXISTS ckb_testnet.block_transaction (
     n_cell_deps         INT             NOT NULL,
     total_data_size     BIGINT          NOT NULL,
     proposal_id         VARCHAR ( 66 )  NOT NULL,
-    hash                VARCHAR ( 66 )  NOT NULL
+    hash                VARCHAR ( 66 )  NOT NULL,
+    PRIMARY KEY (number)
 );
 CREATE TABLE IF NOT EXISTS ckb_testnet.subscribed_new_transaction (
     time                TIMESTAMP       NOT NULL,
@@ -268,7 +274,6 @@ SELECT create_hypertable('ckb.subscribed_new_transaction', 'time', migrate_data 
 SELECT create_hypertable('ckb.subscribed_proposed_transaction', 'time', migrate_data => true);
 SELECT create_hypertable('ckb.subscribed_rejected_transaction', 'time', migrate_data => true);
 SELECT create_hypertable('ckb.retention_transaction', 'time', migrate_data => true);
-SELECT create_hypertable('ckb.cell', 'creating_time', migrate_data => true);
 SELECT create_hypertable('ckb.created_cell', 'time', migrate_data => true);
 SELECT create_hypertable('ckb.spent_cell', 'time', migrate_data => true);
 SELECT create_hypertable('ckb.compact_block_first_seen', 'time', migrate_data => true);

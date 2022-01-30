@@ -28,12 +28,9 @@ async fn main() {
     let rpc_url = value_t_or_exit!(matches, "node.rpc", String);
     let subscription_addr = value_t_or_exit!(matches, "node.subscription", SocketAddr);
     let topics = values_t_or_exit!(matches, "topics", String);
-    log::info!(
-        "CKBAnalyzer parameters: node.rpc={}, node.subscription={}, topics: {:?}",
-        rpc_url,
-        subscription_addr,
-        topics
-    );
+    log::info!("CKB Node RPC: \"{}\"", rpc_url);
+    log::info!("CKB Node Subscription: \"{}\"", subscription_addr);
+    log::info!("Topics: {:?}", topics);
 
     let pg_config = {
         let host = env::var_os("PGHOST")
@@ -208,7 +205,7 @@ async fn main() {
                     match pg
                         .query_opt(
                             format!(
-                                "SELECT creating_number FROM {}.cell ORDER BY creating_time DESC LIMIT 1",
+                                "SELECT block_number FROM {}.created_cell ORDER BY time DESC LIMIT 1",
                                 node.consensus().id,
                             )
                             .as_str(),
