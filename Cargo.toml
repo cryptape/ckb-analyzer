@@ -1,6 +1,6 @@
 [package]
 name = "ckb-analyzer"
-version = "0.1.2"
+version = "0.1.4"
 license = "MIT"
 authors = ["keroro <keroroxx520@gmail.com>"]
 edition = "2018"
@@ -17,7 +17,7 @@ log = { version = "0.4.11" }
 simple_logger = { version = "1.11.0", default-features = false }
 tokio-postgres = { version = "0.7.0", features = ["with-chrono-0_4", "runtime"] }
 ipinfo = { version = "0.2.0" }
-ckb-testkit = { git = "https://github.com/keroro520/ckb-integration-test", rev = "f915a032fe356d173c170c4b188d1675786dd776", features = ["with_subscribe"] }
+ckb-testkit = { git = "https://github.com/nervosnetwork/ckb-integration-test", rev = "7c4aaa6f72df4bcf4077495c6371c61dcb767890", features = ["with_subscribe"] }
 clap = { version = "2" }
 url = "1.7.2"
 futures = "0.3"
