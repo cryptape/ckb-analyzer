@@ -5,7 +5,7 @@ use crate::topic::{
 };
 use crate::util::crossbeam_channel_to_tokio_channel;
 use ckb_testkit::{connector::SharedState, ConnectorBuilder, Node};
-use clap::{crate_version, value_t_or_exit, values_t_or_exit, App, Arg};
+use clap::{crate_version, values_t_or_exit, App, Arg};
 use std::env;
 use std::net::SocketAddr;
 use std::path::PathBuf;
@@ -25,10 +25,39 @@ async fn main() {
     log::info!("CKBAnalyzer starting");
 
     let matches = clap_app().get_matches();
-    let rpc_url = value_t_or_exit!(matches, "node.rpc", String);
-    let subscription_addr = value_t_or_exit!(matches, "node.subscription", SocketAddr);
+    let rpc_url = {
+        let raw = match matches.value_of("ckb-rpc-url") {
+            Some(raw) => raw.to_string(),
+            None => match env::var_os("CKB_RPC_URL") {
+                Some(raw) => raw.to_string_lossy().to_string(),
+                None => {
+                    panic!("Miss CKB Rpc url via neither --ckb-rpc-url nor environment variable \"CKB_RPC_URL\"");
+                }
+            },
+        };
+        let _ = url::Url::parse(&raw)
+            .map_err(|err| panic!("Invalid CKB RPC url, url: \"{}\", error: {:?}", raw, err));
+        raw
+    };
+    let subscription_addr = {
+        let raw = match matches.value_of("ckb-subscription-addr") {
+            Some(raw) => raw.to_string(),
+            None => match env::var_os("CKB_SUBSCRIPTION_ADDR") {
+                Some(raw) => raw.to_string_lossy().to_string(),
+                None => {
+                    panic!("Miss CKB subscription addr via neither --ckb-subscription-addr nor environment variable \"CKB_SUBSCRIPTION_ADDR\"");
+                }
+            },
+        };
+        raw.parse::<SocketAddr>().unwrap_or_else(|err| {
+            panic!(
+                "Invalid CKB subscription addr, addr: \"{}\", error: {:?}",
+                raw, err
+            )
+        })
+    };
     let topics = values_t_or_exit!(matches, "topics", String);
-    log::info!("CKB Node RPC: \"{}\"", rpc_url);
+    log::info!("CKB CKB RPC: \"{}\"", rpc_url);
     log::info!("CKB Node Subscription: \"{}\"", subscription_addr);
     log::info!("Topics: {:?}", topics);
 
@@ -317,28 +346,18 @@ pub fn clap_app() -> App<'static, 'static> {
                 }),
         )
         .arg(
-            Arg::with_name("node.rpc")
-                .long("node.rpc")
+            Arg::with_name("ckb-rpc-url")
+                .long("ckb-rpc-url")
                 .value_name("URL")
-                .required(true)
-                .takes_value(true)
-                .validator(|s| {
-                    url::Url::parse(&s)
-                        .map(|_| ())
-                        .map_err(|err| err.to_string())
-                }),
+                .required(false)
+                .takes_value(true),
         )
         .arg(
-            Arg::with_name("node.subscription")
-                .long("node.subscription")
-                .value_name("HOSTPORT")
-                .required(true)
-                .takes_value(true)
-                .validator(|s| {
-                    s.parse::<SocketAddr>()
-                        .map(|_| ())
-                        .map_err(|err| err.to_string())
-                }),
+            Arg::with_name("ckb-subscription-addr")
+                .long("ckb-subscription-addr")
+                .value_name("HOST:PORT")
+                .required(false)
+                .takes_value(true),
         )
         .arg(
             Arg::with_name("topics")
