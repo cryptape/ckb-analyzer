@@ -21,7 +21,7 @@ impl ChainCrawler {
     }
 
     pub async fn run(&self, last_block_number: BlockNumber) {
-        let mut current_number = max(1, last_block_number + 1);
+        let mut current_number = max(1, last_block_number);
         let mut tip_number = self.node.get_tip_block_number();
         loop {
             // Keep `BLOCK_CONFIRMATION` distance with node's tip
@@ -83,6 +83,7 @@ impl ChainCrawler {
                 .map(|arg| format!("{:#x}", arg))
                 .unwrap_or_else(|| "-".to_string()),
             interval: interval as i64,
+            hash: block.hash(),
         };
         self.retry_send_entry_query(&entry).await;
     }
@@ -90,8 +91,9 @@ impl ChainCrawler {
     async fn retry_send_entry_query(&self, entry: &entry::Block) {
         let query =
             format!(
-                "INSERT INTO {}.block(time, number, n_transactions, n_proposals, n_uncles, miner_lock_args, cellbase_client_version, cellbase_miner_source, interval) \
-            VALUES ('{}', {}, {}, {}, {}, '{}', '{}', '{}', {})",
+                "INSERT INTO {}.block(time, number, n_transactions, n_proposals, n_uncles, miner_lock_args, cellbase_client_version, cellbase_miner_source, interval, hash) \
+            VALUES ('{}', {}, {}, {}, {}, '{}', '{}', '{}', {}, '{:#x}') \
+            ON CONFLICT (number) DO NOTHING",
                 entry.network,
                 entry.time,
                 entry.number,
@@ -102,6 +104,7 @@ impl ChainCrawler {
                 entry.cellbase_client_version,
                 entry.cellbase_miner_source,
                 entry.interval,
+                entry.hash,
         );
         loop {
             match self.query_sender.send(query.clone()) {

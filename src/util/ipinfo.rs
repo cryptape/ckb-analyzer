@@ -7,7 +7,7 @@ lazy_static! {
         let ipinfo_io_token = match ::std::env::var("IPINFO_IO_TOKEN") {
             Ok(token) if !token.is_empty() => Some(token),
             _ => {
-                log::warn!("miss environment variable \"IPINFO_IO_TOKEN\", use empty value");
+                log::warn!("Miss environment variable \"IPINFO_IO_TOKEN\", use empty value");
                 None
             }
         };
@@ -16,7 +16,7 @@ lazy_static! {
             cache_size: 10000,
             timeout: ::std::time::Duration::from_secs(365 * 24 * 60 * 60),
         })
-        .expect("connect to https://ipinfo.io");
+        .expect("Connect to https://ipinfo.io");
         RwLock::new(ipinfo)
     };
 }

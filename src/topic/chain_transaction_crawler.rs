@@ -17,7 +17,7 @@ impl ChainTransactionCrawler {
     }
 
     pub async fn run(&self, last_block_number: BlockNumber) {
-        let mut current_number = max(1, last_block_number + 1);
+        let mut current_number = max(1, last_block_number);
         let mut tip_number = self.node.get_tip_block_number();
         loop {
             // Keep `BLOCK_CONFIRMATION` distance with node's tip
@@ -62,7 +62,8 @@ impl ChainTransactionCrawler {
             };
             let raw_query = format!(
                 "INSERT INTO {}.block_transaction(time, number, size, n_inputs, n_outputs, n_header_deps, n_cell_deps, total_data_size, proposal_id, hash) \
-                VALUES ('{}', {}, {}, {}, {}, {}, {}, {}, '{}', '{}')",
+                VALUES ('{}', {}, {}, {}, {}, {}, {}, {}, '{}', '{}') \
+                ON CONFLICT (number) DO NOTHING",
                 entry.network,
                 entry.time,
                 entry.number,

@@ -38,6 +38,7 @@ pub struct Block {
     pub cellbase_miner_source: String,
     pub miner_lock_args: String,
     pub interval: i64, // ms
+    pub hash: Byte32,
 }
 
 /// Epoch Info
