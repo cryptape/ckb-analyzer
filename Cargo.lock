@@ -679,8 +679,7 @@ dependencies = [
 [[package]]
 name = "ckb-testkit"
 version = "0.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8863e6347fc43832fddf3ebdba424c6dc245cb1e242b7a46fbb63393981c8c72"
+source = "git+https://github.com/keroro520/ckb-integration-test?rev=f915a032fe356d173c170c4b188d1675786dd776#f915a032fe356d173c170c4b188d1675786dd776"
 dependencies = [
  "bytes 1.1.0",
  "ckb-crypto",

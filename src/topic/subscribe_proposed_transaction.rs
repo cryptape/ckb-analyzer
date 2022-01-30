@@ -2,7 +2,7 @@ use crate::ckb_types::{packed, prelude::Pack};
 use crate::entry;
 use ckb_testkit::Node;
 use futures::stream::StreamExt;
-use std::net::SocketAddr;
+use tokio::net::ToSocketAddrs;
 
 pub struct SubscribeProposedTransaction {
     node: Node,
@@ -14,7 +14,7 @@ impl SubscribeProposedTransaction {
         Self { node, query_sender }
     }
 
-    pub async fn run(&mut self, subscription_addr: SocketAddr) {
+    pub async fn run<A: ToSocketAddrs>(&mut self, subscription_addr: A) {
         self.node
             .subscribe_proposed_transaction(subscription_addr)
             .await;
