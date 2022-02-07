@@ -1,9 +1,10 @@
 use ipinfo::{IpDetails, IpError, IpInfo};
 use lazy_static::lazy_static;
-use std::sync::RwLock;
+use std::collections::HashMap;
+use std::sync::Mutex;
 
 lazy_static! {
-    static ref IPINFO: RwLock<IpInfo> = {
+    static ref IPINFO: Mutex<IpInfo> = {
         let ipinfo_io_token = match ::std::env::var("IPINFO_IO_TOKEN") {
             Ok(token) if !token.is_empty() => Some(token),
             _ => {
@@ -17,11 +18,50 @@ lazy_static! {
             timeout: ::std::time::Duration::from_secs(365 * 24 * 60 * 60),
         })
         .expect("Connect to https://ipinfo.io");
-        RwLock::new(ipinfo)
+        Mutex::new(ipinfo)
     };
+    static ref IPINFO_CACHE: Mutex<HashMap<String, IpDetails>> = Mutex::new(Default::default());
 }
 
 pub fn lookup_ipinfo(ip: &str) -> Result<IpDetails, IpError> {
-    let infos = IPINFO.write().unwrap().lookup(&[ip])?;
-    Ok(infos[ip].to_owned())
+    if let Ok(cache) = IPINFO_CACHE.lock() {
+        if let Some(ipdetails) = cache.get(&ip.to_string()) {
+            return Ok(ipdetails.clone());
+        }
+    }
+
+    if let Ok(mut ipinfo) = IPINFO.lock() {
+        match ipinfo.lookup(&[ip]) {
+            Ok(ipdetails) => {
+                if let Ok(mut cache) = IPINFO_CACHE.lock() {
+                    cache.insert(ip.to_string(), ipdetails[ip].to_owned());
+                }
+
+                return Ok(ipdetails[ip].to_owned());
+            }
+            Err(err) => return Err(err),
+        }
+    }
+
+    unreachable!()
+}
+
+pub mod test {
+    use crate::util::ipinfo::{lookup_ipinfo, IPINFO_CACHE};
+
+    #[test]
+    #[ignore] // This case needs env var "IPINFO_IO_TOKEN"
+    fn test_lookup_ipinfo_cache() {
+        {
+            let cache = IPINFO_CACHE.lock().unwrap();
+            assert!(cache.get("8.8.8.8").is_none());
+        }
+
+        let _ipdetails = lookup_ipinfo("8.8.8.8").unwrap();
+
+        {
+            let cache = IPINFO_CACHE.lock().unwrap();
+            assert!(cache.get("8.8.8.8").is_some());
+        }
+    }
 }
