@@ -47,11 +47,10 @@ pub fn lookup_ipinfo(ip: &str) -> Result<IpDetails, IpError> {
 }
 
 pub mod test {
-    use crate::util::ipinfo::{lookup_ipinfo, IPINFO_CACHE};
-
     #[test]
     #[ignore] // This case needs env var "IPINFO_IO_TOKEN"
     fn test_lookup_ipinfo_cache() {
+        use crate::util::ipinfo::{lookup_ipinfo, IPINFO_CACHE};
         {
             let cache = IPINFO_CACHE.lock().unwrap();
             assert!(cache.get("8.8.8.8").is_none());
